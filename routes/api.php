@@ -22,6 +22,7 @@ Route::prefix('v2')->name('api.v2.')->group(function (): void {
             Route::get('/loans', [CollectorController::class, 'loans'])->name('loans');
             Route::get('/loans/{loan}', [CollectorController::class, 'loan'])->name('loans.show');
             Route::get('/installments', [CollectorController::class, 'installments'])->name('installments');
+            Route::get('/installments/{installment}', [CollectorController::class, 'installment'])->name('installments.show');
             Route::get('/payments', [CollectorController::class, 'payments'])->name('payments');
             Route::get('/payments/{payment}', [CollectorController::class, 'payment'])->name('payments.show');
             Route::post('/payments', [CollectorController::class, 'storePayment'])->name('payments.store');

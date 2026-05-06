@@ -73,6 +73,21 @@ class ApiV2CollectorTest extends TestCase
             ->assertJsonPath('data.summary.installments_pending', 1);
     }
 
+    public function test_collector_can_read_installment_detail(): void
+    {
+        [$user, , $loan] = $this->collectorWithLoan();
+        $token = $this->loginToken($user);
+        $installment = $loan->installments()->firstOrFail();
+
+        $this->withToken($token)
+            ->getJson("/api/v2/collector/installments/{$installment->id}")
+            ->assertOk()
+            ->assertJsonPath('data.id', $installment->id)
+            ->assertJsonPath('data.loan_id', $loan->id)
+            ->assertJsonPath('data.client.id', $loan->client_id)
+            ->assertJsonPath('data.payments', []);
+    }
+
     public function test_collector_can_register_payment_for_assigned_loan(): void
     {
         [$user, $collector, $loan] = $this->collectorWithLoan();
@@ -157,6 +172,12 @@ class ApiV2CollectorTest extends TestCase
 
         $this->withToken($token)
             ->getJson("/api/v2/collector/loans/{$foreignLoan->id}")
+            ->assertNotFound();
+
+        $foreignInstallment = $foreignLoan->installments()->firstOrFail();
+
+        $this->withToken($token)
+            ->getJson("/api/v2/collector/installments/{$foreignInstallment->id}")
             ->assertNotFound();
     }
 
