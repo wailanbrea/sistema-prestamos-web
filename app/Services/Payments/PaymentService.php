@@ -53,7 +53,7 @@ class PaymentService
     }
 
     /**
-     * @param array{loan_id:int, amount:float, payment_date:string, payment_method:string, collector_id?:int|null, created_by?:int|null} $data
+     * @param array{loan_id:int, amount:float, payment_date:string, payment_method:string, mobile_uuid?:string|null, collector_id?:int|null, created_by?:int|null} $data
      */
     public function register(array $data): Payment
     {
@@ -72,6 +72,26 @@ class PaymentService
                 throw new InvalidArgumentException('Solo se pueden registrar pagos a préstamos activos o atrasados.');
             }
 
+            $mobileUuid = $data['mobile_uuid'] ?? null;
+            if ($mobileUuid) {
+                $existingPayment = Payment::query()
+                    ->where('company_id', $loan->company_id)
+                    ->where('mobile_uuid', $mobileUuid)
+                    ->lockForUpdate()
+                    ->first();
+
+                if ($existingPayment) {
+                    if (
+                        (int) $existingPayment->loan_id !== (int) $loan->id
+                        || (int) $existingPayment->collector_id !== (int) ($data['collector_id'] ?? $loan->collector_id)
+                    ) {
+                        throw new InvalidArgumentException('Este identificador móvil ya fue usado por otro cobro.');
+                    }
+
+                    return $existingPayment->fresh(['details']) ?? $existingPayment;
+                }
+            }
+
             $remainingPayment = round((float) $data['amount'], 2);
             $principalPaid = 0.0;
             $interestPaid = 0.0;
@@ -84,6 +104,7 @@ class PaymentService
                 'client_id' => $loan->client_id,
                 'collector_id' => $data['collector_id'] ?? $loan->collector_id,
                 'receipt_number' => $this->receiptNumber(),
+                'mobile_uuid' => $mobileUuid,
                 'payment_date' => $data['payment_date'],
                 'amount' => $remainingPayment,
                 'payment_method' => $data['payment_method'],

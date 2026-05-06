@@ -113,6 +113,41 @@ class ApiV2CollectorTest extends TestCase
         ]);
     }
 
+    public function test_collector_payment_registration_is_idempotent_by_mobile_uuid(): void
+    {
+        [$user, $collector, $loan] = $this->collectorWithLoan();
+        $token = $this->loginToken($user);
+        $mobileUuid = '0dd9e8f0-4901-4724-8d58-fc5be02f0034';
+        $payload = [
+            'loan_id' => $loan->id,
+            'payment_date' => '2026-05-06',
+            'amount' => 1100,
+            'payment_method' => 'cash',
+            'mobile_uuid' => $mobileUuid,
+        ];
+
+        $paymentId = $this->withToken($token)
+            ->postJson('/api/v2/collector/payments', $payload)
+            ->assertCreated()
+            ->assertJsonPath('data.mobile_uuid', $mobileUuid)
+            ->json('data.id');
+
+        $this->withToken($token)
+            ->postJson('/api/v2/collector/payments', $payload)
+            ->assertOk()
+            ->assertJsonPath('data.id', $paymentId)
+            ->assertJsonPath('data.collector.id', $collector->id)
+            ->assertJsonPath('data.mobile_uuid', $mobileUuid);
+
+        $this->assertDatabaseCount('payments', 1);
+        $this->assertDatabaseHas('payments', [
+            'id' => $paymentId,
+            'loan_id' => $loan->id,
+            'collector_id' => $collector->id,
+            'mobile_uuid' => $mobileUuid,
+        ]);
+    }
+
     public function test_collector_can_read_payment_history_and_payment_detail(): void
     {
         [$user, $collector, $loan] = $this->collectorWithLoan();

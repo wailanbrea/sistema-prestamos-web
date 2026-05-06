@@ -222,6 +222,25 @@ class CollectorController extends Controller
     {
         $collector = $this->collectorForUser($request);
 
+        $replayValidated = $request->validate([
+            'loan_id' => ['required', 'integer'],
+            'mobile_uuid' => ['nullable', 'uuid'],
+        ]);
+
+        if (! empty($replayValidated['mobile_uuid'])) {
+            $existingPayment = $this->assignedPaymentQuery($collector)
+                ->with(['loan.client', 'collector', 'details.installment'])
+                ->where('loan_id', $replayValidated['loan_id'])
+                ->where('mobile_uuid', $replayValidated['mobile_uuid'])
+                ->first();
+
+            if ($existingPayment) {
+                return response()->json([
+                    'data' => $this->paymentPayload($existingPayment),
+                ]);
+            }
+        }
+
         $validated = $request->validate([
             'loan_id' => [
                 'required',
@@ -234,6 +253,7 @@ class CollectorController extends Controller
             'payment_date' => ['required', 'date'],
             'amount' => ['required', 'numeric', 'min:0.01', 'max:999999999.99'],
             'payment_method' => ['required', Rule::in(['cash', 'transfer', 'card', 'check', 'other'])],
+            'mobile_uuid' => ['nullable', 'uuid'],
         ]);
 
         try {
@@ -516,6 +536,7 @@ class CollectorController extends Controller
             'previous_balance' => (float) $payment->previous_balance,
             'new_balance' => (float) $payment->new_balance,
             'payment_method' => $payment->payment_method,
+            'mobile_uuid' => $payment->mobile_uuid,
             'status' => $payment->status,
             'details' => $payment->relationLoaded('details')
                 ? $payment->details->map(fn ($detail): array => [
