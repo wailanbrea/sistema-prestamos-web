@@ -9,6 +9,8 @@ use Illuminate\Support\Facades\Route;
 
 Route::prefix('v2')->name('api.v2.')->group(function (): void {
     Route::post('/auth/login', [AuthController::class, 'login'])->name('auth.login');
+    Route::post('/auth/forgot-password', [AuthController::class, 'forgotPassword'])->name('auth.forgot-password');
+    Route::post('/auth/reset-password', [AuthController::class, 'resetPassword'])->name('auth.reset-password');
 
     Route::middleware(['auth:sanctum', 'user.active', 'company.active', 'permission.company'])->group(function (): void {
         Route::post('/auth/logout', [AuthController::class, 'logout'])->name('auth.logout');

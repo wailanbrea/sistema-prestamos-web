@@ -8,7 +8,10 @@ use App\Models\Company;
 use App\Models\User;
 use Database\Seeders\RolePermissionSeeder;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Auth\Notifications\ResetPassword;
 use Illuminate\Support\Facades\Hash;
+use Illuminate\Support\Facades\Notification;
+use Illuminate\Support\Facades\Password;
 use Laravel\Sanctum\PersonalAccessToken;
 use Spatie\Permission\PermissionRegistrar;
 use Tests\TestCase;
@@ -86,6 +89,37 @@ class ApiV2AuthenticationTest extends TestCase
             ->assertOk();
 
         $this->assertSame(0, PersonalAccessToken::query()->count());
+    }
+
+    public function test_mobile_user_can_request_password_reset_link(): void
+    {
+        Notification::fake();
+        $user = $this->userWithRole('Administrador');
+
+        $this->postJson('/api/v2/auth/forgot-password', [
+            'email' => $user->email,
+        ])
+            ->assertOk()
+            ->assertJsonPath('message', 'Si el correo existe, enviaremos las instrucciones para restablecer la contraseña.');
+
+        Notification::assertSentTo($user, ResetPassword::class);
+    }
+
+    public function test_mobile_user_can_reset_password_with_valid_token(): void
+    {
+        $user = $this->userWithRole('Administrador');
+        $token = Password::createToken($user);
+
+        $this->postJson('/api/v2/auth/reset-password', [
+            'email' => $user->email,
+            'token' => $token,
+            'password' => 'NuevaClave123!',
+            'password_confirmation' => 'NuevaClave123!',
+        ])
+            ->assertOk()
+            ->assertJsonPath('message', 'Contraseña restablecida correctamente.');
+
+        $this->assertTrue(Hash::check('NuevaClave123!', $user->fresh()->password));
     }
 
     private function userWithRole(string $role, string $status = 'active'): User
