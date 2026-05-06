@@ -1,0 +1,26 @@
+<?php
+
+declare(strict_types=1);
+
+use App\Http\Controllers\Api\V2\AuthController;
+use App\Http\Controllers\Api\V2\CollectorController;
+use App\Http\Controllers\Api\V2\DashboardController;
+use Illuminate\Support\Facades\Route;
+
+Route::prefix('v2')->name('api.v2.')->group(function (): void {
+    Route::post('/auth/login', [AuthController::class, 'login'])->name('auth.login');
+
+    Route::middleware(['auth:sanctum', 'user.active', 'company.active', 'permission.company'])->group(function (): void {
+        Route::post('/auth/logout', [AuthController::class, 'logout'])->name('auth.logout');
+        Route::get('/me', [AuthController::class, 'me'])->name('me');
+        Route::get('/dashboard', DashboardController::class)->middleware('permission:dashboard.view')->name('dashboard');
+
+        Route::prefix('collector')->name('collector.')->middleware('permission:payments.create')->group(function (): void {
+            Route::get('/summary', [CollectorController::class, 'summary'])->name('summary');
+            Route::get('/clients', [CollectorController::class, 'clients'])->name('clients');
+            Route::get('/loans', [CollectorController::class, 'loans'])->name('loans');
+            Route::get('/installments', [CollectorController::class, 'installments'])->name('installments');
+            Route::post('/payments', [CollectorController::class, 'storePayment'])->name('payments.store');
+        });
+    });
+});

@@ -1,0 +1,657 @@
+# Sistema Prestamista - Especificación Técnica y Funcional
+
+## 1. Objetivo
+
+Construir una plataforma web profesional para gestión de préstamos, clientes, cobradores, pagos, moras, caja, gastos, documentos legales, recibos, reportes financieros y dashboard de inversión.
+
+El sistema debe operar como SaaS multiempresa. Cada empresa debe tener sus propios usuarios, clientes, préstamos, rutas, cobradores, pagos, gastos, documentos, reportes y configuraciones. Ningún usuario debe poder consultar, modificar o exportar datos de otra empresa.
+
+## 2. Stack técnico definido
+
+- Backend: Laravel 12.
+- Lenguaje: PHP 8.3 o superior en producción.
+- Base de datos: MySQL 8 o superior.
+- Frontend: Blade, Bootstrap 5 y estilo visual tipo Argon Dashboard.
+- Autenticación: Laravel Breeze o implementación equivalente basada en Laravel Auth.
+- Roles y permisos: Spatie Laravel Permission con contexto multiempresa por `company_id`.
+- PDF: DomPDF inicialmente; Snappy solo si se requiere mejor fidelidad de impresión.
+- Excel: pendiente de instalar versión moderna y segura de Laravel Excel.
+- Servidor objetivo: Windows VPS con Apache.
+- Futuro cliente móvil: Android Kotlin para cobradores e impresión Bluetooth.
+
+## 2.1 Arquitectura cloud y disponibilidad
+
+El sistema debe operar desde cualquier lugar mediante una instalación web segura.
+
+Arquitectura recomendada:
+
+- Aplicación Laravel desplegada en VPS Windows con Apache o en servidor Linux si se permite mejorar la operación.
+- Base de datos MySQL alojada en servidor seguro con acceso restringido por firewall, usuario y contraseña fuerte.
+- HTTPS obligatorio.
+- Backups automáticos de base de datos.
+- Backups de documentos, recibos, fotos y comprobantes.
+- Storage privado para archivos sensibles.
+- Variables sensibles solo en `.env`; nunca en código.
+- Logs separados para aplicación, errores y auditoría.
+- Política de retención para auditoría, documentos y respaldos.
+
+Reglas de seguridad cloud:
+
+- No exponer MySQL públicamente sin firewall.
+- No usar usuario `root` de MySQL en producción.
+- Usar `APP_DEBUG=false` en producción.
+- Usar `SESSION_SECURE_COOKIE=true` cuando exista HTTPS.
+- Revisar `composer audit` antes de cada despliegue.
+
+## 3. Principios obligatorios
+
+- Separación estricta entre controladores, servicios de negocio, validadores, modelos y vistas.
+- Cero lógica financiera crítica dentro de controladores o vistas.
+- Toda operación crítica debe ejecutarse dentro de transacciones de base de datos.
+- Toda actualización de balance debe ser atómica y auditable.
+- Todo acceso a datos debe filtrar por `company_id`.
+- Todo input externo debe validarse con Form Requests o validadores explícitos.
+- Los reportes deben consultar datos ya consistentes, no recalcular reglas críticas de forma dispersa.
+- El diseño debe estar completamente en español, ser responsive y usable en escritorio, tablet y móvil.
+
+## 4. Estado actual del proyecto
+
+Ya existe una base Laravel 12 funcional con:
+
+- Migraciones principales del dominio.
+- Modelos Eloquent iniciales.
+- Relaciones principales.
+- Configuración de Spatie Permission con `company_id` como contexto de equipo.
+- Seeders de roles y permisos.
+- Servicios iniciales para cálculo de préstamos, generación de cuotas, mora, pagos, comisiones, caja y auditoría.
+- DomPDF instalado.
+- Validación inicial ejecutada con migraciones, seeders, tests base y auditoría de Composer.
+
+Pendiente:
+
+- Autenticación completa.
+- Layout administrativo.
+- Middlewares multiempresa.
+- CRUDs.
+- APIs.
+- Reportes.
+- PDF finales.
+- Pruebas de negocio reales.
+- Integración Excel segura.
+
+## 5. Módulos funcionales
+
+### 5.1 Dashboard
+
+Debe mostrar:
+
+- Capital invertido.
+- Capital prestado.
+- Capital disponible.
+- Cobros del día.
+- Intereses generados.
+- Ganancia neta.
+- Gastos.
+- Clientes atrasados.
+- Préstamos activos.
+- Préstamos saldados.
+- Préstamos en mora.
+- Cobradores activos.
+- Gráfica de cobros por día.
+- Gráfica de préstamos por estado.
+- Resumen financiero mensual.
+- Estado de inversión.
+
+Regla técnica:
+
+- Los indicadores deben salir de `DashboardService`.
+- El controlador solo debe solicitar datos y entregar la vista.
+- Toda consulta debe filtrar por `company_id`.
+
+### 5.2 Clientes
+
+Funciones:
+
+- Crear, editar, listar, ver y eliminar clientes.
+- Manejar referencias personales.
+- Adjuntar documentos.
+- Ver historial de préstamos.
+- Ver historial de pagos.
+- Ver estado de cuenta.
+- Filtrar por estado.
+
+Campos principales:
+
+- Nombre completo.
+- Cédula o identificación.
+- Teléfono principal.
+- Teléfono secundario.
+- Email.
+- Dirección.
+- Lugar de trabajo.
+- Teléfono laboral.
+- Ingreso mensual.
+- Foto.
+- Estado.
+- Nivel de riesgo.
+- Notas.
+
+Estados:
+
+- `active`
+- `inactive`
+- `moroso`
+- `blocked`
+
+### 5.3 Cotizaciones
+
+Funciones:
+
+- Crear cotización.
+- Calcular cuota.
+- Calcular interés total.
+- Calcular total a pagar.
+- Generar tabla preliminar de amortización.
+- Aprobar, rechazar o convertir a préstamo.
+
+Regla técnica:
+
+- Los cálculos deben vivir en `LoanCalculatorService`.
+- La conversión a préstamo debe usar `LoanService`.
+- Una cotización convertida no debe poder convertirse dos veces.
+
+### 5.4 Préstamos
+
+Funciones:
+
+- Crear préstamo desde cero.
+- Crear préstamo desde cotización.
+- Asignar cliente.
+- Asignar cobrador.
+- Configurar frecuencia.
+- Configurar método de cálculo.
+- Generar cuotas automáticamente.
+- Calcular balance pendiente.
+- Registrar garantía.
+- Registrar observaciones.
+
+Frecuencias:
+
+- Diario.
+- Semanal.
+- Quincenal.
+- Mensual.
+
+Métodos de cálculo:
+
+- Interés fijo.
+- Cuota fija.
+- Capital más interés.
+- Solo interés.
+- Amortización francesa.
+
+Variantes por frecuencia:
+
+- Diario:
+  - Diario normal incluyendo todos los días.
+  - Diario excluyendo domingos.
+  - Diario con mora fija.
+  - Diario con mora diaria fija.
+  - Diario con mora diaria porcentual.
+- Semanal:
+  - Semanal con interés fijo.
+  - Semanal con cuota fija.
+  - Semanal capital más interés.
+  - Semanal solo interés.
+  - Semanal con amortización francesa.
+- Quincenal:
+  - Quincenal con interés fijo.
+  - Quincenal con cuota fija.
+  - Quincenal capital más interés.
+  - Quincenal solo interés.
+  - Quincenal con amortización francesa.
+- Mensual:
+  - Mensual con interés fijo.
+  - Mensual con cuota fija.
+  - Mensual capital más interés.
+  - Mensual solo interés.
+  - Mensual con amortización francesa.
+
+Reglas de cálculo:
+
+- La frecuencia define fechas de cuotas.
+- El método define distribución entre capital e interés.
+- La mora se calcula aparte para no alterar el plan original del préstamo.
+- Toda variante debe tener prueba unitaria.
+
+Estados:
+
+- `active`
+- `late`
+- `paid`
+- `refinanced`
+- `cancelled`
+- `legal`
+- `written_off`
+
+Regla técnica:
+
+- Crear préstamo debe ser una transacción.
+- Crear préstamo debe generar cuotas y movimiento de caja de desembolso.
+- Si requiere aprobación, el préstamo no debe desembolsarse hasta ser aprobado.
+
+### 5.5 Cuotas
+
+Campos:
+
+- Número de cuota.
+- Fecha de vencimiento.
+- Capital.
+- Interés.
+- Total cuota.
+- Capital pagado.
+- Interés pagado.
+- Mora pagada.
+- Total pagado.
+- Mora calculada.
+- Días de atraso.
+- Estado.
+
+Estados:
+
+- `pending`
+- `partial`
+- `paid`
+- `late`
+- `cancelled`
+
+Regla técnica:
+
+- Las cuotas no deben modificarse manualmente desde vistas comunes.
+- Los cambios deben venir desde servicios de préstamo, pago o anulación.
+
+### 5.6 Cobros y pagos
+
+Funciones:
+
+- Registrar pago.
+- Permitir pago parcial si la empresa lo permite.
+- Distribuir pago entre mora, interés y capital.
+- Generar recibo automático.
+- Registrar método de pago.
+- Registrar cobrador.
+- Calcular comisión.
+- Actualizar balance.
+- Actualizar cuotas afectadas.
+- Crear movimiento de caja.
+- Generar PDF de recibo.
+- Preparar estructura para impresión Bluetooth futura.
+
+Impresión Bluetooth:
+
+- La web genera y almacena el recibo oficial.
+- Android obtiene el recibo y el payload de impresión mediante API.
+- Android imprime vía Bluetooth usando formato texto o ESC/POS según la impresora.
+- El backend no debe depender directamente de Bluetooth porque el navegador web no controla impresoras Bluetooth de forma confiable.
+- El payload debe incluir empresa, cliente, préstamo, cobrador, número de recibo, monto, balance anterior, balance nuevo, fecha, desglose aplicado y nota legal.
+
+Métodos de pago:
+
+- `cash`
+- `transfer`
+- `card`
+- `check`
+- `other`
+
+Regla de aplicación:
+
+1. Validar préstamo activo o atrasado.
+2. Calcular mora pendiente.
+3. Aplicar pago primero a mora.
+4. Aplicar luego a interés.
+5. Aplicar luego a capital.
+6. Actualizar cuotas.
+7. Actualizar balance del préstamo.
+8. Si el balance queda en cero, marcar préstamo como saldado.
+9. Crear movimiento de caja `payment_received`.
+10. Calcular comisión.
+11. Generar recibo.
+12. Registrar auditoría.
+
+### 5.7 Anulación de pagos
+
+Reglas:
+
+1. Validar permiso.
+2. Validar que la empresa permita anulación.
+3. Revertir montos aplicados a cuotas.
+4. Revertir balance del préstamo.
+5. Cancelar comisión del cobrador.
+6. Crear movimiento de caja inverso.
+7. Marcar pago como cancelado.
+8. Guardar motivo obligatorio.
+9. Registrar auditoría.
+
+Regla técnica:
+
+- Debe ejecutarse con `lockForUpdate`.
+- Debe ser idempotente: un pago cancelado no puede cancelarse dos veces.
+
+### 5.8 Cobradores
+
+Funciones:
+
+- Crear cobradores.
+- Vincular cobrador a usuario de sistema opcionalmente.
+- Configurar comisión por porcentaje, fija o ninguna.
+- Asignar rutas.
+- Ver clientes asignados.
+- Ver préstamos asignados.
+- Ver cobros realizados.
+- Ver comisiones generadas.
+- Reporte de dinero pendiente por entregar.
+- Reporte diario por cobrador.
+
+### 5.9 Zonas y rutas
+
+Funciones:
+
+- Crear zonas.
+- Crear rutas.
+- Asignar cobrador a ruta.
+- Asignar clientes a ruta.
+- Ordenar clientes dentro de ruta.
+- Reportar cobros por zona y ruta.
+
+Regla técnica:
+
+- Un cliente no debe duplicarse dentro de la misma ruta.
+- Las rutas deben pertenecer a la misma empresa que sus clientes.
+
+### 5.10 Moras y atrasos
+
+Funciones:
+
+- Calcular cuotas vencidas.
+- Calcular días de atraso.
+- Calcular mora fija.
+- Calcular mora diaria fija.
+- Calcular mora por porcentaje diario.
+- Clasificar clientes por riesgo.
+- Reportar préstamos atrasados.
+- Reportar clientes críticos.
+- Marcar préstamo como legal o castigado.
+
+Regla técnica:
+
+- La mora debe calcularse desde `LateFeeService`.
+- El cálculo debe ser consistente entre dashboard, reportes, pagos y estado de cuenta.
+
+### 5.11 Gastos
+
+Funciones:
+
+- Crear categorías.
+- Registrar gastos.
+- Adjuntar comprobantes.
+- Registrar método de pago.
+- Reportar por fecha y categoría.
+- Impactar resumen financiero.
+
+Regla técnica:
+
+- Registrar gasto debe crear movimiento de caja de salida.
+
+### 5.12 Caja y movimientos
+
+Tipos:
+
+- `loan_disbursement`
+- `payment_received`
+- `expense`
+- `collector_commission`
+- `capital_injection`
+- `capital_withdrawal`
+- `adjustment`
+
+Direcciones:
+
+- `in`
+- `out`
+
+Regla técnica:
+
+- Caja debe ser un libro de movimientos, no una tabla de balances editables.
+- Todo movimiento debe tener referencia cuando venga de una operación del sistema.
+
+### 5.13 Documentos PDF
+
+Plantillas:
+
+- Recibo de pago.
+- Comprobante de desembolso.
+- Pagaré notarial.
+- Carta de saldo.
+- Estado de cuenta.
+- Contrato de préstamo.
+
+Regla técnica:
+
+- Los PDFs deben generarse desde `DocumentGeneratorService`.
+- Cada PDF generado debe guardarse y asociarse a empresa, cliente y préstamo cuando aplique.
+
+### 5.14 Reportes
+
+Reportes mínimos:
+
+- Préstamos activos.
+- Préstamos saldados.
+- Préstamos atrasados.
+- Clientes morosos.
+- Cobros diarios.
+- Cobros por cobrador.
+- Ganancias por período.
+- Gastos por período.
+- Estado de inversión.
+- Balance por cliente.
+- Comisiones de cobradores.
+
+Exportaciones:
+
+- PDF.
+- Excel cuando se instale una dependencia moderna y segura.
+- CSV temporal solo si se requiere salida simple sin estilos, fórmulas ni macros.
+
+Reglas:
+
+- No usar `PHPExcel`.
+- No usar versiones abandonadas de Laravel Excel.
+- Todo reporte exportado debe respetar `company_id` y permisos.
+
+### 5.15 Aplicación móvil Android para cobradores
+
+La app Android será un cliente operativo para cobradores. No reemplaza el panel administrativo.
+
+Funciones previstas:
+
+- Login seguro del cobrador.
+- Ver rutas asignadas.
+- Ver clientes asignados.
+- Ver préstamos activos asignados.
+- Ver cuotas pendientes.
+- Registrar pagos.
+- Consultar recibos.
+- Imprimir recibos vía Bluetooth.
+- Sincronizar datos mínimos para trabajo en campo.
+
+Reglas:
+
+- El cobrador solo puede ver datos de su empresa y sus asignaciones.
+- Los pagos registrados desde Android deben pasar por el mismo `PaymentService` del backend.
+- La app no calcula balances finales por su cuenta; el backend es la fuente de verdad.
+- La impresión Bluetooth usa datos confirmados por el backend.
+- Si se soporta modo offline, los pagos deben quedar en cola local y sincronizarse con validación estricta para evitar duplicados.
+
+## 6. Seguridad
+
+Obligatorio:
+
+- Login seguro.
+- Protección CSRF.
+- Roles y permisos.
+- Middleware por permiso.
+- Middleware por empresa.
+- Auditoría de operaciones críticas.
+- Validaciones fuertes.
+- Soft deletes donde aplique.
+- Restricción absoluta por `company_id`.
+- Hash seguro de contraseñas.
+- No exponer trazas ni errores internos en producción.
+- No almacenar secretos en repositorio.
+
+Riesgo crítico:
+
+- Cualquier consulta sin `company_id` en módulos multiempresa debe considerarse bug de seguridad.
+
+## 7. Roles
+
+### Administrador
+
+Control total de la empresa.
+
+### Supervisor
+
+Gestión de reportes, préstamos, clientes, cobradores y rutas.
+
+### Cobrador
+
+Acceso limitado a sus rutas, clientes, préstamos y cobros asignados.
+
+### Caja/Contabilidad
+
+Pagos, desembolsos, gastos, caja y reportes financieros.
+
+### Legal
+
+Clientes morosos, pagarés, documentos legales y estados de cuenta.
+
+## 8. Modelo de datos principal
+
+Tablas:
+
+- `companies`
+- `company_settings`
+- `users`
+- `roles`
+- `permissions`
+- `model_has_roles`
+- `model_has_permissions`
+- `role_has_permissions`
+- `clients`
+- `client_references`
+- `client_documents`
+- `collectors`
+- `zones`
+- `routes`
+- `route_clients`
+- `loan_quotes`
+- `loans`
+- `loan_installments`
+- `payments`
+- `payment_details`
+- `collector_commissions`
+- `cash_movements`
+- `expense_categories`
+- `expenses`
+- `documents`
+- `notifications`
+- `audit_logs`
+
+Relaciones principales:
+
+- Una empresa tiene muchos usuarios.
+- Una empresa tiene muchos clientes.
+- Una empresa tiene muchos préstamos.
+- Una empresa tiene muchos cobradores.
+- Una empresa tiene muchos gastos.
+- Un cliente tiene muchos préstamos.
+- Un cliente tiene muchos pagos.
+- Un cliente tiene muchas referencias.
+- Un cliente tiene muchos documentos.
+- Un préstamo pertenece a un cliente.
+- Un préstamo puede tener cobrador.
+- Un préstamo tiene muchas cuotas.
+- Un préstamo tiene muchos pagos.
+- Un préstamo tiene muchos documentos.
+- Un pago pertenece a un préstamo.
+- Un pago puede afectar varias cuotas.
+- Un cobrador tiene muchos pagos.
+- Un cobrador tiene muchas comisiones.
+- Una zona tiene muchas rutas.
+- Una ruta tiene muchos clientes.
+- Un usuario genera auditoría.
+
+## 9. Servicios de negocio requeridos
+
+- `LoanCalculatorService`
+- `LoanQuoteService`
+- `LoanService`
+- `InstallmentGeneratorService`
+- `PaymentService`
+- `PaymentCancellationService`
+- `LateFeeService`
+- `CollectorCommissionService`
+- `CashMovementService`
+- `DocumentGeneratorService`
+- `DashboardService`
+- `ReportService`
+- `AuditService`
+- `MobileReceiptPayloadService`
+- `ApiTokenService`
+
+## 10. Criterios de aceptación generales
+
+- Ningún controlador contiene lógica financiera.
+- Toda operación financiera crítica tiene prueba de integración.
+- Toda consulta multiempresa filtra por `company_id`.
+- Todo endpoint API valida usuario, empresa, rol y asignación.
+- Los pagos parciales actualizan cuotas y balance correctamente.
+- La anulación revierte cuotas, balance, comisión y caja.
+- Los reportes cuadran con movimientos de caja.
+- Los PDFs se generan y se guardan.
+- La app Android imprime recibos desde datos confirmados por el backend.
+- La interfaz está en español.
+- La aplicación funciona en móvil, tablet y escritorio.
+- `composer audit` no reporta vulnerabilidades.
+- Las migraciones corren desde cero sin errores.
+- Los seeders crean roles, permisos y usuario inicial.
+
+## 10.1 Matriz de validación financiera
+
+Casos mínimos obligatorios:
+
+- Préstamo diario con interés fijo.
+- Préstamo diario excluyendo domingos.
+- Préstamo semanal con cuota fija.
+- Préstamo semanal capital más interés.
+- Préstamo quincenal con solo interés.
+- Préstamo quincenal con amortización francesa.
+- Préstamo mensual con interés fijo.
+- Préstamo mensual con amortización francesa.
+- Pago parcial menor que mora.
+- Pago parcial que cubre mora e interés, pero no capital.
+- Pago completo de una cuota.
+- Pago que salda préstamo.
+- Anulación de pago parcial.
+- Anulación de pago que había saldado préstamo.
+- Comisión porcentual de cobrador.
+- Comisión fija de cobrador.
+- Reporte de caja después de desembolso, pago, gasto y anulación.
+
+## 11. Riesgos técnicos conocidos
+
+- El entorno local actual usa PHP 8.2.12; producción debe usar PHP 8.3 o superior.
+- La extensión `zip` no está habilitada en PHP CLI; Composer descarga desde source y puede ser más lento.
+- Laravel Excel moderno no pudo instalarse por conectividad y compatibilidad; no debe usarse una versión vieja con `PHPExcel`.
+- Falta implementar autenticación y middleware multiempresa antes de construir CRUDs.
+- Las reglas financieras deben probarse con casos reales antes de usar el sistema en producción.
