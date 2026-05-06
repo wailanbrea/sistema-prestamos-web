@@ -50,6 +50,29 @@ class ApiV2CollectorTest extends TestCase
             ->assertJsonPath('data.0.installment_number', 1);
     }
 
+    public function test_collector_can_read_client_and_loan_details(): void
+    {
+        [$user, , $loan] = $this->collectorWithLoan();
+        $token = $this->loginToken($user);
+
+        $this->withToken($token)
+            ->getJson("/api/v2/collector/clients/{$loan->client_id}")
+            ->assertOk()
+            ->assertJsonPath('data.id', $loan->client_id)
+            ->assertJsonPath('data.summary.active_loans', 1)
+            ->assertJsonPath('data.summary.pending_installments', 1)
+            ->assertJsonPath('data.loans.0.id', $loan->id)
+            ->assertJsonPath('data.pending_installments.0.loan_id', $loan->id);
+
+        $this->withToken($token)
+            ->getJson("/api/v2/collector/loans/{$loan->id}")
+            ->assertOk()
+            ->assertJsonPath('data.id', $loan->id)
+            ->assertJsonPath('data.client.id', $loan->client_id)
+            ->assertJsonPath('data.installments.0.installment_number', 1)
+            ->assertJsonPath('data.summary.installments_pending', 1);
+    }
+
     public function test_collector_can_register_payment_for_assigned_loan(): void
     {
         [$user, $collector, $loan] = $this->collectorWithLoan();
@@ -75,6 +98,36 @@ class ApiV2CollectorTest extends TestCase
         ]);
     }
 
+    public function test_collector_can_read_payment_history_and_payment_detail(): void
+    {
+        [$user, $collector, $loan] = $this->collectorWithLoan();
+        $token = $this->loginToken($user);
+
+        $paymentId = $this->withToken($token)
+            ->postJson('/api/v2/collector/payments', [
+                'loan_id' => $loan->id,
+                'payment_date' => '2026-05-06',
+                'amount' => 1100,
+                'payment_method' => 'cash',
+            ])
+            ->assertCreated()
+            ->json('data.id');
+
+        $this->withToken($token)
+            ->getJson("/api/v2/collector/payments?loan_id={$loan->id}&client_id={$loan->client_id}&date_from=2026-05-01&date_to=2026-05-31")
+            ->assertOk()
+            ->assertJsonPath('data.0.id', $paymentId)
+            ->assertJsonPath('data.0.collector.id', $collector->id)
+            ->assertJsonPath('meta.total', 1);
+
+        $this->withToken($token)
+            ->getJson("/api/v2/collector/payments/{$paymentId}")
+            ->assertOk()
+            ->assertJsonPath('data.id', $paymentId)
+            ->assertJsonPath('data.details.0.installment_number', 1)
+            ->assertJsonPath('data.details.0.amount_paid', 1100);
+    }
+
     public function test_collector_cannot_register_payment_for_other_collector_loan(): void
     {
         [$user] = $this->collectorWithLoan();
@@ -90,6 +143,21 @@ class ApiV2CollectorTest extends TestCase
             ])
             ->assertUnprocessable()
             ->assertJsonValidationErrors('loan_id');
+    }
+
+    public function test_collector_cannot_read_other_collector_details(): void
+    {
+        [$user] = $this->collectorWithLoan();
+        [, , $foreignLoan] = $this->collectorWithLoan('otro-cobrador@example.com');
+        $token = $this->loginToken($user);
+
+        $this->withToken($token)
+            ->getJson("/api/v2/collector/clients/{$foreignLoan->client_id}")
+            ->assertNotFound();
+
+        $this->withToken($token)
+            ->getJson("/api/v2/collector/loans/{$foreignLoan->id}")
+            ->assertNotFound();
     }
 
     private function collectorWithLoan(?string $email = null): array

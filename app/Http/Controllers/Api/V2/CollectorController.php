@@ -58,6 +58,51 @@ class CollectorController extends Controller
         ]);
     }
 
+    public function client(Request $request, int $client): JsonResponse
+    {
+        $collector = $this->collectorForUser($request);
+
+        $clientModel = $this->assignedClientQuery($collector)
+            ->with([
+                'references:id,client_id,name,phone,relationship,address',
+                'routes:id,name',
+            ])
+            ->whereKey($client)
+            ->firstOrFail();
+
+        $loans = $this->assignedLoanQuery($collector)
+            ->with('client:id,code,full_name,identification,phone,address,status,risk_level')
+            ->where('client_id', $clientModel->id)
+            ->orderByRaw("case when status in ('active', 'late') then 0 else 1 end")
+            ->orderByDesc('id')
+            ->get();
+
+        $installments = $this->assignedInstallmentQuery($collector)
+            ->with('loan.client:id,code,full_name,identification,phone,address,status,risk_level')
+            ->whereHas('loan', fn (Builder $query): Builder => $query->where('client_id', $clientModel->id))
+            ->orderBy('due_date')
+            ->limit(10)
+            ->get();
+
+        $payments = $this->assignedPaymentQuery($collector)
+            ->with(['loan.client', 'collector'])
+            ->where('client_id', $clientModel->id)
+            ->orderByDesc('payment_date')
+            ->orderByDesc('id')
+            ->limit(10)
+            ->get();
+
+        return response()->json([
+            'data' => [
+                ...$this->clientDetailPayload($clientModel),
+                'summary' => $this->clientFinancialSummary($collector, (int) $clientModel->id),
+                'loans' => $loans->map(fn (Loan $loan): array => $this->loanPayload($loan))->values(),
+                'pending_installments' => $installments->map(fn (LoanInstallment $installment): array => $this->installmentPayload($installment))->values(),
+                'recent_payments' => $payments->map(fn (Payment $payment): array => $this->paymentPayload($payment))->values(),
+            ],
+        ]);
+    }
+
     public function loans(Request $request): JsonResponse
     {
         $collector = $this->collectorForUser($request);
@@ -74,6 +119,32 @@ class CollectorController extends Controller
         ]);
     }
 
+    public function loan(Request $request, int $loan): JsonResponse
+    {
+        $collector = $this->collectorForUser($request);
+
+        $loanModel = $this->assignedLoanQuery($collector)
+            ->with([
+                'client:id,code,full_name,identification,phone,address,status,risk_level',
+                'installments' => fn ($query) => $query->orderBy('installment_number'),
+                'payments' => fn ($query) => $query->with(['loan.client', 'collector'])->orderByDesc('payment_date')->orderByDesc('id'),
+            ])
+            ->whereKey($loan)
+            ->firstOrFail();
+
+        return response()->json([
+            'data' => [
+                ...$this->loanDetailPayload($loanModel),
+                'installments' => $loanModel->installments
+                    ->map(fn (LoanInstallment $installment): array => $this->installmentPayload($installment))
+                    ->values(),
+                'payments' => $loanModel->payments
+                    ->map(fn (Payment $payment): array => $this->paymentPayload($payment))
+                    ->values(),
+            ],
+        ]);
+    }
+
     public function installments(Request $request): JsonResponse
     {
         $collector = $this->collectorForUser($request);
@@ -87,6 +158,50 @@ class CollectorController extends Controller
         return response()->json([
             'data' => $installments->through(fn (LoanInstallment $installment): array => $this->installmentPayload($installment))->items(),
             'meta' => $this->paginationMeta($installments),
+        ]);
+    }
+
+    public function payments(Request $request): JsonResponse
+    {
+        $collector = $this->collectorForUser($request);
+
+        $validated = $request->validate([
+            'client_id' => ['nullable', 'integer'],
+            'loan_id' => ['nullable', 'integer'],
+            'status' => ['nullable', Rule::in(['valid', 'cancelled'])],
+            'date_from' => ['nullable', 'date'],
+            'date_to' => ['nullable', 'date', 'after_or_equal:date_from'],
+            'per_page' => ['nullable', 'integer', 'min:1', 'max:100'],
+        ]);
+
+        $payments = $this->assignedPaymentQuery($collector)
+            ->with(['loan.client', 'collector'])
+            ->when($validated['client_id'] ?? null, fn (Builder $query, int $clientId): Builder => $query->where('client_id', $clientId))
+            ->when($validated['loan_id'] ?? null, fn (Builder $query, int $loanId): Builder => $query->where('loan_id', $loanId))
+            ->when($validated['status'] ?? null, fn (Builder $query, string $status): Builder => $query->where('status', $status))
+            ->when($validated['date_from'] ?? null, fn (Builder $query, string $date): Builder => $query->whereDate('payment_date', '>=', $date))
+            ->when($validated['date_to'] ?? null, fn (Builder $query, string $date): Builder => $query->whereDate('payment_date', '<=', $date))
+            ->orderByDesc('payment_date')
+            ->orderByDesc('id')
+            ->paginate((int) ($validated['per_page'] ?? 25));
+
+        return response()->json([
+            'data' => $payments->through(fn (Payment $payment): array => $this->paymentPayload($payment))->items(),
+            'meta' => $this->paginationMeta($payments),
+        ]);
+    }
+
+    public function payment(Request $request, int $payment): JsonResponse
+    {
+        $collector = $this->collectorForUser($request);
+
+        $paymentModel = $this->assignedPaymentQuery($collector)
+            ->with(['loan.client', 'collector', 'details.installment'])
+            ->whereKey($payment)
+            ->firstOrFail();
+
+        return response()->json([
+            'data' => $this->paymentPayload($paymentModel),
         ]);
     }
 
@@ -162,6 +277,17 @@ class CollectorController extends Controller
             });
     }
 
+    private function assignedPaymentQuery(Collector $collector): Builder
+    {
+        return Payment::query()
+            ->forCompany((int) $collector->company_id)
+            ->where('collector_id', $collector->id)
+            ->whereHas('loan', function (Builder $query) use ($collector): void {
+                $query->forCompany((int) $collector->company_id)
+                    ->where('collector_id', $collector->id);
+            });
+    }
+
     /**
      * @return array<string, mixed>
      */
@@ -196,6 +322,59 @@ class CollectorController extends Controller
     /**
      * @return array<string, mixed>
      */
+    private function clientDetailPayload(Client $client): array
+    {
+        return [
+            ...$this->clientPayload($client),
+            'secondary_phone' => $client->secondary_phone,
+            'email' => $client->email,
+            'workplace' => $client->workplace,
+            'workplace_phone' => $client->workplace_phone,
+            'monthly_income' => (float) $client->monthly_income,
+            'notes' => $client->notes,
+            'references' => $client->references
+                ->map(fn ($reference): array => [
+                    'id' => $reference->id,
+                    'name' => $reference->name,
+                    'phone' => $reference->phone,
+                    'relationship' => $reference->relationship,
+                    'address' => $reference->address,
+                ])
+                ->values(),
+            'routes' => $client->routes
+                ->map(fn ($route): array => [
+                    'id' => $route->id,
+                    'name' => $route->name,
+                ])
+                ->values(),
+        ];
+    }
+
+    /**
+     * @return array<string, mixed>
+     */
+    private function clientFinancialSummary(Collector $collector, int $clientId): array
+    {
+        $loanQuery = $this->assignedLoanQuery($collector)->where('client_id', $clientId);
+        $paymentQuery = $this->assignedPaymentQuery($collector)->where('client_id', $clientId)->where('status', 'valid');
+        $pendingInstallmentQuery = $this->assignedInstallmentQuery($collector)
+            ->whereHas('loan', fn (Builder $query): Builder => $query->where('client_id', $clientId));
+
+        return [
+            'active_loans' => (clone $loanQuery)->whereIn('status', ['active', 'late'])->count(),
+            'late_loans' => (clone $loanQuery)->where('status', 'late')->count(),
+            'total_principal' => (float) (clone $loanQuery)->sum('principal_amount'),
+            'remaining_balance' => (float) (clone $loanQuery)->sum('remaining_balance'),
+            'pending_installments' => (clone $pendingInstallmentQuery)->count(),
+            'late_installments' => (clone $pendingInstallmentQuery)->where('status', 'late')->count(),
+            'total_paid' => (float) (clone $paymentQuery)->sum('amount'),
+            'last_payment_date' => (clone $paymentQuery)->max('payment_date'),
+        ];
+    }
+
+    /**
+     * @return array<string, mixed>
+     */
     private function loanPayload(Loan $loan): array
     {
         return [
@@ -203,13 +382,43 @@ class CollectorController extends Controller
             'loan_number' => $loan->loan_number,
             'client' => $loan->client ? $this->clientPayload($loan->client) : null,
             'principal_amount' => (float) $loan->principal_amount,
+            'interest_rate' => (float) $loan->interest_rate,
+            'interest_type' => $loan->interest_type,
+            'calculation_method' => $loan->calculation_method,
+            'term_quantity' => (int) $loan->term_quantity,
             'installment_amount' => (float) $loan->installment_amount,
+            'total_interest' => (float) $loan->total_interest,
             'total_amount' => (float) $loan->total_amount,
+            'paid_principal' => (float) $loan->paid_principal,
+            'paid_interest' => (float) $loan->paid_interest,
+            'paid_late_fee' => (float) $loan->paid_late_fee,
             'remaining_balance' => (float) $loan->remaining_balance,
             'payment_frequency' => $loan->payment_frequency,
             'status' => $loan->status,
             'start_date' => $loan->start_date?->toDateString(),
             'first_payment_date' => $loan->first_payment_date?->toDateString(),
+            'end_date' => $loan->end_date?->toDateString(),
+        ];
+    }
+
+    /**
+     * @return array<string, mixed>
+     */
+    private function loanDetailPayload(Loan $loan): array
+    {
+        return [
+            ...$this->loanPayload($loan),
+            'late_fee_type' => $loan->late_fee_type,
+            'late_fee_value' => (float) $loan->late_fee_value,
+            'guarantee_description' => $loan->guarantee_description,
+            'notes' => $loan->notes,
+            'summary' => [
+                'installments_total' => $loan->installments->count(),
+                'installments_pending' => $loan->installments->whereIn('status', ['pending', 'partial', 'late'])->count(),
+                'installments_late' => $loan->installments->where('status', 'late')->count(),
+                'payments_total' => $loan->payments->where('status', 'valid')->count(),
+                'amount_paid' => (float) $loan->payments->where('status', 'valid')->sum('amount'),
+            ],
         ];
     }
 
@@ -230,6 +439,7 @@ class CollectorController extends Controller
             'late_fee' => (float) $installment->late_fee,
             'installment_amount' => (float) $installment->installment_amount,
             'total_paid' => (float) $installment->total_paid,
+            'pending_amount' => max(0.0, (float) $installment->installment_amount + (float) $installment->late_fee - (float) $installment->total_paid),
             'days_late' => (int) $installment->days_late,
             'status' => $installment->status,
         ];
@@ -256,6 +466,17 @@ class CollectorController extends Controller
             'new_balance' => (float) $payment->new_balance,
             'payment_method' => $payment->payment_method,
             'status' => $payment->status,
+            'details' => $payment->relationLoaded('details')
+                ? $payment->details->map(fn ($detail): array => [
+                    'id' => $detail->id,
+                    'installment_id' => $detail->installment_id,
+                    'installment_number' => $detail->installment?->installment_number,
+                    'principal_paid' => (float) $detail->principal_paid,
+                    'interest_paid' => (float) $detail->interest_paid,
+                    'late_fee_paid' => (float) $detail->late_fee_paid,
+                    'amount_paid' => (float) $detail->amount_paid,
+                ])->values()
+                : [],
         ];
     }
 

@@ -18,8 +18,12 @@ Route::prefix('v2')->name('api.v2.')->group(function (): void {
         Route::prefix('collector')->name('collector.')->middleware('permission:payments.create')->group(function (): void {
             Route::get('/summary', [CollectorController::class, 'summary'])->name('summary');
             Route::get('/clients', [CollectorController::class, 'clients'])->name('clients');
+            Route::get('/clients/{client}', [CollectorController::class, 'client'])->name('clients.show');
             Route::get('/loans', [CollectorController::class, 'loans'])->name('loans');
+            Route::get('/loans/{loan}', [CollectorController::class, 'loan'])->name('loans.show');
             Route::get('/installments', [CollectorController::class, 'installments'])->name('installments');
+            Route::get('/payments', [CollectorController::class, 'payments'])->name('payments');
+            Route::get('/payments/{payment}', [CollectorController::class, 'payment'])->name('payments.show');
             Route::post('/payments', [CollectorController::class, 'storePayment'])->name('payments.store');
         });
     });
