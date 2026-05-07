@@ -9,6 +9,7 @@ use App\Http\Requests\Routes\UpdateRouteRequest;
 use App\Models\Client;
 use App\Models\Collector;
 use App\Services\Routes\RouteService;
+use App\Services\Routes\RouteMapService;
 use App\Services\Routes\ZoneService;
 use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Http\RedirectResponse;
@@ -20,6 +21,7 @@ class RouteController extends Controller
     public function __construct(
         private readonly RouteService $routeService,
         private readonly ZoneService $zoneService,
+        private readonly RouteMapService $routeMapService,
     ) {
     }
 
@@ -38,6 +40,17 @@ class RouteController extends Controller
     public function create(Request $request): View
     {
         return view('routes.create', $this->formData((int) $request->user()->company_id));
+    }
+
+    public function map(Request $request): View
+    {
+        $filters = $request->only(['collector_id', 'route_id']);
+
+        return view('routes.map', [
+            ...$this->routeMapService->dataForCompany((int) $request->user()->company_id, $filters),
+            'filters' => $filters,
+            'googleMapsApiKey' => (string) config('services.google_maps.api_key'),
+        ]);
     }
 
     public function store(StoreRouteRequest $request): RedirectResponse
@@ -95,7 +108,11 @@ class RouteController extends Controller
         return [
             'zones' => $this->zoneService->listForCompany($companyId),
             'collectors' => Collector::query()->forCompany($companyId)->where('status', 'active')->orderBy('name')->get(['id', 'name']),
-            'clients' => Client::query()->forCompany($companyId)->where('status', '!=', 'blocked')->orderBy('full_name')->get(['id', 'full_name', 'phone']),
+            'clients' => Client::query()
+                ->forCompany($companyId)
+                ->where('status', '!=', 'blocked')
+                ->orderBy('full_name')
+                ->get(['id', 'full_name', 'phone', 'address', 'latitude', 'longitude']),
         ];
     }
 }

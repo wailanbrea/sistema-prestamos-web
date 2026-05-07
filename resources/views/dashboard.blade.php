@@ -30,6 +30,7 @@
                 ['label' => 'Préstamos activos', 'value' => $metrics['prestamos_activos'], 'icon' => 'fa-file-invoice-dollar', 'bg' => 'bg-warning', 'money' => false],
                 ['label' => 'Préstamos en mora', 'value' => $metrics['prestamos_mora'], 'icon' => 'fa-triangle-exclamation', 'bg' => 'bg-dark', 'money' => false],
                 ['label' => 'Clientes atrasados', 'value' => $metrics['clientes_atrasados'], 'icon' => 'fa-user-clock', 'bg' => 'bg-secondary', 'money' => false],
+                ['label' => 'Sin coordenadas', 'value' => $metrics['clientes_sin_coordenadas'], 'icon' => 'fa-map-location-dot', 'bg' => 'bg-danger', 'money' => false],
                 ['label' => 'Cobradores activos', 'value' => $metrics['cobradores_activos'], 'icon' => 'fa-motorcycle', 'bg' => 'bg-primary', 'money' => false],
             ];
         @endphp

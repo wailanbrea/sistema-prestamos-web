@@ -9,9 +9,14 @@
                 <h1 class="h3 fw-bold mb-1">Zonas y rutas</h1>
                 <p class="text-muted mb-0">Organización territorial para cobradores y seguimiento de clientes.</p>
             </div>
-            <a href="{{ route('routes.create') }}" class="btn btn-primary">
-                <i class="fa-solid fa-plus me-2"></i> Nueva ruta
-            </a>
+            <div class="d-flex gap-2">
+                <a href="{{ route('routes.map') }}" class="btn btn-outline-primary">
+                    <i class="fa-solid fa-map-location-dot me-2"></i> Mapa
+                </a>
+                <a href="{{ route('routes.create') }}" class="btn btn-primary">
+                    <i class="fa-solid fa-plus me-2"></i> Nueva ruta
+                </a>
+            </div>
         </div>
     </section>
 

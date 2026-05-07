@@ -35,7 +35,22 @@
                         <div class="col-12 col-md-6"><span class="text-muted small d-block">Ingreso mensual</span><strong>RD$ {{ number_format((float) $client->monthly_income, 2) }}</strong></div>
                         <div class="col-12 col-md-6"><span class="text-muted small d-block">Lugar de trabajo</span><strong>{{ $client->workplace ?: 'No registrado' }}</strong></div>
                         <div class="col-12 col-md-6"><span class="text-muted small d-block">Teléfono laboral</span><strong>{{ $client->workplace_phone ?: 'No registrado' }}</strong></div>
-                        <div class="col-12"><span class="text-muted small d-block">Dirección</span><strong>{{ $client->address ?: 'No registrada' }}</strong></div>
+                        <div class="col-12">
+                            <span class="text-muted small d-block">Dirección</span>
+                            <strong>{{ $client->address ?: 'No registrada' }}</strong>
+                            @if ($client->latitude !== null && $client->longitude !== null)
+                                <div class="small mt-1">
+                                    <a href="https://www.google.com/maps/search/?api=1&query={{ urlencode($client->latitude.','.$client->longitude) }}" target="_blank" rel="noopener" class="text-decoration-none">
+                                        <i class="fa-solid fa-map-location-dot me-1"></i> Ver ubicación
+                                    </a>
+                                    <span class="text-muted ms-2">{{ $client->location_reference ?: 'Coordenadas registradas' }}</span>
+                                </div>
+                            @else
+                                <div class="text-danger small mt-1">
+                                    <i class="fa-solid fa-triangle-exclamation me-1"></i> Falta latitud y longitud para mostrarlo en el mapa.
+                                </div>
+                            @endif
+                        </div>
                         <div class="col-12"><span class="text-muted small d-block">Notas</span><div>{{ $client->notes ?: 'Sin notas' }}</div></div>
                     </div>
                 </div>

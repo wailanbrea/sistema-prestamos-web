@@ -39,6 +39,7 @@ class WebSmokeTest extends TestCase
             '/cobradores',
             '/cobradores/crear',
             '/rutas',
+            '/rutas/mapa',
             '/rutas/crear',
             '/gastos',
             '/gastos/crear',
@@ -99,6 +100,9 @@ class WebSmokeTest extends TestCase
             'full_name' => 'Cliente Smoke',
             'identification' => '001-0000000-1',
             'phone' => '809-555-0100',
+            'address' => 'Santo Domingo',
+            'latitude' => 18.4861,
+            'longitude' => -69.9312,
             'status' => 'active',
             'risk_level' => 'low',
         ]);

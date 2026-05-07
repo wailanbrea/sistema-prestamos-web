@@ -55,6 +55,12 @@ return [
                     'permission' => 'routes.manage',
                 ],
                 [
+                    'label' => 'Mapa de cobros',
+                    'route' => 'routes.map',
+                    'icon' => 'fa-map-location-dot',
+                    'permission' => 'routes.manage',
+                ],
+                [
                     'label' => 'Gastos',
                     'route' => 'expenses.index',
                     'icon' => 'fa-receipt',

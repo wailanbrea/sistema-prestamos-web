@@ -50,6 +50,12 @@ class DashboardService
             'ganancia_neta' => round($interesesGenerados - $gastosMes, 2),
             'gastos_mes' => $gastosMes,
             'clientes_atrasados' => Client::query()->forCompany($companyId)->where('status', 'moroso')->count(),
+            'clientes_sin_coordenadas' => Client::query()
+                ->forCompany($companyId)
+                ->where(function ($query): void {
+                    $query->whereNull('latitude')->orWhereNull('longitude');
+                })
+                ->count(),
             'prestamos_activos' => Loan::query()->forCompany($companyId)->where('status', 'active')->count(),
             'prestamos_saldados' => Loan::query()->forCompany($companyId)->where('status', 'paid')->count(),
             'prestamos_mora' => Loan::query()->forCompany($companyId)->where('status', 'late')->count(),

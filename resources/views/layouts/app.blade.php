@@ -173,6 +173,32 @@
                     <div class="fw-semibold">{{ auth()->user()->company->name }}</div>
                 </div>
                 <div class="d-flex align-items-center gap-3">
+                    @php
+                        $alertCount = (int) ($operationAlerts['missing_coordinates'] ?? 0) + (int) ($operationAlerts['late_installments'] ?? 0);
+                    @endphp
+                    <div class="dropdown">
+                        <button class="btn btn-outline-secondary position-relative" type="button" data-bs-toggle="dropdown" aria-expanded="false" title="Alertas operativas">
+                            <i class="fa-solid fa-bell"></i>
+                            @if ($alertCount > 0)
+                                <span class="position-absolute top-0 start-100 translate-middle badge rounded-pill bg-danger">{{ $alertCount }}</span>
+                            @endif
+                        </button>
+                        <div class="dropdown-menu dropdown-menu-end p-0" style="min-width: 320px;">
+                            <div class="px-3 py-2 border-bottom fw-semibold">Alertas operativas</div>
+                            <a class="dropdown-item py-3" href="{{ route('routes.map') }}">
+                                <div class="d-flex justify-content-between gap-3">
+                                    <span><i class="fa-solid fa-map-location-dot me-2 text-primary"></i> Clientes sin coordenadas</span>
+                                    <strong>{{ (int) ($operationAlerts['missing_coordinates'] ?? 0) }}</strong>
+                                </div>
+                            </a>
+                            <a class="dropdown-item py-3" href="{{ route('payments.index') }}">
+                                <div class="d-flex justify-content-between gap-3">
+                                    <span><i class="fa-solid fa-triangle-exclamation me-2 text-warning"></i> Cuotas en mora</span>
+                                    <strong>{{ (int) ($operationAlerts['late_installments'] ?? 0) }}</strong>
+                                </div>
+                            </a>
+                        </div>
+                    </div>
                     <div class="text-end d-none d-sm-block">
                         <div class="fw-semibold">{{ auth()->user()->name }}</div>
                         <div class="text-muted small">{{ auth()->user()->email }}</div>
