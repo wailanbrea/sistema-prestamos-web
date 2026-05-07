@@ -15,9 +15,11 @@
                 @endif
             </div>
             <div class="d-flex gap-2">
-                <a href="{{ route('payments.create', ['loan_id' => $payment->loan_id]) }}" class="btn btn-outline-primary">
-                    <i class="fa-solid fa-plus me-2"></i> Otro cobro
-                </a>
+                @can('payments.create')
+                    <a href="{{ route('payments.create', ['loan_id' => $payment->loan_id]) }}" class="btn btn-outline-primary">
+                        <i class="fa-solid fa-plus me-2"></i> Otro cobro
+                    </a>
+                @endcan
                 @can('payments.cancel')
                     @if ($payment->status === 'valid')
                         <button type="button" class="btn btn-outline-danger" data-bs-toggle="collapse" data-bs-target="#cancelPaymentForm">

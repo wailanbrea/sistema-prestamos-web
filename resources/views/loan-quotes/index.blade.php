@@ -77,17 +77,21 @@
                                 <td class="text-end">RD$ {{ number_format((float) $quote->installment_amount, 2) }}</td>
                                 <td><span class="badge {{ $statusLabels[$quote->status]['class'] ?? 'text-bg-secondary' }}">{{ $statusLabels[$quote->status]['label'] ?? $quote->status }}</span></td>
                                 <td class="text-end">
-                                    @if ($quote->status !== 'converted')
-                                        <form method="POST" action="{{ route('loan-quotes.destroy', $quote) }}" onsubmit="return confirm('Eliminar esta cotizacion?');">
-                                            @csrf
-                                            @method('DELETE')
-                                            <button type="submit" class="btn btn-sm btn-outline-danger">
-                                                <i class="fa-solid fa-trash"></i>
-                                            </button>
-                                        </form>
+                                    @can('quotes.delete')
+                                        @if ($quote->status !== 'converted')
+                                            <form method="POST" action="{{ route('loan-quotes.destroy', $quote) }}" onsubmit="return confirm('Eliminar esta cotizacion?');">
+                                                @csrf
+                                                @method('DELETE')
+                                                <button type="submit" class="btn btn-sm btn-outline-danger">
+                                                    <i class="fa-solid fa-trash"></i>
+                                                </button>
+                                            </form>
+                                        @else
+                                            <span class="text-muted small">Convertida</span>
+                                        @endif
                                     @else
-                                        <span class="text-muted small">Convertida</span>
-                                    @endif
+                                        <span class="text-muted small">Sin permiso</span>
+                                    @endcan
                                 </td>
                             </tr>
                         @empty

@@ -47,7 +47,7 @@ Route::middleware(['auth', 'user.active', 'company.active', 'permission.company'
         Route::get('/crear', 'create')->name('create');
         Route::post('/', 'store')->name('store');
         Route::get('/{quote}', 'show')->whereNumber('quote')->name('show');
-        Route::delete('/{quote}', 'destroy')->whereNumber('quote')->name('destroy');
+        Route::delete('/{quote}', 'destroy')->whereNumber('quote')->middleware('permission:quotes.delete')->name('destroy');
     });
     Route::prefix('prestamos')->name('loans.')->controller(LoanController::class)->group(function (): void {
         Route::get('/', 'index')->middleware('permission:loans.view')->name('index');

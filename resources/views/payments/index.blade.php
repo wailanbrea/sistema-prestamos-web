@@ -9,9 +9,11 @@
                 <h1 class="h3 fw-bold mb-1">Cobros</h1>
                 <p class="text-muted mb-0">Registro de pagos, distribución a cuotas, caja y comisiones.</p>
             </div>
-            <a href="{{ route('payments.create') }}" class="btn btn-primary">
-                <i class="fa-solid fa-plus me-2"></i> Nuevo cobro
-            </a>
+            @can('payments.create')
+                <a href="{{ route('payments.create') }}" class="btn btn-primary">
+                    <i class="fa-solid fa-plus me-2"></i> Nuevo cobro
+                </a>
+            @endcan
         </div>
     </section>
 

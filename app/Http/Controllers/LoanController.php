@@ -37,6 +37,8 @@ class LoanController extends Controller
         $quote = null;
 
         if ($request->integer('quote_id')) {
+            abort_unless($request->user()?->can('quotes.convert'), 403);
+
             $quote = LoanQuote::query()
                 ->with('client')
                 ->forCompany($companyId)
@@ -55,6 +57,10 @@ class LoanController extends Controller
 
     public function store(StoreLoanRequest $request): RedirectResponse
     {
+        if ($request->filled('quote_id')) {
+            abort_unless($request->user()?->can('quotes.convert'), 403);
+        }
+
         $loan = $this->loanService->create(
             companyId: (int) $request->user()->company_id,
             userId: $request->user()?->id,

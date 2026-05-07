@@ -69,6 +69,8 @@ class RoleController extends Controller
             'clients.update' => 'Editar clientes',
             'clients.delete' => 'Eliminar clientes',
             'quotes.manage' => 'Gestionar cotizaciones',
+            'quotes.convert' => 'Convertir cotizaciones',
+            'quotes.delete' => 'Eliminar cotizaciones',
             'loans.create' => 'Crear prestamos',
             'loans.approve' => 'Aprobar prestamos',
             'loans.update' => 'Editar prestamos',
