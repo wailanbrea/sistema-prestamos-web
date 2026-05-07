@@ -115,6 +115,16 @@ class RouteManagementTest extends TestCase
             ->assertNotFound();
     }
 
+    public function test_admin_can_view_collector_tracking_page(): void
+    {
+        $user = $this->adminUser();
+
+        $this->actingAs($user)
+            ->get(route('routes.tracking'))
+            ->assertOk()
+            ->assertSee('Seguimiento de cobradores');
+    }
+
     public function test_zone_name_is_unique_per_company(): void
     {
         $user = $this->adminUser();

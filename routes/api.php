@@ -21,6 +21,10 @@ Route::prefix('v2')->name('api.v2.')->group(function (): void {
             Route::get('/summary', [CollectorController::class, 'summary'])->name('summary');
             Route::get('/map-clients', [CollectorController::class, 'mapClients'])->name('map-clients');
             Route::get('/routes', [CollectorController::class, 'routes'])->name('routes');
+            Route::get('/route-sessions/active', [CollectorController::class, 'activeRouteSession'])->name('route-sessions.active');
+            Route::post('/route-sessions', [CollectorController::class, 'startRouteSession'])->name('route-sessions.start');
+            Route::post('/route-sessions/{session}/locations', [CollectorController::class, 'recordRouteLocation'])->whereNumber('session')->name('route-sessions.locations');
+            Route::post('/route-sessions/{session}/finish', [CollectorController::class, 'finishRouteSession'])->whereNumber('session')->name('route-sessions.finish');
             Route::get('/clients', [CollectorController::class, 'clients'])->name('clients');
             Route::get('/clients/{client}', [CollectorController::class, 'client'])->name('clients.show');
             Route::get('/loans', [CollectorController::class, 'loans'])->name('loans');

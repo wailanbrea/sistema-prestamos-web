@@ -104,6 +104,60 @@ class ApiV2CollectorTest extends TestCase
             ->assertJsonPath('data.0.clients.0.summary.total_paid', 0);
     }
 
+    public function test_collector_can_track_route_session_and_mark_visited_stops(): void
+    {
+        [$user, $collector, $loan] = $this->collectorWithLoan();
+        $route = LendingRoute::query()->create([
+            'company_id' => $collector->company_id,
+            'collector_id' => $collector->id,
+            'name' => 'Ruta Tracking API',
+            'status' => 'active',
+        ]);
+        $route->clients()->sync([$loan->client_id => ['order_number' => 1]]);
+        $token = $this->loginToken($user);
+
+        $sessionId = $this->withToken($token)
+            ->postJson('/api/v2/collector/route-sessions', [
+                'route_id' => $route->id,
+            ])
+            ->assertCreated()
+            ->assertJsonPath('data.route.id', $route->id)
+            ->assertJsonPath('data.status', 'active')
+            ->json('data.id');
+
+        $this->withToken($token)
+            ->postJson("/api/v2/collector/route-sessions/{$sessionId}/locations", [
+                'latitude' => 18.48612,
+                'longitude' => -69.93120,
+                'accuracy_meters' => 10,
+                'battery_level' => 87,
+                'recorded_at' => '2026-05-07T08:00:00-04:00',
+            ])
+            ->assertOk()
+            ->assertJsonPath('data.stops.0.visited', true)
+            ->assertJsonPath('data.stops.0.visit_status', 'visited');
+
+        $this->assertDatabaseHas('collector_location_points', [
+            'collector_route_session_id' => $sessionId,
+            'collector_id' => $collector->id,
+            'accuracy_meters' => 10,
+            'battery_level' => 87,
+        ]);
+        $this->assertDatabaseHas('route_visit_events', [
+            'collector_route_session_id' => $sessionId,
+            'client_id' => $loan->client_id,
+            'expected_order' => 1,
+            'visited_order' => 1,
+            'status' => 'visited',
+        ]);
+
+        $this->withToken($token)
+            ->getJson('/api/v2/collector/route-sessions/active')
+            ->assertOk()
+            ->assertJsonPath('data.id', $sessionId)
+            ->assertJsonPath('data.stops.0.visited', true);
+    }
+
 
     public function test_collector_can_read_installment_detail(): void
     {

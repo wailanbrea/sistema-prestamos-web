@@ -72,6 +72,7 @@ Route::middleware(['auth', 'user.active', 'company.active', 'permission.company'
     Route::prefix('rutas')->name('routes.')->controller(RouteController::class)->middleware('permission:routes.manage')->group(function (): void {
         Route::get('/', 'index')->name('index');
         Route::get('/mapa', 'map')->name('map');
+        Route::get('/seguimiento', 'tracking')->name('tracking');
         Route::get('/crear', 'create')->name('create');
         Route::post('/', 'store')->name('store');
         Route::get('/{route}', 'show')->whereNumber('route')->name('show');

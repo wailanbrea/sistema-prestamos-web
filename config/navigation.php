@@ -61,6 +61,12 @@ return [
                     'permission' => 'routes.manage',
                 ],
                 [
+                    'label' => 'Seguimiento',
+                    'route' => 'routes.tracking',
+                    'icon' => 'fa-location-crosshairs',
+                    'permission' => 'routes.manage',
+                ],
+                [
                     'label' => 'Gastos',
                     'route' => 'expenses.index',
                     'icon' => 'fa-receipt',

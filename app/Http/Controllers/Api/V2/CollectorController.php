@@ -7,11 +7,14 @@ namespace App\Http\Controllers\Api\V2;
 use App\Http\Controllers\Controller;
 use App\Models\Client;
 use App\Models\Collector;
+use App\Models\CollectorRouteSession;
 use App\Models\Loan;
 use App\Models\LoanInstallment;
 use App\Models\Payment;
 use App\Models\Route as LendingRoute;
 use App\Services\Payments\PaymentService;
+use App\Services\Routes\RouteTrackingService;
+use Carbon\CarbonImmutable;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
@@ -20,8 +23,10 @@ use InvalidArgumentException;
 
 class CollectorController extends Controller
 {
-    public function __construct(private readonly PaymentService $paymentService)
-    {
+    public function __construct(
+        private readonly PaymentService $paymentService,
+        private readonly RouteTrackingService $routeTrackingService,
+    ) {
     }
 
     public function summary(Request $request): JsonResponse
@@ -123,6 +128,79 @@ class CollectorController extends Controller
                         ->values(),
                 ])
                 ->values(),
+        ]);
+    }
+
+    public function activeRouteSession(Request $request): JsonResponse
+    {
+        $collector = $this->collectorForUser($request);
+        $session = $this->routeTrackingService->activeSessionForCollector($collector);
+
+        return response()->json([
+            'data' => $session ? $this->routeTrackingService->sessionPayload($session) : null,
+        ]);
+    }
+
+    public function startRouteSession(Request $request): JsonResponse
+    {
+        $collector = $this->collectorForUser($request);
+        $validated = $request->validate([
+            'route_id' => [
+                'required',
+                'integer',
+                Rule::exists('routes', 'id')
+                    ->where('company_id', $collector->company_id)
+                    ->where('collector_id', $collector->id)
+                    ->where('status', 'active'),
+            ],
+        ]);
+
+        $session = $this->routeTrackingService->startSession($collector, (int) $validated['route_id']);
+
+        return response()->json([
+            'data' => $this->routeTrackingService->sessionPayload($session),
+        ], 201);
+    }
+
+    public function recordRouteLocation(Request $request, int $session): JsonResponse
+    {
+        $collector = $this->collectorForUser($request);
+        $sessionModel = $this->routeSessionForCollector($collector, $session);
+        $validated = $request->validate([
+            'latitude' => ['required', 'numeric', 'between:-90,90'],
+            'longitude' => ['required', 'numeric', 'between:-180,180'],
+            'accuracy_meters' => ['nullable', 'integer', 'min:0', 'max:10000'],
+            'battery_level' => ['nullable', 'integer', 'min:0', 'max:100'],
+            'recorded_at' => ['nullable', 'date'],
+        ]);
+
+        try {
+            $updated = $this->routeTrackingService->recordLocation(
+                session: $sessionModel,
+                latitude: (float) $validated['latitude'],
+                longitude: (float) $validated['longitude'],
+                accuracyMeters: isset($validated['accuracy_meters']) ? (int) $validated['accuracy_meters'] : null,
+                batteryLevel: isset($validated['battery_level']) ? (int) $validated['battery_level'] : null,
+                recordedAt: isset($validated['recorded_at']) ? CarbonImmutable::parse($validated['recorded_at']) : null,
+            );
+        } catch (InvalidArgumentException $exception) {
+            return response()->json([
+                'message' => $exception->getMessage(),
+            ], 422);
+        }
+
+        return response()->json([
+            'data' => $this->routeTrackingService->sessionPayload($updated),
+        ]);
+    }
+
+    public function finishRouteSession(Request $request, int $session): JsonResponse
+    {
+        $collector = $this->collectorForUser($request);
+        $sessionModel = $this->routeSessionForCollector($collector, $session);
+
+        return response()->json([
+            'data' => $this->routeTrackingService->sessionPayload($this->routeTrackingService->finishSession($sessionModel)),
         ]);
     }
 
@@ -350,6 +428,16 @@ class CollectorController extends Controller
             ->forCompany((int) $request->user()->company_id)
             ->where('user_id', $request->user()->id)
             ->where('status', 'active')
+            ->firstOrFail();
+    }
+
+    private function routeSessionForCollector(Collector $collector, int $sessionId): CollectorRouteSession
+    {
+        return CollectorRouteSession::query()
+            ->forCompany((int) $collector->company_id)
+            ->where('collector_id', $collector->id)
+            ->whereKey($sessionId)
+            ->with(['route.clients', 'visitEvents.client'])
             ->firstOrFail();
     }
 

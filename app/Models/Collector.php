@@ -39,4 +39,9 @@ class Collector extends Model
     {
         return $this->hasMany(CollectorCommission::class);
     }
+
+    public function routeSessions(): HasMany
+    {
+        return $this->hasMany(CollectorRouteSession::class);
+    }
 }
