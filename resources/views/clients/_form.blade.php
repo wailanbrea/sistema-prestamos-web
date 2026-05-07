@@ -81,8 +81,26 @@
 
     <div class="col-12">
         <label for="address" class="form-label">Dirección</label>
-        <textarea id="address" name="address" rows="3" class="form-control @error('address') is-invalid @enderror">{{ old('address', $client->address ?? '') }}</textarea>
+        <textarea id="address" name="address" rows="3" class="form-control @error('address') is-invalid @enderror" required>{{ old('address', $client->address ?? '') }}</textarea>
         @error('address') <div class="invalid-feedback">{{ $message }}</div> @enderror
+    </div>
+
+    <div class="col-12 col-md-4">
+        <label for="latitude" class="form-label">Latitud</label>
+        <input id="latitude" name="latitude" type="number" step="0.0000001" min="-90" max="90" value="{{ old('latitude', $client->latitude ?? '') }}" class="form-control @error('latitude') is-invalid @enderror">
+        @error('latitude') <div class="invalid-feedback">{{ $message }}</div> @enderror
+    </div>
+
+    <div class="col-12 col-md-4">
+        <label for="longitude" class="form-label">Longitud</label>
+        <input id="longitude" name="longitude" type="number" step="0.0000001" min="-180" max="180" value="{{ old('longitude', $client->longitude ?? '') }}" class="form-control @error('longitude') is-invalid @enderror">
+        @error('longitude') <div class="invalid-feedback">{{ $message }}</div> @enderror
+    </div>
+
+    <div class="col-12 col-md-4">
+        <label for="location_reference" class="form-label">Referencia ubicación</label>
+        <input id="location_reference" name="location_reference" type="text" value="{{ old('location_reference', $client->location_reference ?? '') }}" class="form-control @error('location_reference') is-invalid @enderror" maxlength="180">
+        @error('location_reference') <div class="invalid-feedback">{{ $message }}</div> @enderror
     </div>
 
     <div class="col-12">

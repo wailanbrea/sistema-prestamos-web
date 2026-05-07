@@ -9,6 +9,7 @@ use App\Models\Collector;
 use App\Models\Company;
 use App\Models\Loan;
 use App\Models\LoanInstallment;
+use App\Models\Route as LendingRoute;
 use App\Models\User;
 use Database\Seeders\RolePermissionSeeder;
 use Illuminate\Foundation\Testing\RefreshDatabase;
@@ -72,6 +73,37 @@ class ApiV2CollectorTest extends TestCase
             ->assertJsonPath('data.installments.0.installment_number', 1)
             ->assertJsonPath('data.summary.installments_pending', 1);
     }
+
+    public function test_collector_can_read_map_clients_and_routes(): void
+    {
+        [$user, $collector, $loan] = $this->collectorWithLoan();
+        $route = LendingRoute::query()->create([
+            'company_id' => $collector->company_id,
+            'collector_id' => $collector->id,
+            'name' => 'Ruta API',
+            'status' => 'active',
+        ]);
+        $route->clients()->sync([$loan->client_id => ['order_number' => 1]]);
+        $token = $this->loginToken($user);
+
+        $this->withToken($token)
+            ->getJson('/api/v2/collector/map-clients')
+            ->assertOk()
+            ->assertJsonPath('data.0.id', $loan->client_id)
+            ->assertJsonPath('data.0.latitude', 18.4861)
+            ->assertJsonPath('data.0.longitude', -69.9312)
+            ->assertJsonPath('data.0.summary.remaining_balance', 1000)
+            ->assertJsonPath('data.0.routes.0.name', 'Ruta API');
+
+        $this->withToken($token)
+            ->getJson('/api/v2/collector/routes')
+            ->assertOk()
+            ->assertJsonPath('data.0.id', $route->id)
+            ->assertJsonPath('data.0.clients.0.id', $loan->client_id)
+            ->assertJsonPath('data.0.clients.0.order_number', 1)
+            ->assertJsonPath('data.0.clients.0.summary.total_paid', 0);
+    }
+
 
     public function test_collector_can_read_installment_detail(): void
     {
@@ -252,6 +284,8 @@ class ApiV2CollectorTest extends TestCase
             'identification' => '001-0000000-1',
             'phone' => '809-555-0101',
             'address' => 'Santo Domingo',
+            'latitude' => 18.4861,
+            'longitude' => -69.9312,
             'status' => 'active',
             'risk_level' => 'low',
         ]);

@@ -10,6 +10,7 @@ use App\Models\Collector;
 use App\Models\Loan;
 use App\Models\LoanInstallment;
 use App\Models\Payment;
+use App\Models\Route as LendingRoute;
 use App\Services\Payments\PaymentService;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Http\JsonResponse;
@@ -55,6 +56,73 @@ class CollectorController extends Controller
         return response()->json([
             'data' => $clients->through(fn (Client $client): array => $this->clientPayload($client))->items(),
             'meta' => $this->paginationMeta($clients),
+        ]);
+    }
+
+    public function mapClients(Request $request): JsonResponse
+    {
+        $collector = $this->collectorForUser($request);
+
+        $clients = $this->assignedClientQuery($collector)
+            ->with(['routes' => fn ($query) => $query
+                ->where('collector_id', $collector->id)
+                ->orderBy('route_clients.order_number')
+                ->select('routes.id', 'routes.name')])
+            ->whereNotNull('address')
+            ->orderBy('full_name')
+            ->get();
+
+        return response()->json([
+            'data' => $clients
+                ->map(fn (Client $client): array => [
+                    ...$this->clientPayload($client),
+                    'summary' => $this->clientFinancialSummary($collector, (int) $client->id),
+                    'routes' => $client->routes
+                        ->map(fn (LendingRoute $route): array => [
+                            'id' => $route->id,
+                            'name' => $route->name,
+                            'order_number' => (int) $route->pivot->order_number,
+                        ])
+                        ->values(),
+                ])
+                ->values(),
+        ]);
+    }
+
+    public function routes(Request $request): JsonResponse
+    {
+        $collector = $this->collectorForUser($request);
+
+        $routes = LendingRoute::query()
+            ->forCompany((int) $collector->company_id)
+            ->where('collector_id', $collector->id)
+            ->where('status', 'active')
+            ->with(['zone:id,name', 'clients' => fn ($query) => $query
+                ->orderBy('route_clients.order_number')
+                ->select('clients.id', 'clients.code', 'clients.full_name', 'clients.phone', 'clients.address', 'clients.latitude', 'clients.longitude', 'clients.status', 'clients.risk_level')])
+            ->orderBy('name')
+            ->get();
+
+        return response()->json([
+            'data' => $routes
+                ->map(fn (LendingRoute $route): array => [
+                    'id' => $route->id,
+                    'name' => $route->name,
+                    'description' => $route->description,
+                    'zone' => $route->zone ? [
+                        'id' => $route->zone->id,
+                        'name' => $route->zone->name,
+                    ] : null,
+                    'clients_count' => $route->clients->count(),
+                    'clients' => $route->clients
+                        ->map(fn (Client $client): array => [
+                            ...$this->clientPayload($client),
+                            'order_number' => (int) $client->pivot->order_number,
+                            'summary' => $this->clientFinancialSummary($collector, (int) $client->id),
+                        ])
+                        ->values(),
+                ])
+                ->values(),
         ]);
     }
 
@@ -289,7 +357,10 @@ class CollectorController extends Controller
     {
         return Client::query()
             ->forCompany((int) $collector->company_id)
-            ->whereHas('loans', fn (Builder $query): Builder => $query->where('collector_id', $collector->id));
+            ->where(function (Builder $query) use ($collector): void {
+                $query->whereHas('loans', fn (Builder $loanQuery): Builder => $loanQuery->where('collector_id', $collector->id))
+                    ->orWhereHas('routes', fn (Builder $routeQuery): Builder => $routeQuery->where('collector_id', $collector->id));
+            });
     }
 
     private function assignedLoanQuery(Collector $collector): Builder
@@ -361,6 +432,9 @@ class CollectorController extends Controller
             'identification' => $client->identification,
             'phone' => $client->phone,
             'address' => $client->address,
+            'latitude' => $client->latitude === null ? null : (float) $client->latitude,
+            'longitude' => $client->longitude === null ? null : (float) $client->longitude,
+            'location_reference' => $client->location_reference,
             'status' => $client->status,
             'risk_level' => $client->risk_level,
         ];

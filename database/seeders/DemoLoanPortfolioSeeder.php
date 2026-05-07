@@ -9,6 +9,7 @@ use App\Models\Collector;
 use App\Models\Company;
 use App\Models\CompanySetting;
 use App\Models\ExpenseCategory;
+use App\Models\Route as LendingRoute;
 use App\Models\User;
 use App\Models\Zone;
 use App\Services\Loans\LateStatusRefreshService;
@@ -38,12 +39,12 @@ class DemoLoanPortfolioSeeder extends Seeder
         $admin = $this->admin($company);
         $collector = $this->collector($company);
         $this->supportingCatalogs($company);
+        $clients = $this->clients($company);
+        $this->route($company, $collector, $clients);
 
         if ($company->loans()->where('notes', 'like', '%'.self::MARKER.'%')->exists()) {
             return;
         }
-
-        $clients = $this->clients($company);
 
         $monthlyLoan = $loanService->create(
             companyId: (int) $company->id,
@@ -228,6 +229,33 @@ class DemoLoanPortfolioSeeder extends Seeder
     }
 
     /**
+     * @param array{monthly:Client,weekly:Client,dailyLate:Client} $clients
+     */
+    private function route(Company $company, Collector $collector, array $clients): void
+    {
+        $zone = Zone::query()
+            ->where('company_id', $company->id)
+            ->where('name', 'Zona Centro')
+            ->first();
+
+        $route = LendingRoute::query()->updateOrCreate(
+            ['company_id' => $company->id, 'name' => 'Ruta Centro y Este'],
+            [
+                'zone_id' => $zone?->id,
+                'collector_id' => $collector->id,
+                'description' => 'Ruta demo para probar mapa, cobros y mora por cliente.',
+                'status' => 'active',
+            ],
+        );
+
+        $route->clients()->sync([
+            $clients['monthly']->id => ['order_number' => 1],
+            $clients['dailyLate']->id => ['order_number' => 2],
+            $clients['weekly']->id => ['order_number' => 3],
+        ]);
+    }
+
+    /**
      * @return array{monthly:Client,weekly:Client,dailyLate:Client}
      */
     private function clients(Company $company): array
@@ -241,6 +269,9 @@ class DemoLoanPortfolioSeeder extends Seeder
                     'phone' => '809-555-3001',
                     'secondary_phone' => '829-555-3001',
                     'address' => 'Ensanche Naco, Santo Domingo',
+                    'latitude' => 18.4834020,
+                    'longitude' => -69.9312120,
+                    'location_reference' => 'Cerca de Av. Tiradentes',
                     'workplace' => 'Comercial Rodríguez',
                     'monthly_income' => 85000,
                     'status' => 'active',
@@ -255,6 +286,9 @@ class DemoLoanPortfolioSeeder extends Seeder
                     'identification' => '001-7654321-0',
                     'phone' => '809-555-3002',
                     'address' => 'Los Mina, Santo Domingo Este',
+                    'latitude' => 18.4919780,
+                    'longitude' => -69.8561590,
+                    'location_reference' => 'Próximo a Av. Venezuela',
                     'workplace' => 'Taller Martínez',
                     'monthly_income' => 52000,
                     'status' => 'active',
@@ -269,6 +303,9 @@ class DemoLoanPortfolioSeeder extends Seeder
                     'identification' => '402-1122334-5',
                     'phone' => '809-555-3003',
                     'address' => 'Villa Consuelo, Santo Domingo',
+                    'latitude' => 18.4765680,
+                    'longitude' => -69.8984090,
+                    'location_reference' => 'Zona comercial de Villa Consuelo',
                     'workplace' => 'Colmado Ana',
                     'monthly_income' => 45000,
                     'status' => 'active',

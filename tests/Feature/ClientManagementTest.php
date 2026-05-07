@@ -28,6 +28,9 @@ class ClientManagementTest extends TestCase
                 'identification' => '001-0000000-1',
                 'phone' => '809-555-0001',
                 'email' => 'juan@example.com',
+                'address' => 'Av. Abraham Lincoln, Santo Domingo',
+                'latitude' => 18.4691000,
+                'longitude' => -69.9390000,
                 'monthly_income' => 45000,
                 'status' => 'active',
                 'risk_level' => 'low',
@@ -38,7 +41,23 @@ class ClientManagementTest extends TestCase
             'company_id' => $user->company_id,
             'code' => 'CLI-001',
             'full_name' => 'Juan Perez',
+            'address' => 'Av. Abraham Lincoln, Santo Domingo',
+            'latitude' => 18.4691000,
+            'longitude' => -69.9390000,
         ]);
+    }
+
+    public function test_client_address_is_required(): void
+    {
+        $user = $this->adminUser();
+
+        $this->actingAs($user)
+            ->post('/clientes', [
+                'full_name' => 'Cliente Sin Direccion',
+                'status' => 'active',
+                'risk_level' => 'low',
+            ])
+            ->assertSessionHasErrors('address');
     }
 
     public function test_client_code_is_unique_inside_company(): void
@@ -49,6 +68,7 @@ class ClientManagementTest extends TestCase
             'company_id' => $user->company_id,
             'code' => 'CLI-001',
             'full_name' => 'Cliente Existente',
+            'address' => 'Direccion existente',
             'status' => 'active',
             'risk_level' => 'low',
         ]);
@@ -57,6 +77,7 @@ class ClientManagementTest extends TestCase
             ->post('/clientes', [
                 'code' => 'CLI-001',
                 'full_name' => 'Cliente Duplicado',
+                'address' => 'Direccion duplicada',
                 'status' => 'active',
                 'risk_level' => 'low',
             ])
@@ -70,6 +91,7 @@ class ClientManagementTest extends TestCase
         $foreignClient = Client::query()->create([
             'company_id' => $otherCompany->id,
             'full_name' => 'Cliente Ajeno',
+            'address' => 'Direccion ajena',
             'status' => 'active',
             'risk_level' => 'low',
         ]);
