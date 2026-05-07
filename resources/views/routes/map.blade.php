@@ -170,12 +170,22 @@
             }
 
             const bounds = new google.maps.LatLngBounds();
-            const path = [];
             const currency = new Intl.NumberFormat('es-DO', {
                 style: 'currency',
                 currency: 'DOP',
             });
             const infoWindow = new google.maps.InfoWindow();
+            const directionsService = new google.maps.DirectionsService();
+            const directionsRenderer = new google.maps.DirectionsRenderer({
+                map,
+                suppressMarkers: true,
+                preserveViewport: true,
+                polylineOptions: {
+                    strokeColor: '#5e72e4',
+                    strokeOpacity: 0.9,
+                    strokeWeight: 5,
+                },
+            });
 
             clients.forEach((client, index) => {
                 const position = {
@@ -183,7 +193,6 @@
                     lng: Number(client.longitude),
                 };
                 bounds.extend(position);
-                path.push(position);
 
                 const marker = new google.maps.Marker({
                     map,
@@ -208,14 +217,39 @@
                 });
             });
 
-            if (path.length > 1) {
-                new google.maps.Polyline({
-                    path,
-                    geodesic: true,
-                    strokeColor: '#5e72e4',
-                    strokeOpacity: 0.85,
-                    strokeWeight: 4,
-                    map,
+            if (clients.length > 1) {
+                const origin = {
+                    lat: Number(clients[0].latitude),
+                    lng: Number(clients[0].longitude),
+                };
+                const destination = {
+                    lat: Number(clients[clients.length - 1].latitude),
+                    lng: Number(clients[clients.length - 1].longitude),
+                };
+                const waypoints = clients.slice(1, -1).slice(0, 23).map((client) => ({
+                    location: {
+                        lat: Number(client.latitude),
+                        lng: Number(client.longitude),
+                    },
+                    stopover: true,
+                }));
+
+                directionsService.route({
+                    origin,
+                    destination,
+                    waypoints,
+                    travelMode: google.maps.TravelMode.DRIVING,
+                    optimizeWaypoints: false,
+                }, (response, status) => {
+                    if (status === google.maps.DirectionsStatus.OK && response) {
+                        directionsRenderer.setDirections(response);
+                    } else {
+                        const warning = document.createElement('div');
+                        warning.className = 'alert alert-warning m-3 position-absolute top-0 start-0';
+                        warning.style.zIndex = '5';
+                        warning.textContent = 'Google no pudo calcular una ruta real para estos puntos. Revisa coordenadas, API Directions y cantidad de paradas.';
+                        element.parentElement.appendChild(warning);
+                    }
                 });
             }
 
