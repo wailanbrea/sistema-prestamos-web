@@ -13,6 +13,15 @@
             </div>
             <div class="d-flex gap-2">
                 <a href="{{ route('loan-quotes.index') }}" class="btn btn-outline-secondary">Volver</a>
+                @if ($quote->status !== 'converted')
+                    <form method="POST" action="{{ route('loan-quotes.destroy', $quote) }}" onsubmit="return confirm('Eliminar esta cotizacion?');">
+                        @csrf
+                        @method('DELETE')
+                        <button type="submit" class="btn btn-outline-danger">
+                            <i class="fa-solid fa-trash me-2"></i> Eliminar
+                        </button>
+                    </form>
+                @endif
                 @if ($quote->client_id && $quote->status !== 'converted')
                     <a href="{{ route('loans.create', ['quote_id' => $quote->id]) }}" class="btn btn-primary">
                         <i class="fa-solid fa-file-invoice-dollar me-2"></i> Convertir a préstamo

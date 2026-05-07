@@ -10,6 +10,7 @@ use App\Services\Loans\LoanQuoteService;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\View\View;
+use InvalidArgumentException;
 
 class LoanQuoteController extends Controller
 {
@@ -64,6 +65,21 @@ class LoanQuoteController extends Controller
             'calculation' => $calculation,
             ...$this->labels(),
         ]);
+    }
+
+    public function destroy(Request $request, int $quote): RedirectResponse
+    {
+        $model = $this->loanQuoteService->findForCompany((int) $request->user()->company_id, $quote);
+
+        try {
+            $this->loanQuoteService->delete($model);
+        } catch (InvalidArgumentException $exception) {
+            return back()->with('status', $exception->getMessage());
+        }
+
+        return redirect()
+            ->route('loan-quotes.index')
+            ->with('status', 'Cotizacion eliminada correctamente.');
     }
 
     /**

@@ -120,6 +120,59 @@ class LoanQuoteManagementTest extends TestCase
             ->assertNotFound();
     }
 
+    public function test_admin_can_delete_pending_quote(): void
+    {
+        $user = $this->adminUser();
+        $quote = \App\Models\LoanQuote::query()->create([
+            'company_id' => $user->company_id,
+            'amount' => 5000,
+            'interest_rate' => 5,
+            'interest_type' => 'fixed',
+            'payment_frequency' => 'weekly',
+            'calculation_method' => 'flat_interest',
+            'term_quantity' => 5,
+            'installment_amount' => 1050,
+            'total_interest' => 250,
+            'total_to_pay' => 5250,
+            'status' => 'pending',
+        ]);
+
+        $this->actingAs($user)
+            ->delete(route('loan-quotes.destroy', $quote))
+            ->assertRedirect(route('loan-quotes.index'));
+
+        $this->assertDatabaseMissing('loan_quotes', [
+            'id' => $quote->id,
+        ]);
+    }
+
+    public function test_admin_cannot_delete_converted_quote(): void
+    {
+        $user = $this->adminUser();
+        $quote = \App\Models\LoanQuote::query()->create([
+            'company_id' => $user->company_id,
+            'amount' => 5000,
+            'interest_rate' => 5,
+            'interest_type' => 'fixed',
+            'payment_frequency' => 'weekly',
+            'calculation_method' => 'flat_interest',
+            'term_quantity' => 5,
+            'installment_amount' => 1050,
+            'total_interest' => 250,
+            'total_to_pay' => 5250,
+            'status' => 'converted',
+        ]);
+
+        $this->actingAs($user)
+            ->delete(route('loan-quotes.destroy', $quote))
+            ->assertRedirect();
+
+        $this->assertDatabaseHas('loan_quotes', [
+            'id' => $quote->id,
+            'status' => 'converted',
+        ]);
+    }
+
     private function adminUser(): User
     {
         $this->seed(RolePermissionSeeder::class);

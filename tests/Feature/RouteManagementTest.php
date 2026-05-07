@@ -6,6 +6,7 @@ namespace Tests\Feature;
 
 use App\Models\Client;
 use App\Models\Collector;
+use App\Models\CollectorRouteSession;
 use App\Models\Company;
 use App\Models\Route as LendingRoute;
 use App\Models\User;
@@ -128,6 +129,37 @@ class RouteManagementTest extends TestCase
             ->getJson(route('routes.tracking.data'))
             ->assertOk()
             ->assertJsonPath('data', []);
+    }
+
+    public function test_admin_can_view_tracking_history(): void
+    {
+        $user = $this->adminUser();
+        $collector = Collector::query()->create([
+            'company_id' => $user->company_id,
+            'name' => 'Cobrador Historial',
+            'commission_type' => 'none',
+            'commission_value' => 0,
+            'status' => 'active',
+        ]);
+        $route = LendingRoute::query()->create([
+            'company_id' => $user->company_id,
+            'collector_id' => $collector->id,
+            'name' => 'Ruta Historial',
+            'status' => 'active',
+        ]);
+        CollectorRouteSession::query()->create([
+            'company_id' => $user->company_id,
+            'collector_id' => $collector->id,
+            'route_id' => $route->id,
+            'status' => 'completed',
+            'started_at' => now()->subHour(),
+            'ended_at' => now(),
+        ]);
+
+        $this->actingAs($user)
+            ->get(route('routes.tracking.history'))
+            ->assertOk()
+            ->assertSee('Ruta Historial');
     }
 
     public function test_zone_name_is_unique_per_company(): void

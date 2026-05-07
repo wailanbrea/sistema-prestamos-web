@@ -67,6 +67,12 @@ return [
                     'permission' => 'routes.manage',
                 ],
                 [
+                    'label' => 'Historial rutas',
+                    'route' => 'routes.tracking.history',
+                    'icon' => 'fa-clock-rotate-left',
+                    'permission' => 'routes.manage',
+                ],
+                [
                     'label' => 'Gastos',
                     'route' => 'expenses.index',
                     'icon' => 'fa-receipt',
@@ -100,6 +106,12 @@ return [
                     'route' => 'settings.index',
                     'icon' => 'fa-gear',
                     'permission' => 'settings.manage',
+                ],
+                [
+                    'label' => 'Roles',
+                    'route' => 'roles.index',
+                    'icon' => 'fa-user-shield',
+                    'permission' => 'users.manage',
                 ],
             ],
         ],

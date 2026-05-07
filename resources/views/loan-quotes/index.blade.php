@@ -60,6 +60,7 @@
                             <th class="text-end">Monto</th>
                             <th class="text-end">Cuota</th>
                             <th>Estado</th>
+                            <th class="text-end">Acciones</th>
                         </tr>
                     </thead>
                     <tbody>
@@ -75,10 +76,23 @@
                                 <td class="text-end">RD$ {{ number_format((float) $quote->amount, 2) }}</td>
                                 <td class="text-end">RD$ {{ number_format((float) $quote->installment_amount, 2) }}</td>
                                 <td><span class="badge {{ $statusLabels[$quote->status]['class'] ?? 'text-bg-secondary' }}">{{ $statusLabels[$quote->status]['label'] ?? $quote->status }}</span></td>
+                                <td class="text-end">
+                                    @if ($quote->status !== 'converted')
+                                        <form method="POST" action="{{ route('loan-quotes.destroy', $quote) }}" onsubmit="return confirm('Eliminar esta cotizacion?');">
+                                            @csrf
+                                            @method('DELETE')
+                                            <button type="submit" class="btn btn-sm btn-outline-danger">
+                                                <i class="fa-solid fa-trash"></i>
+                                            </button>
+                                        </form>
+                                    @else
+                                        <span class="text-muted small">Convertida</span>
+                                    @endif
+                                </td>
                             </tr>
                         @empty
                             <tr>
-                                <td colspan="7" class="text-center text-muted py-5">No hay cotizaciones registradas.</td>
+                                <td colspan="8" class="text-center text-muted py-5">No hay cotizaciones registradas.</td>
                             </tr>
                         @endforelse
                     </tbody>

@@ -74,6 +74,13 @@ class RouteController extends Controller
         ]);
     }
 
+    public function trackingHistory(Request $request): View
+    {
+        return view('routes.tracking-history', [
+            'sessions' => $this->routeTrackingService->completedSessionsForCompany((int) $request->user()->company_id),
+        ]);
+    }
+
     public function store(StoreRouteRequest $request): RedirectResponse
     {
         $route = $this->routeService->create((int) $request->user()->company_id, $request->validated());

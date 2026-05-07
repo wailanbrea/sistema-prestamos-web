@@ -182,6 +182,23 @@ class RouteTrackingService
             ->all();
     }
 
+    /**
+     * @return array<int,array<string,mixed>>
+     */
+    public function completedSessionsForCompany(int $companyId): array
+    {
+        return CollectorRouteSession::query()
+            ->forCompany($companyId)
+            ->whereIn('status', ['completed', 'cancelled'])
+            ->with(['collector', 'route.clients', 'visitEvents.client'])
+            ->latest('ended_at')
+            ->limit(50)
+            ->get()
+            ->map(fn (CollectorRouteSession $session): array => $this->sessionPayload($session))
+            ->values()
+            ->all();
+    }
+
     private function markNearbyStops(CollectorRouteSession $session, float $latitude, float $longitude, CarbonImmutable $visitedAt): void
     {
         /** @var Collection<int,Client> $clients */

@@ -120,9 +120,14 @@
                     <h2 class="h6 text-uppercase text-muted mb-1">Usuarios</h2>
                     <p class="text-muted mb-0">Accesos internos y roles operativos.</p>
                 </div>
-                <a href="{{ route('users.create') }}" class="btn btn-outline-primary">
-                    <i class="fa-solid fa-user-plus me-2"></i> Nuevo usuario
-                </a>
+                <div class="d-flex gap-2">
+                    <a href="{{ route('roles.index') }}" class="btn btn-outline-secondary">
+                        <i class="fa-solid fa-user-shield me-2"></i> Roles
+                    </a>
+                    <a href="{{ route('users.create') }}" class="btn btn-outline-primary">
+                        <i class="fa-solid fa-user-plus me-2"></i> Nuevo usuario
+                    </a>
+                </div>
             </div>
 
             <form method="GET" action="{{ route('settings.index') }}" class="row g-3 align-items-end mb-3">

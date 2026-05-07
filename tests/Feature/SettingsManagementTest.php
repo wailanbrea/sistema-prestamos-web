@@ -11,6 +11,7 @@ use Database\Seeders\RolePermissionSeeder;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Hash;
 use Spatie\Permission\PermissionRegistrar;
+use Spatie\Permission\Models\Role;
 use Tests\TestCase;
 
 class SettingsManagementTest extends TestCase
@@ -80,6 +81,28 @@ class SettingsManagementTest extends TestCase
         $this->assertSame($user->company_id, $created->company_id);
         app(PermissionRegistrar::class)->setPermissionsTeamId((int) $user->company_id);
         $this->assertTrue($created->hasRole('Supervisor'));
+    }
+
+    public function test_admin_can_update_role_screen_permissions(): void
+    {
+        $user = $this->adminUser();
+        $role = Role::query()->where('name', 'Supervisor')->firstOrFail();
+
+        $this->actingAs($user)
+            ->get(route('roles.index'))
+            ->assertOk()
+            ->assertSee('Roles y permisos');
+
+        $this->actingAs($user)
+            ->put(route('roles.update', $role), [
+                'permissions' => ['dashboard.view', 'clients.view'],
+            ])
+            ->assertRedirect(route('roles.index'));
+
+        $role->refresh();
+        $this->assertTrue($role->hasPermissionTo('dashboard.view'));
+        $this->assertTrue($role->hasPermissionTo('clients.view'));
+        $this->assertFalse($role->hasPermissionTo('loans.create'));
     }
 
     public function test_admin_cannot_block_own_user(): void

@@ -7,6 +7,7 @@ namespace App\Services\Loans;
 use App\Models\LoanQuote;
 use Illuminate\Contracts\Pagination\LengthAwarePaginator;
 use Illuminate\Database\Eloquent\Builder;
+use InvalidArgumentException;
 
 class LoanQuoteService
 {
@@ -76,5 +77,14 @@ class LoanQuoteService
             ->forCompany($companyId)
             ->whereKey($quoteId)
             ->firstOrFail();
+    }
+
+    public function delete(LoanQuote $quote): void
+    {
+        if ($quote->status === 'converted') {
+            throw new InvalidArgumentException('No puedes borrar una cotizacion convertida en prestamo.');
+        }
+
+        $quote->delete();
     }
 }

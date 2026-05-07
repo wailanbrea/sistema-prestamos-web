@@ -13,6 +13,7 @@ use App\Http\Controllers\LoanQuoteController;
 use App\Http\Controllers\ModulePlaceholderController;
 use App\Http\Controllers\PaymentController;
 use App\Http\Controllers\ReportController;
+use App\Http\Controllers\RoleController;
 use App\Http\Controllers\RouteController;
 use App\Http\Controllers\SettingsController;
 use App\Http\Controllers\UserController;
@@ -46,6 +47,7 @@ Route::middleware(['auth', 'user.active', 'company.active', 'permission.company'
         Route::get('/crear', 'create')->name('create');
         Route::post('/', 'store')->name('store');
         Route::get('/{quote}', 'show')->whereNumber('quote')->name('show');
+        Route::delete('/{quote}', 'destroy')->whereNumber('quote')->name('destroy');
     });
     Route::prefix('prestamos')->name('loans.')->controller(LoanController::class)->group(function (): void {
         Route::get('/', 'index')->middleware('permission:loans.view')->name('index');
@@ -74,6 +76,7 @@ Route::middleware(['auth', 'user.active', 'company.active', 'permission.company'
         Route::get('/mapa', 'map')->name('map');
         Route::get('/seguimiento', 'tracking')->name('tracking');
         Route::get('/seguimiento/datos', 'trackingData')->name('tracking.data');
+        Route::get('/historial-seguimiento', 'trackingHistory')->name('tracking.history');
         Route::get('/crear', 'create')->name('create');
         Route::post('/', 'store')->name('store');
         Route::get('/{route}', 'show')->whereNumber('route')->name('show');
@@ -120,5 +123,10 @@ Route::middleware(['auth', 'user.active', 'company.active', 'permission.company'
         Route::post('/', 'store')->name('store');
         Route::get('/{user}/editar', 'edit')->whereNumber('user')->name('edit');
         Route::put('/{user}', 'update')->whereNumber('user')->name('update');
+    });
+    Route::prefix('roles')->name('roles.')->controller(RoleController::class)->middleware('permission:users.manage')->group(function (): void {
+        Route::get('/', 'index')->name('index');
+        Route::get('/{role}/editar', 'edit')->whereNumber('role')->name('edit');
+        Route::put('/{role}', 'update')->whereNumber('role')->name('update');
     });
 });
