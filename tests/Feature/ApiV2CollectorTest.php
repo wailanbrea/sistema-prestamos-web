@@ -7,6 +7,7 @@ namespace Tests\Feature;
 use App\Models\Client;
 use App\Models\Collector;
 use App\Models\Company;
+use App\Models\CompanySetting;
 use App\Models\Loan;
 use App\Models\LoanInstallment;
 use App\Models\Route as LendingRoute;
@@ -156,6 +157,45 @@ class ApiV2CollectorTest extends TestCase
             ->assertOk()
             ->assertJsonPath('data.id', $sessionId)
             ->assertJsonPath('data.stops.0.visited', true);
+    }
+
+    public function test_route_tracking_respects_company_visit_radius(): void
+    {
+        [$user, $collector, $loan] = $this->collectorWithLoan();
+        CompanySetting::query()->updateOrCreate([
+            'company_id' => $collector->company_id,
+        ], [
+            'route_visit_radius_meters' => 20,
+        ]);
+        $route = LendingRoute::query()->create([
+            'company_id' => $collector->company_id,
+            'collector_id' => $collector->id,
+            'name' => 'Ruta Radio API',
+            'status' => 'active',
+        ]);
+        $route->clients()->sync([$loan->client_id => ['order_number' => 1]]);
+        $token = $this->loginToken($user);
+
+        $sessionId = $this->withToken($token)
+            ->postJson('/api/v2/collector/route-sessions', [
+                'route_id' => $route->id,
+            ])
+            ->assertCreated()
+            ->json('data.id');
+
+        $this->withToken($token)
+            ->postJson("/api/v2/collector/route-sessions/{$sessionId}/locations", [
+                'latitude' => 18.48645,
+                'longitude' => -69.93120,
+                'recorded_at' => '2026-05-07T08:05:00-04:00',
+            ])
+            ->assertOk()
+            ->assertJsonPath('data.stops.0.visited', false);
+
+        $this->assertDatabaseMissing('route_visit_events', [
+            'collector_route_session_id' => $sessionId,
+            'client_id' => $loan->client_id,
+        ]);
     }
 
 

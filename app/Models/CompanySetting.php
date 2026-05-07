@@ -21,6 +21,7 @@ class CompanySetting extends Model
             'allow_payment_cancellation' => 'boolean',
             'require_approval_for_loans' => 'boolean',
             'exclude_sundays_for_daily_loans' => 'boolean',
+            'route_visit_radius_meters' => 'integer',
         ];
     }
 

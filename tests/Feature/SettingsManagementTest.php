@@ -40,6 +40,7 @@ class SettingsManagementTest extends TestCase
                 'allow_payment_cancellation' => 0,
                 'require_approval_for_loans' => 1,
                 'exclude_sundays_for_daily_loans' => 1,
+                'route_visit_radius_meters' => 90,
             ])
             ->assertRedirect(route('settings.index'));
 
@@ -54,6 +55,7 @@ class SettingsManagementTest extends TestCase
             'default_late_fee_value' => 50,
             'allow_payment_cancellation' => 0,
             'exclude_sundays_for_daily_loans' => 1,
+            'route_visit_radius_meters' => 90,
         ]);
     }
 

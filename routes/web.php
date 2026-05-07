@@ -73,6 +73,7 @@ Route::middleware(['auth', 'user.active', 'company.active', 'permission.company'
         Route::get('/', 'index')->name('index');
         Route::get('/mapa', 'map')->name('map');
         Route::get('/seguimiento', 'tracking')->name('tracking');
+        Route::get('/seguimiento/datos', 'trackingData')->name('tracking.data');
         Route::get('/crear', 'create')->name('create');
         Route::post('/', 'store')->name('store');
         Route::get('/{route}', 'show')->whereNumber('route')->name('show');

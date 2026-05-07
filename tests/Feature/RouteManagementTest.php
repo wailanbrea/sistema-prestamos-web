@@ -123,6 +123,11 @@ class RouteManagementTest extends TestCase
             ->get(route('routes.tracking'))
             ->assertOk()
             ->assertSee('Seguimiento de cobradores');
+
+        $this->actingAs($user)
+            ->getJson(route('routes.tracking.data'))
+            ->assertOk()
+            ->assertJsonPath('data', []);
     }
 
     public function test_zone_name_is_unique_per_company(): void

@@ -36,6 +36,7 @@ class UpdateCompanySettingsRequest extends FormRequest
             'allow_payment_cancellation' => ['nullable', 'boolean'],
             'require_approval_for_loans' => ['nullable', 'boolean'],
             'exclude_sundays_for_daily_loans' => ['nullable', 'boolean'],
+            'route_visit_radius_meters' => ['required', 'integer', 'min:20', 'max:500'],
         ];
     }
 }

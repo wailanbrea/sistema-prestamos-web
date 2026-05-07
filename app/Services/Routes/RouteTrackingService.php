@@ -8,6 +8,7 @@ use App\Models\Client;
 use App\Models\Collector;
 use App\Models\CollectorLocationPoint;
 use App\Models\CollectorRouteSession;
+use App\Models\CompanySetting;
 use App\Models\Route as LendingRoute;
 use App\Models\RouteVisitEvent;
 use Carbon\CarbonImmutable;
@@ -17,7 +18,7 @@ use InvalidArgumentException;
 
 class RouteTrackingService
 {
-    private const VISIT_RADIUS_METERS = 75;
+    private const DEFAULT_VISIT_RADIUS_METERS = 75;
 
     public function startSession(Collector $collector, int $routeId): CollectorRouteSession
     {
@@ -204,7 +205,7 @@ class RouteTrackingService
             }
 
             $distance = $this->distanceMeters($latitude, $longitude, (float) $client->latitude, (float) $client->longitude);
-            if ($distance > self::VISIT_RADIUS_METERS) {
+            if ($distance > $this->visitRadiusMeters((int) $session->company_id)) {
                 continue;
             }
 
@@ -236,5 +237,12 @@ class RouteTrackingService
             + cos(deg2rad($fromLatitude)) * cos(deg2rad($toLatitude)) * sin($lngDelta / 2) ** 2;
 
         return $earthRadiusMeters * 2 * atan2(sqrt($a), sqrt(1 - $a));
+    }
+
+    private function visitRadiusMeters(int $companyId): int
+    {
+        return (int) (CompanySetting::query()
+            ->where('company_id', $companyId)
+            ->value('route_visit_radius_meters') ?? self::DEFAULT_VISIT_RADIUS_METERS);
     }
 }

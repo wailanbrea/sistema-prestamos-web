@@ -13,6 +13,7 @@ use App\Services\Routes\RouteService;
 use App\Services\Routes\RouteTrackingService;
 use App\Services\Routes\ZoneService;
 use Illuminate\Database\Eloquent\Collection;
+use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\View\View;
@@ -63,6 +64,13 @@ class RouteController extends Controller
         return view('routes.tracking', [
             'sessions' => $this->routeTrackingService->activeSessionsForCompany((int) $request->user()->company_id),
             'googleMapsApiKey' => (string) config('services.google_maps.api_key'),
+        ]);
+    }
+
+    public function trackingData(Request $request): JsonResponse
+    {
+        return response()->json([
+            'data' => $this->routeTrackingService->activeSessionsForCompany((int) $request->user()->company_id),
         ]);
     }
 

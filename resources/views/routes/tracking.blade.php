@@ -25,7 +25,7 @@
             <article class="card metric-card h-100">
                 <div class="card-body">
                     <div class="text-muted small">Cobradores transmitiendo</div>
-                    <div class="h4 fw-bold mb-0">{{ count($sessions) }}</div>
+                    <div id="tracking-active-count" class="h4 fw-bold mb-0">{{ count($sessions) }}</div>
                 </div>
             </article>
         </div>
@@ -33,7 +33,7 @@
             <article class="card metric-card h-100">
                 <div class="card-body">
                     <div class="text-muted small">Puntos asignados</div>
-                    <div class="h4 fw-bold mb-0">{{ collect($sessions)->sum(fn ($session) => count($session['stops'])) }}</div>
+                    <div id="tracking-total-stops" class="h4 fw-bold mb-0">{{ collect($sessions)->sum(fn ($session) => count($session['stops'])) }}</div>
                 </div>
             </article>
         </div>
@@ -41,7 +41,7 @@
             <article class="card metric-card h-100">
                 <div class="card-body">
                     <div class="text-muted small">Puntos visitados</div>
-                    <div class="h4 fw-bold mb-0 text-success">{{ collect($sessions)->sum(fn ($session) => collect($session['stops'])->where('visited', true)->count()) }}</div>
+                    <div id="tracking-visited-stops" class="h4 fw-bold mb-0 text-success">{{ collect($sessions)->sum(fn ($session) => collect($session['stops'])->where('visited', true)->count()) }}</div>
                 </div>
             </article>
         </div>
@@ -71,7 +71,7 @@
                     <p class="text-muted small mb-0">El sistema marca visita cuando el GPS entra en el radio permitido.</p>
                 </div>
                 <div class="card-body">
-                    <div class="vstack gap-3">
+                    <div id="tracking-session-list" class="vstack gap-3">
                         @forelse ($sessions as $session)
                             @php
                                 $visited = collect($session['stops'])->where('visited', true)->count();
@@ -121,25 +121,63 @@
 
     <script>
         window.routeTrackingSessions = @json($sessions);
-
-        setTimeout(() => {
-            window.location.reload();
-        }, 30000);
+        window.routeTrackingDataUrl = @json(route('routes.tracking.data'));
+        window.trackingMapState = {
+            map: null,
+            infoWindow: null,
+            directionsService: null,
+            overlays: [],
+            routeRenderers: [],
+        };
 
         function initTrackingMap() {
             const element = document.getElementById('tracking-map');
-            const sessions = window.routeTrackingSessions || [];
             const defaultCenter = { lat: 18.4861, lng: -69.9312 };
-            const map = new google.maps.Map(element, {
+            window.trackingMapState.map = new google.maps.Map(element, {
                 center: defaultCenter,
                 zoom: 11,
                 mapTypeControl: false,
                 streetViewControl: false,
                 fullscreenControl: true,
             });
+            window.trackingMapState.infoWindow = new google.maps.InfoWindow();
+            window.trackingMapState.directionsService = new google.maps.DirectionsService();
+
+            renderTrackingSessions(window.routeTrackingSessions || [], true);
+            setInterval(refreshTrackingSessions, 30000);
+        }
+
+        async function refreshTrackingSessions() {
+            try {
+                const response = await fetch(window.routeTrackingDataUrl, {
+                    headers: { Accept: 'application/json' },
+                });
+                if (!response.ok) {
+                    return;
+                }
+
+                const payload = await response.json();
+                window.routeTrackingSessions = payload.data || [];
+                renderTrackingSummary(window.routeTrackingSessions);
+                renderTrackingSessions(window.routeTrackingSessions, false);
+            } catch (error) {
+                console.warn('No se pudo actualizar el seguimiento.', error);
+            }
+        }
+
+        function renderTrackingSessions(sessions, shouldFitBounds) {
+            const state = window.trackingMapState;
+            const map = state.map;
+            if (!map) {
+                return;
+            }
+
+            state.overlays.forEach((overlay) => overlay.setMap(null));
+            state.routeRenderers.forEach((renderer) => renderer.setMap(null));
+            state.overlays = [];
+            state.routeRenderers = [];
+
             const bounds = new google.maps.LatLngBounds();
-            const infoWindow = new google.maps.InfoWindow();
-            const directionsService = new google.maps.DirectionsService();
             let hasBounds = false;
 
             sessions.forEach((session) => {
@@ -164,15 +202,16 @@
                             strokeWeight: 3,
                         },
                     });
+                    state.overlays.push(marker);
                     marker.addListener('click', () => {
-                        infoWindow.setContent(`
+                        state.infoWindow.setContent(`
                             <div style="min-width:220px">
                                 <strong>${session.collector?.name || 'Cobrador'}</strong>
                                 <div>${session.route?.name || 'Ruta'}</div>
                                 <div style="margin-top:8px">Ultima seÃ±al: ${session.last_location_at || 'Pendiente'}</div>
                             </div>
                         `);
-                        infoWindow.open(map, marker);
+                        state.infoWindow.open(map, marker);
                     });
                 }
 
@@ -196,8 +235,9 @@
                         title: stop.client_name,
                         opacity: stop.visited ? 1 : 0.65,
                     });
+                    state.overlays.push(marker);
                     marker.addListener('click', () => {
-                        infoWindow.setContent(`
+                        state.infoWindow.setContent(`
                             <div style="min-width:240px">
                                 <strong>${stop.client_name}</strong>
                                 <div>${stop.address || ''}</div>
@@ -206,7 +246,7 @@
                                 ${stop.distance_meters ? `<div>Distancia registrada: ${stop.distance_meters} m</div>` : ''}
                             </div>
                         `);
-                        infoWindow.open(map, marker);
+                        state.infoWindow.open(map, marker);
                     });
                 });
 
@@ -221,7 +261,8 @@
                             strokeWeight: 5,
                         },
                     });
-                    directionsService.route({
+                    state.routeRenderers.push(renderer);
+                    state.directionsService.route({
                         origin: routePath[0],
                         destination: routePath[routePath.length - 1],
                         waypoints: routePath.slice(1, -1).slice(0, 23).map((point) => ({
@@ -238,9 +279,80 @@
                 }
             });
 
-            if (hasBounds) {
+            if (hasBounds && shouldFitBounds) {
                 map.fitBounds(bounds, 80);
             }
+        }
+
+        function renderTrackingSummary(sessions) {
+            const totalStops = sessions.reduce((total, session) => total + (session.stops || []).length, 0);
+            const visitedStops = sessions.reduce((total, session) => total + (session.stops || []).filter((stop) => stop.visited).length, 0);
+            document.getElementById('tracking-active-count').textContent = sessions.length;
+            document.getElementById('tracking-total-stops').textContent = totalStops;
+            document.getElementById('tracking-visited-stops').textContent = visitedStops;
+
+            const list = document.getElementById('tracking-session-list');
+            if (!list) {
+                return;
+            }
+
+            if (!sessions.length) {
+                list.innerHTML = '<div class="text-center text-muted py-5">No hay cobradores compartiendo ubicacion ahora mismo.</div>';
+                return;
+            }
+
+            list.innerHTML = sessions.map((session) => {
+                const stops = session.stops || [];
+                const visited = stops.filter((stop) => stop.visited).length;
+                const total = stops.length;
+                const progress = total > 0 ? Math.round((visited / total) * 100) : 0;
+                const lastSignal = session.last_location_at || 'Sin senal todavia';
+
+                return `
+                    <article class="border rounded-3 p-3">
+                        <div class="d-flex justify-content-between gap-3">
+                            <div>
+                                <div class="fw-semibold">${escapeHtml(session.collector?.name || 'Cobrador')}</div>
+                                <div class="text-muted small">${escapeHtml(session.route?.name || 'Ruta')}</div>
+                            </div>
+                            <span class="badge text-bg-primary align-self-start">${visited}/${total}</span>
+                        </div>
+                        <div class="progress mt-3" role="progressbar" aria-label="Progreso de visita">
+                            <div class="progress-bar" style="width: ${progress}%"></div>
+                        </div>
+                        <div class="text-muted small mt-2">Ultima senal: ${escapeHtml(lastSignal)}</div>
+                        <div class="vstack gap-2 mt-3">
+                            ${stops.map((stop) => `
+                                <div class="d-flex justify-content-between gap-2 small">
+                                    <span class="${stop.visited ? 'text-success' : 'text-muted'}">${stop.expected_order}. ${escapeHtml(stop.client_name)}</span>
+                                    ${visitBadge(stop)}
+                                </div>
+                            `).join('')}
+                        </div>
+                    </article>
+                `;
+            }).join('');
+        }
+
+        function visitBadge(stop) {
+            if (!stop.visited) {
+                return '<span class="badge text-bg-light">Pendiente</span>';
+            }
+
+            if (stop.visit_status === 'visited_out_of_order') {
+                return '<span class="badge text-bg-warning">Fuera de orden</span>';
+            }
+
+            return '<span class="badge text-bg-success">Visitado</span>';
+        }
+
+        function escapeHtml(value) {
+            return String(value ?? '')
+                .replaceAll('&', '&amp;')
+                .replaceAll('<', '&lt;')
+                .replaceAll('>', '&gt;')
+                .replaceAll('"', '&quot;')
+                .replaceAll("'", '&#039;');
         }
     </script>
 

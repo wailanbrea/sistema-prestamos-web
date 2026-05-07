@@ -82,6 +82,12 @@
                         @error('receipt_prefix') <div class="invalid-feedback">{{ $message }}</div> @enderror
                     </div>
 
+                    <div class="col-12 col-md-4">
+                        <label for="route_visit_radius_meters" class="form-label">Radio visita GPS (metros)</label>
+                        <input id="route_visit_radius_meters" name="route_visit_radius_meters" type="number" min="20" max="500" step="1" value="{{ old('route_visit_radius_meters', $settings->route_visit_radius_meters ?? 75) }}" class="form-control @error('route_visit_radius_meters') is-invalid @enderror" required>
+                        @error('route_visit_radius_meters') <div class="invalid-feedback">{{ $message }}</div> @enderror
+                    </div>
+
                     @foreach ([
                         'allow_partial_payments' => 'Permitir pagos parciales',
                         'allow_payment_cancellation' => 'Permitir anulación de pagos',

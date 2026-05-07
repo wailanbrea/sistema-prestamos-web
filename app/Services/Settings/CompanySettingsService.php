@@ -39,6 +39,7 @@ class CompanySettingsService
                 'allow_payment_cancellation' => (bool) ($data['allow_payment_cancellation'] ?? false),
                 'require_approval_for_loans' => (bool) ($data['require_approval_for_loans'] ?? false),
                 'exclude_sundays_for_daily_loans' => (bool) ($data['exclude_sundays_for_daily_loans'] ?? false),
+                'route_visit_radius_meters' => (int) $data['route_visit_radius_meters'],
             ];
 
             $oldValues = [
