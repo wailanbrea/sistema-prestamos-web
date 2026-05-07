@@ -39,7 +39,10 @@ class RouteController extends Controller
 
     public function create(Request $request): View
     {
-        return view('routes.create', $this->formData((int) $request->user()->company_id));
+        return view('routes.create', [
+            ...$this->formData((int) $request->user()->company_id),
+            'googleMapsApiKey' => (string) config('services.google_maps.api_key'),
+        ]);
     }
 
     public function map(Request $request): View
@@ -76,6 +79,7 @@ class RouteController extends Controller
         return view('routes.edit', [
             ...$this->formData($companyId),
             'routeModel' => $this->routeService->findForCompany($companyId, $route),
+            'googleMapsApiKey' => (string) config('services.google_maps.api_key'),
         ]);
     }
 

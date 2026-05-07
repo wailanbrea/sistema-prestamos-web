@@ -12,6 +12,7 @@ use App\Services\Audit\AuditService;
 use App\Services\Cash\CashMovementService;
 use App\Services\Collectors\CollectorCommissionService;
 use App\Services\Loans\LateFeeService;
+use Carbon\CarbonImmutable;
 use Illuminate\Contracts\Pagination\LengthAwarePaginator;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Support\Facades\DB;
@@ -97,6 +98,7 @@ class PaymentService
             $interestPaid = 0.0;
             $lateFeePaid = 0.0;
             $previousBalance = (float) $loan->remaining_balance;
+            $paymentDate = CarbonImmutable::parse($data['payment_date']);
 
             $payment = Payment::query()->create([
                 'company_id' => $loan->company_id,
@@ -125,7 +127,7 @@ class PaymentService
                     break;
                 }
 
-                $this->lateFeeService->refreshInstallment($loan, $installment);
+                $this->lateFeeService->refreshInstallment($loan, $installment, $paymentDate);
 
                 $lateFeeDue = max(0, (float) $installment->late_fee - (float) $installment->paid_late_fee);
                 $interestDue = max(0, (float) $installment->interest_amount - (float) $installment->paid_interest);
