@@ -80,7 +80,7 @@ class SettingsManagementTest extends TestCase
 
     public function test_system_owner_can_change_plan(): void
     {
-        $user = $this->adminUser('wailandkey@gmail.com');
+        $user = $this->adminUser('wailandkey@gmail.com', owner: true);
         $user->company()->update(['plan' => 'prestamista']);
         CompanySetting::query()->create(['company_id' => $user->company_id]);
 
@@ -180,7 +180,7 @@ class SettingsManagementTest extends TestCase
             ->assertNotFound();
     }
 
-    private function adminUser(?string $email = null): User
+    private function adminUser(?string $email = null, bool $owner = false): User
     {
         $this->seed(RolePermissionSeeder::class);
 
@@ -196,6 +196,11 @@ class SettingsManagementTest extends TestCase
             'password' => Hash::make('Password123!'),
             'status' => 'active',
         ]);
+
+        if ($owner) {
+            // is_system_owner no es fillable a propósito: se marca explícitamente.
+            $user->forceFill(['is_system_owner' => true])->save();
+        }
 
         app(PermissionRegistrar::class)->setPermissionsTeamId($company->id);
         $user->assignRole('Administrador');

@@ -34,7 +34,7 @@
                     </div>
                     <div class="col-12 col-md-6">
                         <label for="plan" class="form-label">Plan / Licencia</label>
-                        @if (auth()->user()->isSystemOwner())
+                        @can('companies.manage-plan')
                             <select id="plan" name="plan" class="form-select @error('plan') is-invalid @enderror" required>
                                 @foreach (config('plans') as $value => $info)
                                     <option value="{{ $value }}" @selected(old('plan', $company->plan) === $value)>{{ $info['label'] }}</option>
@@ -44,7 +44,7 @@
                         @else
                             <input type="text" class="form-control" value="{{ $currentPlan['label'] }}" disabled>
                             <div class="form-text"><i class="fa-solid fa-lock me-1"></i>Solo el dueño del sistema puede cambiar la licencia.</div>
-                        @endif
+                        @endcan
                     </div>
                     <div class="col-12 col-md-3">
                         <label for="rnc" class="form-label">RNC / Identificación</label>

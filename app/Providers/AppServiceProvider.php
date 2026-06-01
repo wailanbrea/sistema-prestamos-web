@@ -4,7 +4,9 @@ namespace App\Providers;
 
 use App\Models\Client;
 use App\Models\LoanInstallment;
+use App\Models\User;
 use App\Support\MenuAccess;
+use Illuminate\Support\Facades\Gate;
 use Illuminate\Support\Facades\View;
 use Illuminate\Support\ServiceProvider;
 
@@ -23,6 +25,10 @@ class AppServiceProvider extends ServiceProvider
      */
     public function boot(): void
     {
+        // El dueño del sistema (super-admin) supera toda verificación de
+        // permisos. Devolver null deja que el chequeo normal continúe.
+        Gate::before(static fn (User $user): ?bool => $user->isSystemOwner() ? true : null);
+
         View::composer('layouts.app', function ($view): void {
             $user = auth()->user();
             $companyId = (int) ($user?->company_id ?? 0);

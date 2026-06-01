@@ -39,9 +39,10 @@ class UpdateCompanySettingsRequest extends FormRequest
             'route_visit_radius_meters' => ['required', 'integer', 'min:20', 'max:500'],
         ];
 
-        // Solo el dueño del sistema puede cambiar el tipo de licencia (plan).
-        // Para cualquier otro usuario el campo se ignora (no se valida ni aplica).
-        if ($this->user()?->isSystemOwner()) {
+        // Solo quien tiene la habilidad puede cambiar el tipo de licencia (plan);
+        // se concede únicamente al dueño del sistema vía Gate::before. Para
+        // cualquier otro usuario el campo se ignora (no se valida ni aplica).
+        if ($this->user()?->can('companies.manage-plan')) {
             $rules['plan'] = ['required', Rule::in(array_keys(config('plans')))];
         }
 

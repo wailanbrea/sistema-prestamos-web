@@ -57,6 +57,7 @@ class User extends Authenticatable
             'last_login_at' => 'datetime',
             'password' => 'hashed',
             'visible_menus' => 'array',
+            'is_system_owner' => 'boolean',
         ];
     }
 
@@ -66,14 +67,14 @@ class User extends Authenticatable
     }
 
     /**
-     * El dueño/creador del sistema. Solo él puede cambiar el tipo de licencia
-     * (plan) de cualquier empresa, incluyendo la suya propia.
+     * El dueño/creador del sistema. Identidad estable vía la bandera
+     * `is_system_owner` (no atada al email). Mediante Gate::before, el dueño
+     * supera toda verificación de permisos (super-admin). El correo de
+     * config/system.php solo se usa para marcar esta bandera en el despliegue.
      */
     public function isSystemOwner(): bool
     {
-        $owner = (string) config('system.owner_email');
-
-        return $owner !== '' && strcasecmp($this->email, $owner) === 0;
+        return (bool) $this->is_system_owner;
     }
 
     public function auditLogs(): HasMany

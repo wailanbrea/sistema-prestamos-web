@@ -42,7 +42,15 @@ class RolePermissionSeeder extends Seeder
             'users.manage',
         ];
 
-        foreach ($permissions as $permission) {
+        // Habilidades exclusivas del dueño del sistema: existen como permiso pero
+        // NO se asignan a ningún rol; se conceden vía Gate::before a quien tiene
+        // is_system_owner. Mantenerlas fuera de $permissions evita que el rol
+        // Administrador (que recibe todo $permissions) las herede.
+        $ownerOnlyPermissions = [
+            'companies.manage-plan',
+        ];
+
+        foreach (array_merge($permissions, $ownerOnlyPermissions) as $permission) {
             Permission::query()->firstOrCreate([
                 'name' => $permission,
                 'guard_name' => 'web',
