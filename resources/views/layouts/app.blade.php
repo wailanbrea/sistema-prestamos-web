@@ -340,8 +340,45 @@
                             + ($canViewPayments ? (int) ($operationAlerts['late_installments'] ?? 0) : 0);
                     @endphp
                     <div class="dropdown">
-                        <button class="btn btn-outline-secondary position-relative" type="button" data-bs-toggle="dropdown" aria-expanded="false" title="Alertas operativas">
+                        <button class="btn btn-outline-secondary position-relative" type="button" data-bs-toggle="dropdown" aria-expanded="false" title="Notificaciones">
                             <i class="fa-solid fa-bell"></i>
+                            @if (($unreadNotificationsCount ?? 0) > 0)
+                                <span class="position-absolute top-0 start-100 translate-middle badge rounded-pill bg-danger">{{ $unreadNotificationsCount > 99 ? '99+' : $unreadNotificationsCount }}</span>
+                            @endif
+                        </button>
+                        <div class="dropdown-menu dropdown-menu-end p-0 operation-alerts-menu">
+                            <div class="px-3 py-2 border-bottom fw-semibold d-flex justify-content-between align-items-center">
+                                <span>Notificaciones</span>
+                                @if (($unreadNotificationsCount ?? 0) > 0)
+                                    <form method="POST" action="{{ route('notifications.read-all') }}" class="m-0">
+                                        @csrf
+                                        <button type="submit" class="btn btn-link btn-sm p-0 text-decoration-none">Marcar todas</button>
+                                    </form>
+                                @endif
+                            </div>
+                            @forelse ($unreadNotifications ?? [] as $notification)
+                                <form method="POST" action="{{ route('notifications.read', $notification->id) }}" class="m-0">
+                                    @csrf
+                                    <button type="submit" class="dropdown-item py-3 text-start w-100 border-0 bg-transparent">
+                                        <div class="d-flex justify-content-between align-items-start gap-2">
+                                            <span class="alert-label">
+                                                <i class="fa-solid {{ $notification->data['icon'] ?? 'fa-bell' }} me-2 text-primary"></i>
+                                                <strong>{{ $notification->data['title'] ?? 'Notificación' }}</strong><br>
+                                                <span class="small text-muted">{{ $notification->data['message'] ?? '' }}</span>
+                                            </span>
+                                            <span class="small text-muted text-nowrap">{{ $notification->created_at->diffForHumans() }}</span>
+                                        </div>
+                                    </button>
+                                </form>
+                            @empty
+                                <div class="px-3 py-3 text-muted small">No tienes notificaciones nuevas.</div>
+                            @endforelse
+                            <a class="dropdown-item text-center py-2 border-top" href="{{ route('notifications.index') }}">Ver todas</a>
+                        </div>
+                    </div>
+                    <div class="dropdown">
+                        <button class="btn btn-outline-secondary position-relative" type="button" data-bs-toggle="dropdown" aria-expanded="false" title="Alertas operativas">
+                            <i class="fa-solid fa-triangle-exclamation"></i>
                             @if ($alertCount > 0)
                                 <span class="position-absolute top-0 start-100 translate-middle badge rounded-pill bg-danger">{{ $alertCount }}</span>
                             @endif

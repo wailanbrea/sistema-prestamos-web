@@ -11,6 +11,7 @@ use App\Http\Controllers\ExpenseController;
 use App\Http\Controllers\LoanController;
 use App\Http\Controllers\LoanQuoteController;
 use App\Http\Controllers\ModulePlaceholderController;
+use App\Http\Controllers\NotificationController;
 use App\Http\Controllers\PaymentController;
 use App\Http\Controllers\ReportController;
 use App\Http\Controllers\RoleController;
@@ -138,5 +139,11 @@ Route::middleware(['auth', 'user.active', 'company.active', 'permission.company'
         Route::put('/{role}', 'update')->whereNumber('role')->name('update');
         Route::post('/{role}/duplicar', 'duplicate')->whereNumber('role')->name('duplicate');
         Route::delete('/{role}', 'destroy')->whereNumber('role')->name('destroy');
+    });
+    // Bandeja de notificaciones: cada usuario ve y gestiona solo las suyas.
+    Route::prefix('notificaciones')->name('notifications.')->controller(NotificationController::class)->group(function (): void {
+        Route::get('/', 'index')->name('index');
+        Route::post('/leer-todas', 'markAllAsRead')->name('read-all');
+        Route::post('/{notification}/leer', 'markAsRead')->name('read');
     });
 });

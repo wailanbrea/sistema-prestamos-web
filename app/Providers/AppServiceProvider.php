@@ -50,6 +50,10 @@ class AppServiceProvider extends ServiceProvider
             }
 
             $view->with('navigationSections', $sections);
+            $view->with('unreadNotifications', $user
+                ? $user->unreadNotifications()->latest()->limit(6)->get()
+                : collect());
+            $view->with('unreadNotificationsCount', $user ? $user->unreadNotifications()->count() : 0);
             $view->with('operationAlerts', $companyId > 0 ? [
                 'missing_coordinates' => Client::query()
                     ->forCompany($companyId)

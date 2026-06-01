@@ -842,7 +842,7 @@ CREATE TABLE `migrations` (
   `migration` varchar(255) NOT NULL,
   `batch` int(11) NOT NULL,
   PRIMARY KEY (`id`)
-) ENGINE=InnoDB AUTO_INCREMENT=18 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+) ENGINE=InnoDB AUTO_INCREMENT=19 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 /*!40101 SET character_set_client = @saved_cs_client */;
 
 --
@@ -851,7 +851,7 @@ CREATE TABLE `migrations` (
 
 LOCK TABLES `migrations` WRITE;
 /*!40000 ALTER TABLE `migrations` DISABLE KEYS */;
-INSERT INTO `migrations` VALUES (1,'0000_01_01_000000_create_companies_table',1),(2,'0001_01_01_000000_create_users_table',1),(3,'0001_01_01_000001_create_cache_table',1),(4,'0001_01_01_000002_create_jobs_table',1),(5,'2026_05_06_005423_create_permission_tables',1),(6,'2026_05_06_010000_create_lending_domain_tables',1),(7,'2026_05_06_014628_create_personal_access_tokens_table',1),(8,'2026_05_06_020000_add_mobile_uuid_to_payments_table',1),(9,'2026_05_06_030000_add_location_fields_to_clients_table',1),(10,'2026_05_07_001000_create_collector_route_tracking_tables',1),(11,'2026_05_07_002000_add_route_visit_radius_to_company_settings',1),(12,'2026_05_31_141511_add_capital_prepayment_fields',1),(13,'2026_05_31_174040_add_visible_menus_to_users',1),(14,'2026_05_31_175145_allow_pending_status_on_loans',1),(15,'2026_05_31_215905_add_plan_to_companies',1),(16,'2026_06_01_000000_create_system_owner_user',2),(17,'2026_06_01_000100_add_is_system_owner_to_users',3);
+INSERT INTO `migrations` VALUES (1,'0000_01_01_000000_create_companies_table',1),(2,'0001_01_01_000000_create_users_table',1),(3,'0001_01_01_000001_create_cache_table',1),(4,'0001_01_01_000002_create_jobs_table',1),(5,'2026_05_06_005423_create_permission_tables',1),(6,'2026_05_06_010000_create_lending_domain_tables',1),(7,'2026_05_06_014628_create_personal_access_tokens_table',1),(8,'2026_05_06_020000_add_mobile_uuid_to_payments_table',1),(9,'2026_05_06_030000_add_location_fields_to_clients_table',1),(10,'2026_05_07_001000_create_collector_route_tracking_tables',1),(11,'2026_05_07_002000_add_route_visit_radius_to_company_settings',1),(12,'2026_05_31_141511_add_capital_prepayment_fields',1),(13,'2026_05_31_174040_add_visible_menus_to_users',1),(14,'2026_05_31_175145_allow_pending_status_on_loans',1),(15,'2026_05_31_215905_add_plan_to_companies',1),(16,'2026_06_01_000000_create_system_owner_user',2),(17,'2026_06_01_000100_add_is_system_owner_to_users',3),(18,'2026_06_01_000200_create_notifications_table',4);
 /*!40000 ALTER TABLE `migrations` ENABLE KEYS */;
 UNLOCK TABLES;
 
@@ -912,6 +912,37 @@ LOCK TABLES `model_has_roles` WRITE;
 /*!40000 ALTER TABLE `model_has_roles` DISABLE KEYS */;
 INSERT INTO `model_has_roles` VALUES (1,'App\\Models\\User',1,1),(1,'App\\Models\\User',3,1),(3,'App\\Models\\User',2,1);
 /*!40000 ALTER TABLE `model_has_roles` ENABLE KEYS */;
+UNLOCK TABLES;
+
+--
+-- Table structure for table `notifications`
+--
+
+DROP TABLE IF EXISTS `notifications`;
+/*!40101 SET @saved_cs_client     = @@character_set_client */;
+/*!40101 SET character_set_client = utf8 */;
+CREATE TABLE `notifications` (
+  `id` char(36) NOT NULL,
+  `type` varchar(255) NOT NULL,
+  `notifiable_type` varchar(255) NOT NULL,
+  `notifiable_id` bigint(20) unsigned NOT NULL,
+  `data` text NOT NULL,
+  `read_at` timestamp NULL DEFAULT NULL,
+  `created_at` timestamp NULL DEFAULT NULL,
+  `updated_at` timestamp NULL DEFAULT NULL,
+  PRIMARY KEY (`id`),
+  KEY `notifications_notifiable_type_notifiable_id_index` (`notifiable_type`,`notifiable_id`),
+  KEY `notifications_notifiable_type_notifiable_id_read_at_index` (`notifiable_type`,`notifiable_id`,`read_at`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+/*!40101 SET character_set_client = @saved_cs_client */;
+
+--
+-- Dumping data for table `notifications`
+--
+
+LOCK TABLES `notifications` WRITE;
+/*!40000 ALTER TABLE `notifications` DISABLE KEYS */;
+/*!40000 ALTER TABLE `notifications` ENABLE KEYS */;
 UNLOCK TABLES;
 
 --
@@ -1372,4 +1403,4 @@ UNLOCK TABLES;
 /*!40101 SET COLLATION_CONNECTION=@OLD_COLLATION_CONNECTION */;
 /*!40111 SET SQL_NOTES=@OLD_SQL_NOTES */;
 
--- Dump completed on 2026-06-01 16:49:57
+-- Dump completed on 2026-06-01 18:00:31

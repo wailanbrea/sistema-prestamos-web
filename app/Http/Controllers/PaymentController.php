@@ -8,6 +8,7 @@ use App\Http\Requests\Payments\CancelPaymentRequest;
 use App\Http\Requests\Payments\StorePaymentRequest;
 use App\Models\Collector;
 use App\Models\Loan;
+use App\Services\Notifications\EventNotifier;
 use App\Services\Payments\PaymentService;
 use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Http\JsonResponse;
@@ -18,7 +19,10 @@ use InvalidArgumentException;
 
 class PaymentController extends Controller
 {
-    public function __construct(private readonly PaymentService $paymentService) {}
+    public function __construct(
+        private readonly PaymentService $paymentService,
+        private readonly EventNotifier $notifier,
+    ) {}
 
     public function index(Request $request): View
     {
@@ -63,6 +67,8 @@ class PaymentController extends Controller
                 ->withInput()
                 ->withErrors(['amount' => $exception->getMessage()]);
         }
+
+        $this->notifier->paymentRegistered($payment, $request->user()->id);
 
         return redirect()
             ->route('payments.show', $payment)

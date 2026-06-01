@@ -13,6 +13,7 @@ use App\Models\LoanQuote;
 use App\Services\Loans\InstallmentGeneratorService;
 use App\Services\Loans\LoanCalculatorService;
 use App\Services\Loans\LoanService;
+use App\Services\Notifications\EventNotifier;
 use Carbon\CarbonImmutable;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
@@ -23,7 +24,10 @@ use InvalidArgumentException;
 
 class LoanController extends Controller
 {
-    public function __construct(private readonly LoanService $loanService) {}
+    public function __construct(
+        private readonly LoanService $loanService,
+        private readonly EventNotifier $notifier,
+    ) {}
 
     public function index(Request $request): View
     {
@@ -73,6 +77,8 @@ class LoanController extends Controller
             userId: $request->user()?->id,
             data: $request->validated(),
         );
+
+        $this->notifier->loanCreated($loan, $request->user()?->id);
 
         return redirect()
             ->route('loans.show', $loan)
@@ -194,6 +200,8 @@ class LoanController extends Controller
         } catch (InvalidArgumentException $exception) {
             return back()->withErrors(['loan' => $exception->getMessage()]);
         }
+
+        $this->notifier->loanApproved($model, $request->user()?->id);
 
         return redirect()
             ->route('loans.show', $model)
