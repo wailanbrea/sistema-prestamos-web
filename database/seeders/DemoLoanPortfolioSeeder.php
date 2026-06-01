@@ -134,6 +134,7 @@ class DemoLoanPortfolioSeeder extends Seeder
                 'phone' => '809-555-1000',
                 'address' => 'Av. Winston Churchill, Santo Domingo',
                 'status' => 'active',
+                'plan' => 'prestamista',
             ],
         );
 
@@ -143,6 +144,7 @@ class DemoLoanPortfolioSeeder extends Seeder
             'phone' => '809-555-1000',
             'address' => 'Av. Winston Churchill, Santo Domingo',
             'status' => 'active',
+            'plan' => 'prestamista',
         ])->save();
 
         CompanySetting::query()->updateOrCreate(
@@ -159,6 +161,7 @@ class DemoLoanPortfolioSeeder extends Seeder
                 'allow_payment_cancellation' => true,
                 'require_approval_for_loans' => false,
                 'exclude_sundays_for_daily_loans' => true,
+                'route_visit_radius_meters' => 75,
             ],
         );
 
