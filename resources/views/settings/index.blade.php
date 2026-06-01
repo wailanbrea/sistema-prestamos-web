@@ -34,12 +34,17 @@
                     </div>
                     <div class="col-12 col-md-6">
                         <label for="plan" class="form-label">Plan / Licencia</label>
-                        <select id="plan" name="plan" class="form-select @error('plan') is-invalid @enderror" required>
-                            @foreach (config('plans') as $value => $info)
-                                <option value="{{ $value }}" @selected(old('plan', $company->plan) === $value)>{{ $info['label'] }}</option>
-                            @endforeach
-                        </select>
-                        @error('plan') <div class="invalid-feedback">{{ $message }}</div> @enderror
+                        @if (auth()->user()->isSystemOwner())
+                            <select id="plan" name="plan" class="form-select @error('plan') is-invalid @enderror" required>
+                                @foreach (config('plans') as $value => $info)
+                                    <option value="{{ $value }}" @selected(old('plan', $company->plan) === $value)>{{ $info['label'] }}</option>
+                                @endforeach
+                            </select>
+                            @error('plan') <div class="invalid-feedback">{{ $message }}</div> @enderror
+                        @else
+                            <input type="text" class="form-control" value="{{ $currentPlan['label'] }}" disabled>
+                            <div class="form-text"><i class="fa-solid fa-lock me-1"></i>Solo el dueño del sistema puede cambiar la licencia.</div>
+                        @endif
                     </div>
                     <div class="col-12 col-md-3">
                         <label for="rnc" class="form-label">RNC / Identificación</label>

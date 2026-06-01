@@ -20,12 +20,17 @@ class CompanySettingsService
         return DB::transaction(function () use ($company, $data, $userId): Company {
             $companyData = [
                 'name' => $data['name'],
-                'plan' => $data['plan'],
                 'rnc' => $data['rnc'] ?? null,
                 'phone' => $data['phone'] ?? null,
                 'email' => $data['email'] ?? null,
                 'address' => $data['address'] ?? null,
             ];
+
+            // El plan solo llega cuando el editor es el dueño del sistema
+            // (ver UpdateCompanySettingsRequest); de lo contrario se preserva.
+            if (array_key_exists('plan', $data)) {
+                $companyData['plan'] = $data['plan'];
+            }
             $settingsData = [
                 'currency' => $data['currency'],
                 'default_interest_rate' => $data['default_interest_rate'],

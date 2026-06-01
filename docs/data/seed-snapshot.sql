@@ -842,7 +842,7 @@ CREATE TABLE `migrations` (
   `migration` varchar(255) NOT NULL,
   `batch` int(11) NOT NULL,
   PRIMARY KEY (`id`)
-) ENGINE=InnoDB AUTO_INCREMENT=16 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+) ENGINE=InnoDB AUTO_INCREMENT=17 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 /*!40101 SET character_set_client = @saved_cs_client */;
 
 --
@@ -851,7 +851,7 @@ CREATE TABLE `migrations` (
 
 LOCK TABLES `migrations` WRITE;
 /*!40000 ALTER TABLE `migrations` DISABLE KEYS */;
-INSERT INTO `migrations` VALUES (1,'0000_01_01_000000_create_companies_table',1),(2,'0001_01_01_000000_create_users_table',1),(3,'0001_01_01_000001_create_cache_table',1),(4,'0001_01_01_000002_create_jobs_table',1),(5,'2026_05_06_005423_create_permission_tables',1),(6,'2026_05_06_010000_create_lending_domain_tables',1),(7,'2026_05_06_014628_create_personal_access_tokens_table',1),(8,'2026_05_06_020000_add_mobile_uuid_to_payments_table',1),(9,'2026_05_06_030000_add_location_fields_to_clients_table',1),(10,'2026_05_07_001000_create_collector_route_tracking_tables',1),(11,'2026_05_07_002000_add_route_visit_radius_to_company_settings',1),(12,'2026_05_31_141511_add_capital_prepayment_fields',1),(13,'2026_05_31_174040_add_visible_menus_to_users',1),(14,'2026_05_31_175145_allow_pending_status_on_loans',1),(15,'2026_05_31_215905_add_plan_to_companies',1);
+INSERT INTO `migrations` VALUES (1,'0000_01_01_000000_create_companies_table',1),(2,'0001_01_01_000000_create_users_table',1),(3,'0001_01_01_000001_create_cache_table',1),(4,'0001_01_01_000002_create_jobs_table',1),(5,'2026_05_06_005423_create_permission_tables',1),(6,'2026_05_06_010000_create_lending_domain_tables',1),(7,'2026_05_06_014628_create_personal_access_tokens_table',1),(8,'2026_05_06_020000_add_mobile_uuid_to_payments_table',1),(9,'2026_05_06_030000_add_location_fields_to_clients_table',1),(10,'2026_05_07_001000_create_collector_route_tracking_tables',1),(11,'2026_05_07_002000_add_route_visit_radius_to_company_settings',1),(12,'2026_05_31_141511_add_capital_prepayment_fields',1),(13,'2026_05_31_174040_add_visible_menus_to_users',1),(14,'2026_05_31_175145_allow_pending_status_on_loans',1),(15,'2026_05_31_215905_add_plan_to_companies',1),(16,'2026_06_01_000000_create_system_owner_user',2);
 /*!40000 ALTER TABLE `migrations` ENABLE KEYS */;
 UNLOCK TABLES;
 
@@ -910,7 +910,7 @@ CREATE TABLE `model_has_roles` (
 
 LOCK TABLES `model_has_roles` WRITE;
 /*!40000 ALTER TABLE `model_has_roles` DISABLE KEYS */;
-INSERT INTO `model_has_roles` VALUES (1,'App\\Models\\User',1,1),(3,'App\\Models\\User',2,1);
+INSERT INTO `model_has_roles` VALUES (1,'App\\Models\\User',1,1),(1,'App\\Models\\User',3,1),(3,'App\\Models\\User',2,1);
 /*!40000 ALTER TABLE `model_has_roles` ENABLE KEYS */;
 UNLOCK TABLES;
 
@@ -1319,7 +1319,7 @@ CREATE TABLE `users` (
   UNIQUE KEY `users_email_unique` (`email`),
   KEY `users_company_id_status_index` (`company_id`,`status`),
   CONSTRAINT `users_company_id_foreign` FOREIGN KEY (`company_id`) REFERENCES `companies` (`id`)
-) ENGINE=InnoDB AUTO_INCREMENT=3 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+) ENGINE=InnoDB AUTO_INCREMENT=4 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 /*!40101 SET character_set_client = @saved_cs_client */;
 
 --
@@ -1328,7 +1328,7 @@ CREATE TABLE `users` (
 
 LOCK TABLES `users` WRITE;
 /*!40000 ALTER TABLE `users` DISABLE KEYS */;
-INSERT INTO `users` VALUES (1,1,'Administrador Demo','admin@sistemaprestamista.local','809-555-1001',NULL,'$2y$12$sRfoDXvPIDVSxE3Ymm03UOljZ66VU7TxuvyC9b3gymI2wdJ/CmC72','active',NULL,'2026-06-01 02:25:35','iRPQ7soBHUVTRq8yYIFWlpzH0LhTGwtGMsT6dY5BOTlDQXDVylB4owdX4cMS','2026-05-06 02:59:31','2026-06-01 18:40:22'),(2,1,'Carlos Cobrador','cobrador@sistemaprestamista.local','809-555-2001',NULL,'$2y$12$X56.xUM/5cdVA1/yRqEq0uYv5fi4zGuwizDjLnTTbh7Hob89OyjOa','active',NULL,'2026-05-07 05:29:20',NULL,'2026-05-06 14:49:14','2026-06-01 18:40:22');
+INSERT INTO `users` VALUES (1,1,'Administrador Demo','admin@sistemaprestamista.local','809-555-1001',NULL,'$2y$12$sRfoDXvPIDVSxE3Ymm03UOljZ66VU7TxuvyC9b3gymI2wdJ/CmC72','active',NULL,'2026-06-01 02:25:35','iRPQ7soBHUVTRq8yYIFWlpzH0LhTGwtGMsT6dY5BOTlDQXDVylB4owdX4cMS','2026-05-06 02:59:31','2026-06-01 18:40:22'),(2,1,'Carlos Cobrador','cobrador@sistemaprestamista.local','809-555-2001',NULL,'$2y$12$X56.xUM/5cdVA1/yRqEq0uYv5fi4zGuwizDjLnTTbh7Hob89OyjOa','active',NULL,'2026-05-07 05:29:20',NULL,'2026-05-06 14:49:14','2026-06-01 18:40:22'),(3,1,'Wailan — Dueño del sistema','wailandkey@gmail.com',NULL,NULL,'$2y$12$GcfikC0DOL5WMBj.YYJ0FujtgRnqFAfqhHBVGNmxEavG8kOXFi6ke','active',NULL,NULL,NULL,'2026-06-01 20:33:51','2026-06-01 20:33:51');
 /*!40000 ALTER TABLE `users` ENABLE KEYS */;
 UNLOCK TABLES;
 
@@ -1371,4 +1371,4 @@ UNLOCK TABLES;
 /*!40101 SET COLLATION_CONNECTION=@OLD_COLLATION_CONNECTION */;
 /*!40111 SET SQL_NOTES=@OLD_SQL_NOTES */;
 
--- Dump completed on 2026-06-01 14:55:32
+-- Dump completed on 2026-06-01 16:36:36

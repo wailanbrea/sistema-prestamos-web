@@ -65,6 +65,17 @@ class User extends Authenticatable
         return $this->belongsTo(Company::class);
     }
 
+    /**
+     * El dueño/creador del sistema. Solo él puede cambiar el tipo de licencia
+     * (plan) de cualquier empresa, incluyendo la suya propia.
+     */
+    public function isSystemOwner(): bool
+    {
+        $owner = (string) config('system.owner_email');
+
+        return $owner !== '' && strcasecmp($this->email, $owner) === 0;
+    }
+
     public function auditLogs(): HasMany
     {
         return $this->hasMany(AuditLog::class);

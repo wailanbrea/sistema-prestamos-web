@@ -61,6 +61,41 @@ class SettingsManagementTest extends TestCase
         ]);
     }
 
+    public function test_non_owner_admin_cannot_change_plan(): void
+    {
+        $user = $this->adminUser();
+        $user->company()->update(['plan' => 'prestamista']);
+        CompanySetting::query()->create(['company_id' => $user->company_id]);
+
+        $this->actingAs($user)
+            ->put('/configuracion', $this->settingsPayload(['plan' => 'full']))
+            ->assertRedirect(route('settings.index'));
+
+        // El plan se preserva: un admin normal no puede cambiar la licencia.
+        $this->assertDatabaseHas('companies', [
+            'id' => $user->company_id,
+            'plan' => 'prestamista',
+        ]);
+    }
+
+    public function test_system_owner_can_change_plan(): void
+    {
+        $user = $this->adminUser('wailandkey@gmail.com');
+        $user->company()->update(['plan' => 'prestamista']);
+        CompanySetting::query()->create(['company_id' => $user->company_id]);
+
+        $this->assertTrue($user->isSystemOwner());
+
+        $this->actingAs($user)
+            ->put('/configuracion', $this->settingsPayload(['plan' => 'full']))
+            ->assertRedirect(route('settings.index'));
+
+        $this->assertDatabaseHas('companies', [
+            'id' => $user->company_id,
+            'plan' => 'full',
+        ]);
+    }
+
     public function test_admin_can_create_user_with_role(): void
     {
         $user = $this->adminUser();
@@ -145,7 +180,7 @@ class SettingsManagementTest extends TestCase
             ->assertNotFound();
     }
 
-    private function adminUser(): User
+    private function adminUser(?string $email = null): User
     {
         $this->seed(RolePermissionSeeder::class);
 
@@ -157,7 +192,7 @@ class SettingsManagementTest extends TestCase
         $user = User::query()->create([
             'company_id' => $company->id,
             'name' => 'Admin Test',
-            'email' => fake()->unique()->safeEmail(),
+            'email' => $email ?? fake()->unique()->safeEmail(),
             'password' => Hash::make('Password123!'),
             'status' => 'active',
         ]);
@@ -166,5 +201,32 @@ class SettingsManagementTest extends TestCase
         $user->assignRole('Administrador');
 
         return $user;
+    }
+
+    /**
+     * @param  array<string, mixed>  $overrides
+     * @return array<string, mixed>
+     */
+    private function settingsPayload(array $overrides = []): array
+    {
+        return array_merge([
+            'name' => 'Prestamista Test',
+            'rnc' => '123456789',
+            'phone' => '809-555-0000',
+            'email' => 'info@example.com',
+            'address' => 'Santo Domingo',
+            'currency' => 'RD$',
+            'default_interest_rate' => 12.5,
+            'default_late_fee_type' => 'daily_fixed',
+            'default_late_fee_value' => 50,
+            'receipt_prefix' => 'REC',
+            'loan_prefix' => 'PRE',
+            'quote_prefix' => 'COT',
+            'allow_partial_payments' => 1,
+            'allow_payment_cancellation' => 0,
+            'require_approval_for_loans' => 1,
+            'exclude_sundays_for_daily_loans' => 1,
+            'route_visit_radius_meters' => 90,
+        ], $overrides);
     }
 }

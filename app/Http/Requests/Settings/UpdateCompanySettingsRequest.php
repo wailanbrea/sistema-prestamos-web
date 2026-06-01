@@ -19,9 +19,8 @@ class UpdateCompanySettingsRequest extends FormRequest
      */
     public function rules(): array
     {
-        return [
+        $rules = [
             'name' => ['required', 'string', 'max:150'],
-            'plan' => ['required', Rule::in(array_keys(config('plans')))],
             'rnc' => ['nullable', 'string', 'max:50'],
             'phone' => ['nullable', 'string', 'max:50'],
             'email' => ['nullable', 'email', 'max:150'],
@@ -39,5 +38,13 @@ class UpdateCompanySettingsRequest extends FormRequest
             'exclude_sundays_for_daily_loans' => ['nullable', 'boolean'],
             'route_visit_radius_meters' => ['required', 'integer', 'min:20', 'max:500'],
         ];
+
+        // Solo el dueño del sistema puede cambiar el tipo de licencia (plan).
+        // Para cualquier otro usuario el campo se ignora (no se valida ni aplica).
+        if ($this->user()?->isSystemOwner()) {
+            $rules['plan'] = ['required', Rule::in(array_keys(config('plans')))];
+        }
+
+        return $rules;
     }
 }
