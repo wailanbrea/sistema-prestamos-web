@@ -1,59 +1,134 @@
-<p align="center"><a href="https://laravel.com" target="_blank"><img src="https://raw.githubusercontent.com/laravel/art/master/logo-lockup/5%20SVG/2%20CMYK/1%20Full%20Color/laravel-logolockup-cmyk-red.svg" width="400" alt="Laravel Logo"></a></p>
+# Sistema de Préstamos
 
-<p align="center">
-<a href="https://github.com/laravel/framework/actions"><img src="https://github.com/laravel/framework/workflows/tests/badge.svg" alt="Build Status"></a>
-<a href="https://packagist.org/packages/laravel/framework"><img src="https://img.shields.io/packagist/dt/laravel/framework" alt="Total Downloads"></a>
-<a href="https://packagist.org/packages/laravel/framework"><img src="https://img.shields.io/packagist/v/laravel/framework" alt="Latest Stable Version"></a>
-<a href="https://packagist.org/packages/laravel/framework"><img src="https://img.shields.io/packagist/l/laravel/framework" alt="License"></a>
-</p>
+Sistema de gestión de préstamos, cobros, rutas y reportes para prestamistas
+(República Dominicana). Construido con **Laravel 12** + **MySQL 8** y una UI
+basada en Blade, Bootstrap 5 y Chart.js.
 
-## About Laravel
+---
 
-Laravel is a web application framework with expressive, elegant syntax. We believe development must be an enjoyable and creative experience to be truly fulfilling. Laravel takes the pain out of development by easing common tasks used in many web projects, such as:
+## Requisitos
 
-- [Simple, fast routing engine](https://laravel.com/docs/routing).
-- [Powerful dependency injection container](https://laravel.com/docs/container).
-- Multiple back-ends for [session](https://laravel.com/docs/session) and [cache](https://laravel.com/docs/cache) storage.
-- Expressive, intuitive [database ORM](https://laravel.com/docs/eloquent).
-- Database agnostic [schema migrations](https://laravel.com/docs/migrations).
-- [Robust background job processing](https://laravel.com/docs/queues).
-- [Real-time event broadcasting](https://laravel.com/docs/broadcasting).
+- PHP 8.2+ con las extensiones `pdo_mysql`, `mbstring`, `openssl`, `fileinfo`.
+- **MySQL 8+** (o MariaDB de XAMPP) corriendo en `127.0.0.1:3306`.
+- [Composer](https://getcomposer.org/)
+- [Node.js 18+](https://nodejs.org/) y npm
+- Conexión a internet en el navegador (Bootstrap, Font Awesome y Chart.js se
+  cargan por CDN; sin internet el dashboard no dibuja los gráficos).
 
-Laravel is accessible, powerful, and provides tools required for large, robust applications.
+---
 
-## Learning Laravel
+## Instalación tras clonar
 
-Laravel has the most extensive and thorough [documentation](https://laravel.com/docs) and video tutorial library of all modern web application frameworks, making it a breeze to get started with the framework. You can also check out [Laravel Learn](https://laravel.com/learn), where you will be guided through building a modern Laravel application.
+> ⚠️ **La base de datos NO está en el repositorio.** Por defecto el `.env` apunta
+> a MySQL (`sistema_prestamos`), pero esa base no existe al clonar, así que llegas
+> **sin datos**: sin empresa, sin plan/licencia y sin préstamos. Por eso, recién
+> clonado, no ves la configuración de licencias ni datos en los gráficos del
+> dashboard. Hay que **crear la base y poblarla** antes de usar el sistema.
 
-If you don't feel like reading, [Laracasts](https://laracasts.com) can help. Laracasts contains thousands of video tutorials on a range of topics including Laravel, modern PHP, unit testing, and JavaScript. Boost your skills by digging into our comprehensive video library.
+Hay dos formas de poblar la base:
 
-## Laravel Sponsors
+| Forma | Comando | Qué obtienes |
+|-------|---------|--------------|
+| **Snapshot** (recomendado) | `./setup.ps1` | **Todos los datos actuales**: empresa con plan `prestamista`, ~22 préstamos, 14 pagos, clientes, rutas. Dashboard y gráficos completos. |
+| **Seeders** | `./setup.ps1 -Seed` | Portafolio de **demo reducido** (3 préstamos) generado por los seeders. |
 
-We would like to extend our thanks to the following sponsors for funding Laravel development. If you are interested in becoming a sponsor, please visit the [Laravel Partners program](https://partners.laravel.com).
+El snapshot versionado es un dump MySQL en `docs/data/seed-snapshot.sql` que
+`setup.ps1` importa en la base `sistema_prestamos`.
 
-### Premium Partners
+### Opción rápida (Windows / PowerShell)
 
-- **[Vehikl](https://vehikl.com)**
-- **[Tighten Co.](https://tighten.co)**
-- **[Kirschbaum Development Group](https://kirschbaumdevelopment.com)**
-- **[64 Robots](https://64robots.com)**
-- **[Curotec](https://www.curotec.com/services/technologies/laravel)**
-- **[DevSquad](https://devsquad.com/hire-laravel-developers)**
-- **[Redberry](https://redberry.international/laravel-development)**
-- **[Active Logic](https://activelogic.com)**
+```powershell
+./setup.ps1          # crea la base e importa el snapshot con todos los datos
+# ./setup.ps1 -Seed  # o construye un demo reducido con los seeders
+```
 
-## Contributing
+El script verifica herramientas, instala dependencias, prepara `.env`, genera la
+app key, crea la base MySQL, la puebla (snapshot o seeders) y compila los assets.
+Acepta `-DbUser`, `-DbPassword`, `-Database` y `-MysqlBin` si tu MySQL no usa los
+valores por defecto de XAMPP (`root` sin contraseña).
 
-Thank you for considering contributing to the Laravel framework! The contribution guide can be found in the [Laravel documentation](https://laravel.com/docs/contributions).
+### Pasos manuales
 
-## Code of Conduct
+```bash
+composer install
+npm install
 
-In order to ensure that the Laravel community is welcoming to all, please review and abide by the [Code of Conduct](https://laravel.com/docs/contributions#code-of-conduct).
+# Configuración
+cp .env.example .env          # PowerShell: Copy-Item .env.example .env
+php artisan key:generate
 
-## Security Vulnerabilities
+# Crear la base (ajusta credenciales según tu MySQL)
+mysql -u root -e "CREATE DATABASE sistema_prestamos CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;"
 
-If you discover a security vulnerability within Laravel, please send an e-mail to Taylor Otwell via [taylor@laravel.com](mailto:taylor@laravel.com). All security vulnerabilities will be promptly addressed.
+# Base de datos — opción A: importar el snapshot (datos completos)
+mysql -u root sistema_prestamos < docs/data/seed-snapshot.sql
+#   PowerShell: Get-Content docs/data/seed-snapshot.sql -Raw | mysql -u root sistema_prestamos
 
-## License
+# Base de datos — opción B: migrar y sembrar (demo reducido)
+# php artisan migrate --seed
 
-The Laravel framework is open-sourced software licensed under the [MIT license](https://opensource.org/licenses/MIT).
+# Assets
+npm run build                 # o: npm run dev (modo desarrollo con HMR)
+```
+
+Luego levanta la app:
+
+```bash
+php artisan serve
+```
+
+y abre http://127.0.0.1:8000
+
+---
+
+## Datos de demo (seeders)
+
+`php artisan migrate --seed` ejecuta:
+
+- **`RolePermissionSeeder`** — roles (Administrador, Cobrador, …) y permisos.
+- **`DemoLoanPortfolioSeeder`** — empresa de demo con su configuración actual:
+  - Plan/licencia: **`prestamista`** (básico)
+  - Moneda `RD$`, tasa por defecto 10 %, mora diaria fija RD$75
+  - Radio de visita de ruta: 75 m
+  - Cobrador, zona, ruta, 3 clientes y 3 préstamos (mensual, semanal y diario
+    atrasado) con un pago registrado, para poblar dashboard, gráficos y mora.
+
+### Credenciales de acceso
+
+| Rol           | Email                                  | Contraseña     |
+|---------------|----------------------------------------|----------------|
+| Administrador | `admin@sistemaprestamista.local`       | `Password123!` |
+| Cobrador      | `cobrador@sistemaprestamista.local`    | `Password123!` |
+
+> Para **re-sembrar desde cero**: `php artisan migrate:fresh --seed`.
+
+### Actualizar el snapshot
+
+Cuando cambies datos y quieras versionarlos para los demás, regenera el dump:
+
+```powershell
+C:\xampp\mysql\bin\mysqldump.exe -u root --no-tablespaces --add-drop-table `
+  --default-character-set=utf8mb4 sistema_prestamos > docs/data/seed-snapshot.sql
+```
+
+---
+
+## Solución de problemas
+
+- **No veo la configuración de licencias / no hay datos.** No poblaste la base
+  tras clonar. Ejecuta `./setup.ps1` (importa el snapshot con todos los datos)
+  o `./setup.ps1 -Seed` (demo reducido con seeders).
+- **El dashboard no muestra gráficos.** Dos causas posibles: (1) no hay datos
+  → los gráficos salen vacíos; (2) el equipo no tiene internet y Chart.js (CDN)
+  no carga. Verifica ambos.
+- **`SQLSTATE[HY000] [2002]` / no conecta a la base.** MySQL no está corriendo o
+  las credenciales del `.env` no coinciden. Arranca MySQL en XAMPP y revisa
+  `DB_USERNAME` / `DB_PASSWORD` / `DB_DATABASE`.
+- **Estilos rotos / sin JS.** Falta compilar los assets: `npm run build`.
+
+---
+
+## Despliegue
+
+Ver [`docs/DEPLOY-WINDOWS-VPS.md`](docs/DEPLOY-WINDOWS-VPS.md) para el despliegue
+en un VPS Windows.

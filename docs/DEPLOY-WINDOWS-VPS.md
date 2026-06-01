@@ -1,20 +1,21 @@
 # Despliegue en VPS Windows — Sistema de Préstamos
 
 Guía para desplegar el sistema en un VPS Windows (XAMPP / PHP 8.2). El repositorio
-incluye un **snapshot con todos los datos actuales** en `docs/data/seed-snapshot.sqlite`
-(empresa, usuarios, clientes, préstamos y pagos). La base de datos viva
-(`database/database.sqlite`) está ignorada por git (buena práctica); en el despliegue
-se copia el snapshot a esa ruta, dejando el sistema "llave en mano".
+incluye un **dump MySQL con todos los datos actuales** en `docs/data/seed-snapshot.sql`
+(empresa, usuarios, clientes, préstamos y pagos). La base de datos MySQL no está
+versionada (buena práctica); en el despliegue se crea la base y se importa el dump,
+dejando el sistema "llave en mano".
 
 - **Repositorio:** https://github.com/wailanbrea/sistema-prestamos-web
 - **Rama:** `main`
-- **Stack:** Laravel 12 · PHP 8.2 · SQLite (por defecto) · Bootstrap 5 (vía CDN, no requiere build de Vite)
+- **Stack:** Laravel 12 · PHP 8.2 · MySQL 8 · Bootstrap 5 (vía CDN, no requiere build de Vite)
 
 ---
 
 ## 1. Requisitos en el VPS
 
-- **PHP 8.2+** con extensiones: `pdo_sqlite`, `sqlite3`, `mbstring`, `openssl`, `fileinfo`, `ctype`, `json`, `gd` (incluidas en XAMPP).
+- **PHP 8.2+** con extensiones: `pdo_mysql`, `mbstring`, `openssl`, `fileinfo`, `ctype`, `json`, `gd` (incluidas en XAMPP).
+- **MySQL 8+** (o MariaDB de XAMPP) corriendo y accesible.
 - **Composer 2.x**
 - **Node.js 18+** y **npm** (solo si se va a recompilar assets; no es necesario porque la UI usa CDN).
 - **Git**
@@ -55,9 +56,13 @@ APP_ENV=production
 APP_DEBUG=false
 APP_URL=http://TU_IP_O_DOMINIO
 
-# Base de datos: SQLite con los datos incluidos en el repo
-DB_CONNECTION=sqlite
-# (no hace falta DB_HOST/DB_DATABASE para SQLite; usa database/database.sqlite)
+# Base de datos: MySQL
+DB_CONNECTION=mysql
+DB_HOST=127.0.0.1
+DB_PORT=3306
+DB_DATABASE=sistema_prestamos
+DB_USERNAME=root
+DB_PASSWORD=
 
 SESSION_DRIVER=database
 QUEUE_CONNECTION=database
@@ -70,18 +75,19 @@ CACHE_STORE=database
 
 ## 4. Base de datos y datos
 
-El repositorio incluye el snapshot `docs/data/seed-snapshot.sqlite` con todos los datos
-actuales. Cópialo a la ruta de la base viva (no necesitas migrar ni seedear):
+El repositorio incluye el dump `docs/data/seed-snapshot.sql` con todos los datos
+actuales. Crea la base e impórtalo (no necesitas migrar ni seedear):
 
 ```powershell
-# Copia el snapshot con todos los datos a la base de datos viva
-Copy-Item "docs\data\seed-snapshot.sqlite" "database\database.sqlite" -Force
-# Verifica (debe pesar ~550 KB)
-Get-Item database\database.sqlite
-# Asegura permisos de escritura para el usuario que corre PHP/Apache
-icacls "database\database.sqlite" /grant "Everyone:(M)"
-icacls "database" /grant "Everyone:(M)"
+$mysql = "C:\xampp\mysql\bin\mysql.exe"
+# Crea la base
+& $mysql -u root -e "CREATE DATABASE IF NOT EXISTS sistema_prestamos CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;"
+# Importa el dump con todos los datos
+Get-Content "docs\data\seed-snapshot.sql" -Raw | & $mysql -u root sistema_prestamos
 ```
+
+> En producción usa un usuario MySQL dedicado (no `root`) con contraseña fuerte y
+> ajusta `DB_USERNAME` / `DB_PASSWORD` en el `.env`.
 
 ### Si prefieres empezar con datos limpios
 
@@ -179,7 +185,7 @@ apuntando a ese comando.
 - **Prefijos** de préstamo/recibo/cotización: configurables; se usan al generar los números.
 - **Aprobación de préstamos** y **pago parcial**: interruptores en Configuración que activan esos flujos.
 - **Documentos PDF** (recibos, pagarés): usan `barryvdh/laravel-dompdf`, no requieren servicios externos.
-- **Backups**: por ser SQLite, basta con copiar `database/database.sqlite` periódicamente.
+- **Backups**: respalda la base con `mysqldump -u root sistema_prestamos > backup.sql` periódicamente (y los archivos de `storage/`).
 - **Pruebas**: `php artisan test` (95+ pruebas) valida el sistema antes de cada despliegue.
 
 ---
@@ -190,7 +196,8 @@ apuntando a ese comando.
 [ ] git clone + composer install --no-dev
 [ ] .env creado + php artisan key:generate
 [ ] APP_ENV=production, APP_DEBUG=false, APP_URL correcto
-[ ] Copy-Item docs\data\seed-snapshot.sqlite -> database\database.sqlite (escribible)
+[ ] DB_* del .env apuntan a tu MySQL (host/base/usuario/clave)
+[ ] CREATE DATABASE sistema_prestamos + importar docs\data\seed-snapshot.sql
 [ ] php artisan migrate --force   (si hay migraciones nuevas)
 [ ] php artisan config:cache route:cache
 [ ] Servir con php artisan serve (NSSM) o Apache → /public
