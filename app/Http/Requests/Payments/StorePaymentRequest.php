@@ -14,12 +14,26 @@ class StorePaymentRequest extends FormRequest
         return (bool) $this->user()?->can('payments.create');
     }
 
+    protected function prepareForValidation(): void
+    {
+        // Compatibilidad: si no se envía modo, usar reparto automático.
+        if (! $this->filled('allocation_mode')) {
+            $this->merge(['allocation_mode' => 'auto']);
+        }
+    }
+
     /**
      * @return array<string, mixed>
      */
     public function rules(): array
     {
         $companyId = (int) $this->user()->company_id;
+        $loanId = $this->input('loan_id');
+        $isCustom = $this->input('allocation_mode') === 'custom';
+
+        $installmentExists = Rule::exists('loan_installments', 'id')
+            ->where('loan_id', $loanId)
+            ->whereNotIn('status', ['paid', 'cancelled']);
 
         return [
             'loan_id' => [
@@ -37,8 +51,26 @@ class StorePaymentRequest extends FormRequest
                     ->where('status', 'active'),
             ],
             'payment_date' => ['required', 'date'],
-            'amount' => ['required', 'numeric', 'min:0.01', 'max:999999999.99'],
-            'payment_method' => ['required', Rule::in(['cash', 'transfer', 'card', 'check', 'other'])],
+            'payment_method' => ['required', Rule::in(array_keys(config('loan_labels.payment_methods')))],
+            'allocation_mode' => ['required', Rule::in(['auto', 'interest_only', 'principal_only', 'custom'])],
+            'amount' => [Rule::requiredIf(! $isCustom), 'nullable', 'numeric', 'min:0.01', 'max:999999999.99'],
+            'target_installment_id' => ['nullable', 'integer', $installmentExists],
+            'excess_action' => ['nullable', Rule::in(['reject', 'prepayment', 'change'])],
+            'allocations' => [Rule::requiredIf($isCustom), 'array'],
+            'allocations.*.installment_id' => ['required_with:allocations', 'integer', $installmentExists],
+            'allocations.*.amount' => ['required_with:allocations', 'numeric', 'min:0.01', 'max:999999999.99'],
+        ];
+    }
+
+    /**
+     * @return array<string, string>
+     */
+    public function attributes(): array
+    {
+        return [
+            'allocation_mode' => 'modo de reparto',
+            'target_installment_id' => 'cuota destino',
+            'amount' => 'monto',
         ];
     }
 }

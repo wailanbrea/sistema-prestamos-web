@@ -78,7 +78,7 @@
                                 </td>
                                 <td>@include('clients.partials.status-badge', ['status' => $client->status])</td>
                                 <td>@include('clients.partials.risk-badge', ['risk' => $client->risk_level])</td>
-                                <td class="text-end">RD$ {{ number_format((float) $client->monthly_income, 2) }}</td>
+                                <td class="text-end">{{ currency() }} {{ number_format((float) $client->monthly_income, 2) }}</td>
                                 <td class="text-end">
                                     @can('clients.update')
                                         <a href="{{ route('clients.edit', $client) }}" class="btn btn-link text-dark text-decoration-none">Editar</a>

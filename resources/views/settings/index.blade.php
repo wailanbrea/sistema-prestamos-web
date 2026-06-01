@@ -8,6 +8,18 @@
         <p class="text-muted mb-0">Datos de empresa, parámetros financieros y usuarios.</p>
     </section>
 
+    @php $currentPlan = config('plans.'.$company->plan, config('plans.full')); @endphp
+    <section class="card content-card mb-4 border-primary">
+        <div class="card-body d-flex flex-column flex-md-row align-items-md-center justify-content-between gap-2">
+            <div>
+                <div class="text-muted small text-uppercase">Licencia activa</div>
+                <div class="h5 fw-bold mb-1"><i class="fa-solid fa-id-badge me-2 text-primary"></i>{{ $currentPlan['label'] }}</div>
+                <div class="text-muted small mb-0">{{ $currentPlan['description'] }}</div>
+            </div>
+            <span class="badge {{ $company->plan === 'full' ? 'text-bg-primary' : 'text-bg-secondary' }} fs-6">{{ $currentPlan['label'] }}</span>
+        </div>
+    </section>
+
     <section class="card content-card mb-4">
         <div class="card-body">
             <h2 class="h6 text-uppercase text-muted mb-3">Empresa y parámetros</h2>
@@ -19,6 +31,15 @@
                         <label for="name" class="form-label">Nombre comercial</label>
                         <input id="name" name="name" type="text" value="{{ old('name', $company->name) }}" class="form-control @error('name') is-invalid @enderror" required>
                         @error('name') <div class="invalid-feedback">{{ $message }}</div> @enderror
+                    </div>
+                    <div class="col-12 col-md-6">
+                        <label for="plan" class="form-label">Plan / Licencia</label>
+                        <select id="plan" name="plan" class="form-select @error('plan') is-invalid @enderror" required>
+                            @foreach (config('plans') as $value => $info)
+                                <option value="{{ $value }}" @selected(old('plan', $company->plan) === $value)>{{ $info['label'] }}</option>
+                            @endforeach
+                        </select>
+                        @error('plan') <div class="invalid-feedback">{{ $message }}</div> @enderror
                     </div>
                     <div class="col-12 col-md-3">
                         <label for="rnc" class="form-label">RNC / Identificación</label>
@@ -43,7 +64,11 @@
 
                     <div class="col-12 col-md-3">
                         <label for="currency" class="form-label">Moneda</label>
-                        <input id="currency" name="currency" type="text" value="{{ old('currency', $settings->currency ?? 'RD$') }}" class="form-control @error('currency') is-invalid @enderror" required>
+                        <select id="currency" name="currency" class="form-select @error('currency') is-invalid @enderror" required>
+                            @foreach (config('loan_labels.currencies') as $value => $label)
+                                <option value="{{ $value }}" @selected(old('currency', $settings->currency ?? 'RD$') === $value)>{{ $label }}</option>
+                            @endforeach
+                        </select>
                         @error('currency') <div class="invalid-feedback">{{ $message }}</div> @enderror
                     </div>
                     <div class="col-12 col-md-3">
@@ -113,6 +138,18 @@
         </div>
     </section>
 
+    @php $canManageUsers = auth()->user()->can('users.manage') && \App\Support\MenuAccess::canManageUsers(auth()->user()); @endphp
+    @unless ($canManageUsers)
+        <section class="card content-card">
+            <div class="card-body d-flex align-items-center gap-3 text-muted">
+                <i class="fa-solid fa-lock fs-4"></i>
+                <div>
+                    <div class="fw-semibold">Gestión de usuarios y roles no disponible</div>
+                    <div class="small mb-0">Tu plan actual no incluye la administración de usuarios ni roles. Disponible en el <strong>Plan Full Prestamista</strong>.</div>
+                </div>
+            </div>
+        </section>
+    @else
     <section class="card content-card">
         <div class="card-body">
             <div class="d-flex flex-column flex-lg-row align-items-lg-end justify-content-between gap-3 mb-3">
@@ -184,4 +221,5 @@
             </div>
         </div>
     </section>
+    @endunless
 @endsection

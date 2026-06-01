@@ -2,6 +2,10 @@
 
 @include('loan-quotes.partials.labels')
 
+@php
+    $fmtRate = fn ($v) => rtrim(rtrim(number_format((float) $v, 4, '.', ''), '0'), '.') ?: '0';
+@endphp
+
 @section('title', 'Nueva cotización - '.config('app.name'))
 
 @section('content')
@@ -34,7 +38,7 @@
 
                     <div class="col-12 col-lg-3">
                         <label for="interest_rate" class="form-label">Tasa</label>
-                        <input id="interest_rate" name="interest_rate" type="number" step="0.0001" min="0" value="{{ old('interest_rate') }}" class="form-control @error('interest_rate') is-invalid @enderror" required>
+                        <input id="interest_rate" name="interest_rate" type="number" step="0.01" min="0" value="{{ old('interest_rate', $fmtRate(company_setting('default_interest_rate', 0))) }}" class="form-control @error('interest_rate') is-invalid @enderror" required>
                         @error('interest_rate') <div class="invalid-feedback">{{ $message }}</div> @enderror
                     </div>
 
@@ -52,7 +56,7 @@
                         <label for="calculation_method" class="form-label">Método</label>
                         <select id="calculation_method" name="calculation_method" class="form-select @error('calculation_method') is-invalid @enderror" required>
                             @foreach ($methodLabels as $value => $label)
-                                <option value="{{ $value }}" @selected(old('calculation_method', 'flat_interest') === $value)>{{ $label }}</option>
+                                <option value="{{ $value }}" @selected(old('calculation_method', 'french_amortization') === $value)>{{ $label }}</option>
                             @endforeach
                         </select>
                         @error('calculation_method') <div class="invalid-feedback">{{ $message }}</div> @enderror
@@ -61,9 +65,9 @@
                     <div class="col-12 col-md-6 col-lg-3">
                         <label for="interest_type" class="form-label">Tipo de interés</label>
                         <select id="interest_type" name="interest_type" class="form-select @error('interest_type') is-invalid @enderror" required>
-                            <option value="fixed" @selected(old('interest_type', 'fixed') === 'fixed')>Fijo</option>
-                            <option value="compound" @selected(old('interest_type') === 'compound')>Compuesto</option>
-                            <option value="amortized" @selected(old('interest_type') === 'amortized')>Amortizado</option>
+                            <option value="fixed" @selected(old('interest_type', 'amortized') === 'fixed')>Fijo</option>
+                            <option value="compound" @selected(old('interest_type', 'amortized') === 'compound')>Compuesto</option>
+                            <option value="amortized" @selected(old('interest_type', 'amortized') === 'amortized')>Amortizado</option>
                         </select>
                         @error('interest_type') <div class="invalid-feedback">{{ $message }}</div> @enderror
                     </div>

@@ -7,7 +7,7 @@
         <div class="d-flex flex-column flex-lg-row align-items-lg-end justify-content-between gap-3">
             <div>
                 <h1 class="h3 fw-bold mb-1">Seguimiento de cobradores</h1>
-                <p class="text-muted mb-0">UbicaciÃ³n en vivo, progreso de ruta y visitas verificadas por GPS.</p>
+                <p class="text-muted mb-0">Ubicación en vivo, progreso de ruta y visitas verificadas por GPS.</p>
             </div>
             <div class="d-flex gap-2">
                 <a href="{{ route('routes.map') }}" class="btn btn-outline-secondary">
@@ -89,7 +89,7 @@
                                     <div class="progress-bar" style="width: {{ $total > 0 ? round(($visited / $total) * 100) : 0 }}%"></div>
                                 </div>
                                 <div class="text-muted small mt-2">
-                                    Ãšltima seÃ±al: {{ $session['last_location_at'] ? \Carbon\CarbonImmutable::parse($session['last_location_at'])->diffForHumans() : 'Sin seÃ±al todavÃ­a' }}
+                                    Última señal: {{ $session['last_location_at'] ? \Carbon\CarbonImmutable::parse($session['last_location_at'])->diffForHumans() : 'Sin señal todavía' }}
                                 </div>
                                 <div class="vstack gap-2 mt-3">
                                     @foreach ($session['stops'] as $stop)
@@ -110,7 +110,7 @@
                             </article>
                         @empty
                             <div class="text-center text-muted py-5">
-                                No hay cobradores compartiendo ubicaciÃ³n ahora mismo.
+                                No hay cobradores compartiendo ubicación ahora mismo.
                             </div>
                         @endforelse
                     </div>
@@ -208,7 +208,7 @@
                             <div style="min-width:220px">
                                 <strong>${session.collector?.name || 'Cobrador'}</strong>
                                 <div>${session.route?.name || 'Ruta'}</div>
-                                <div style="margin-top:8px">Ultima seÃ±al: ${session.last_location_at || 'Pendiente'}</div>
+                                <div style="margin-top:8px">Ultima señal: ${session.last_location_at || 'Pendiente'}</div>
                             </div>
                         `);
                         state.infoWindow.open(map, marker);

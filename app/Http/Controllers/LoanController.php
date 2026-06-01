@@ -5,19 +5,25 @@ declare(strict_types=1);
 namespace App\Http\Controllers;
 
 use App\Http\Requests\Loans\StoreLoanRequest;
+use App\Http\Requests\Loans\UpdateLoanRequest;
 use App\Models\Client;
 use App\Models\Collector;
+use App\Models\CompanySetting;
 use App\Models\LoanQuote;
+use App\Services\Loans\InstallmentGeneratorService;
+use App\Services\Loans\LoanCalculatorService;
 use App\Services\Loans\LoanService;
+use Carbon\CarbonImmutable;
+use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
+use Illuminate\Validation\Rule;
 use Illuminate\View\View;
+use InvalidArgumentException;
 
 class LoanController extends Controller
 {
-    public function __construct(private readonly LoanService $loanService)
-    {
-    }
+    public function __construct(private readonly LoanService $loanService) {}
 
     public function index(Request $request): View
     {
@@ -51,6 +57,7 @@ class LoanController extends Controller
             'quote' => $quote,
             'clients' => Client::query()->forCompany($companyId)->where('status', '!=', 'blocked')->orderBy('full_name')->get(['id', 'full_name', 'identification']),
             'collectors' => Collector::query()->forCompany($companyId)->where('status', 'active')->orderBy('name')->get(['id', 'name']),
+            'settings' => CompanySetting::query()->where('company_id', $companyId)->first(),
             ...$this->labels(),
         ]);
     }
@@ -78,6 +85,119 @@ class LoanController extends Controller
             'loan' => $this->loanService->findForCompany((int) $request->user()->company_id, $loan),
             ...$this->labels(),
         ]);
+    }
+
+    /**
+     * Calcula el plan de cuotas en vivo (sin guardar) para la vista previa del formulario.
+     */
+    public function preview(Request $request, LoanCalculatorService $calculator, InstallmentGeneratorService $generator): JsonResponse
+    {
+        $data = $request->validate([
+            'principal_amount' => ['required', 'numeric', 'min:1', 'max:9999999999.99'],
+            'interest_rate' => ['required', 'numeric', 'min:0', 'max:999.9999'],
+            'term_quantity' => ['required', 'integer', 'min:1', 'max:1000'],
+            'calculation_method' => ['required', Rule::in(['flat_interest', 'fixed_installment', 'capital_plus_interest', 'interest_only', 'french_amortization'])],
+            'payment_frequency' => ['required', Rule::in(['daily', 'weekly', 'biweekly', 'monthly'])],
+            'first_payment_date' => ['required', 'date'],
+        ]);
+
+        try {
+            $calculation = $calculator->calculate(
+                principal: (float) $data['principal_amount'],
+                annualRate: (float) $data['interest_rate'],
+                termQuantity: (int) $data['term_quantity'],
+                method: (string) $data['calculation_method'],
+            );
+        } catch (InvalidArgumentException $exception) {
+            return response()->json(['message' => $exception->getMessage()], 422);
+        }
+
+        $settings = CompanySetting::query()->where('company_id', $request->user()->company_id)->first();
+        $dueDates = $generator->dueDatesFor(
+            $data['first_payment_date'],
+            $data['payment_frequency'],
+            (int) $data['term_quantity'],
+            (bool) ($settings?->exclude_sundays_for_daily_loans ?? false),
+        );
+
+        $balance = (float) $data['principal_amount'];
+        $rows = [];
+        foreach ($calculation['installments'] as $index => $installment) {
+            $balance = round($balance - $installment['principal'], 2);
+            $rows[] = [
+                'number' => $installment['number'],
+                'due_date' => CarbonImmutable::parse($dueDates[$index])->format('d/m/Y'),
+                'principal' => $installment['principal'],
+                'interest' => $installment['interest'],
+                'amount' => $installment['amount'],
+                'balance' => max(0, $balance),
+            ];
+        }
+
+        return response()->json([
+            'principal' => (float) $data['principal_amount'],
+            'installment_amount' => $calculation['installment_amount'],
+            'total_interest' => $calculation['total_interest'],
+            'total_amount' => $calculation['total_amount'],
+            'installments' => $rows,
+        ]);
+    }
+
+    public function edit(Request $request, int $loan): View
+    {
+        $companyId = (int) $request->user()->company_id;
+        $model = $this->loanService->findForCompany($companyId, $loan);
+
+        return view('loans.edit', [
+            'loan' => $model,
+            'hasPayments' => $model->payments()->where('status', 'valid')->exists(),
+            'collectors' => Collector::query()->forCompany($companyId)->where('status', 'active')->orderBy('name')->get(['id', 'name']),
+            ...$this->labels(),
+        ]);
+    }
+
+    public function update(UpdateLoanRequest $request, int $loan): RedirectResponse
+    {
+        $companyId = (int) $request->user()->company_id;
+        $model = $this->loanService->findForCompany($companyId, $loan);
+
+        $updated = $this->loanService->update($companyId, $request->user()?->id, $model, $request->validated());
+
+        return redirect()
+            ->route('loans.show', $updated)
+            ->with('status', 'Préstamo actualizado correctamente.');
+    }
+
+    public function destroy(Request $request, int $loan): RedirectResponse
+    {
+        $companyId = (int) $request->user()->company_id;
+        $model = $this->loanService->findForCompany($companyId, $loan);
+
+        try {
+            $this->loanService->delete($companyId, $request->user()?->id, $model);
+        } catch (InvalidArgumentException $exception) {
+            return back()->withErrors(['loan' => $exception->getMessage()]);
+        }
+
+        return redirect()
+            ->route('loans.index')
+            ->with('status', 'Préstamo eliminado correctamente.');
+    }
+
+    public function approve(Request $request, int $loan): RedirectResponse
+    {
+        $companyId = (int) $request->user()->company_id;
+        $model = $this->loanService->findForCompany($companyId, $loan);
+
+        try {
+            $this->loanService->approve($companyId, $request->user()?->id, $model);
+        } catch (InvalidArgumentException $exception) {
+            return back()->withErrors(['loan' => $exception->getMessage()]);
+        }
+
+        return redirect()
+            ->route('loans.show', $model)
+            ->with('status', 'Préstamo aprobado y desembolsado correctamente.');
     }
 
     /**

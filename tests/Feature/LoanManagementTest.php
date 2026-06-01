@@ -6,6 +6,8 @@ namespace Tests\Feature;
 
 use App\Models\Client;
 use App\Models\Company;
+use App\Models\CompanySetting;
+use App\Models\Loan;
 use App\Models\LoanQuote;
 use App\Models\User;
 use Database\Seeders\RolePermissionSeeder;
@@ -143,6 +145,70 @@ class LoanManagementTest extends TestCase
                 'first_payment_date' => '2026-06-01',
             ])
             ->assertSessionHasErrors('client_id');
+    }
+
+    public function test_loan_number_uses_configured_prefix(): void
+    {
+        $user = $this->adminUser();
+        CompanySetting::query()->create([
+            'company_id' => $user->company_id,
+            'loan_prefix' => 'TST',
+        ]);
+        $client = $this->clientForCompany((int) $user->company_id);
+
+        $this->actingAs($user)->post('/prestamos', [
+            'client_id' => $client->id,
+            'principal_amount' => 5000,
+            'interest_rate' => 10,
+            'interest_type' => 'fixed',
+            'payment_frequency' => 'monthly',
+            'calculation_method' => 'flat_interest',
+            'term_quantity' => 5,
+            'late_fee_type' => 'none',
+            'late_fee_value' => 0,
+            'start_date' => '2026-05-01',
+            'first_payment_date' => '2026-06-01',
+        ])->assertRedirect();
+
+        $this->assertStringStartsWith('TST-', Loan::query()->firstOrFail()->loan_number);
+    }
+
+    public function test_loan_requires_approval_when_enabled(): void
+    {
+        $user = $this->adminUser();
+        CompanySetting::query()->create([
+            'company_id' => $user->company_id,
+            'require_approval_for_loans' => true,
+        ]);
+        $client = $this->clientForCompany((int) $user->company_id);
+
+        $this->actingAs($user)->post('/prestamos', [
+            'client_id' => $client->id,
+            'principal_amount' => 8000,
+            'interest_rate' => 10,
+            'interest_type' => 'fixed',
+            'payment_frequency' => 'monthly',
+            'calculation_method' => 'flat_interest',
+            'term_quantity' => 8,
+            'late_fee_type' => 'none',
+            'late_fee_value' => 0,
+            'start_date' => '2026-05-01',
+            'first_payment_date' => '2026-06-01',
+        ])->assertRedirect();
+
+        $loan = Loan::query()->firstOrFail();
+        $this->assertSame('pending', $loan->status);
+        // No hay desembolso todavía.
+        $this->assertDatabaseMissing('cash_movements', ['type' => 'loan_disbursement', 'reference_id' => $loan->id]);
+
+        // Aprobar => activo + desembolso.
+        $this->actingAs($user)->post(route('loans.approve', $loan))->assertRedirect();
+        $this->assertDatabaseHas('loans', ['id' => $loan->id, 'status' => 'active']);
+        $this->assertDatabaseHas('cash_movements', [
+            'type' => 'loan_disbursement',
+            'reference_id' => $loan->id,
+            'amount' => 8000,
+        ]);
     }
 
     private function adminUser(): User

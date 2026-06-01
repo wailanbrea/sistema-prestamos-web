@@ -8,11 +8,7 @@
             <div>
                 <h1 class="h3 fw-bold mb-1">{{ $payment->receipt_number }}</h1>
                 <p class="text-muted mb-0">{{ $payment->client->full_name }} · {{ $payment->loan->loan_number }}</p>
-                @if ($payment->status === 'cancelled')
-                    <span class="badge text-bg-danger mt-2">Anulado</span>
-                @else
-                    <span class="badge text-bg-success mt-2">Válido</span>
-                @endif
+                <div class="mt-2">@include('partials.status-badge', ['map' => 'payment_statuses', 'value' => $payment->status])</div>
             </div>
             <div class="d-flex gap-2">
                 @can('payments.create')
@@ -67,7 +63,7 @@
             <div class="card content-card h-100">
                 <div class="card-body">
                     <div class="text-muted small text-uppercase">Monto recibido</div>
-                    <div class="fs-3 fw-bold">RD$ {{ number_format((float) $payment->amount, 2) }}</div>
+                    <div class="fs-3 fw-bold">{{ currency() }} {{ number_format((float) $payment->amount, 2) }}</div>
                     <div class="text-muted">@include('payments.partials.method-label', ['method' => $payment->payment_method]) · {{ $payment->payment_date->format('d/m/Y') }}</div>
                 </div>
             </div>
@@ -76,9 +72,15 @@
             <div class="card content-card h-100">
                 <div class="card-body">
                     <div class="text-muted small text-uppercase">Distribución</div>
-                    <div>Capital: RD$ {{ number_format((float) $payment->principal_paid, 2) }}</div>
-                    <div>Interés: RD$ {{ number_format((float) $payment->interest_paid, 2) }}</div>
-                    <div>Mora: RD$ {{ number_format((float) $payment->late_fee_paid, 2) }}</div>
+                    <div>Capital: {{ currency() }} {{ number_format((float) $payment->principal_paid, 2) }}</div>
+                    <div>Interés: {{ currency() }} {{ number_format((float) $payment->interest_paid, 2) }}</div>
+                    <div>Mora: {{ currency() }} {{ number_format((float) $payment->late_fee_paid, 2) }}</div>
+                    @if ((float) $payment->capital_prepaid > 0)
+                        <div class="text-primary">Abono a capital: {{ currency() }} {{ number_format((float) $payment->capital_prepaid, 2) }}</div>
+                    @endif
+                    @if ((float) $payment->change_given > 0)
+                        <div class="text-success">Vuelto al cliente: {{ currency() }} {{ number_format((float) $payment->change_given, 2) }}</div>
+                    @endif
                 </div>
             </div>
         </div>
@@ -86,8 +88,8 @@
             <div class="card content-card h-100">
                 <div class="card-body">
                     <div class="text-muted small text-uppercase">Balance</div>
-                    <div>Anterior: RD$ {{ number_format((float) $payment->previous_balance, 2) }}</div>
-                    <div>Nuevo: RD$ {{ number_format((float) $payment->new_balance, 2) }}</div>
+                    <div>Anterior: {{ currency() }} {{ number_format((float) $payment->previous_balance, 2) }}</div>
+                    <div>Nuevo: {{ currency() }} {{ number_format((float) $payment->new_balance, 2) }}</div>
                     <div>Cobrador: {{ $payment->collector?->name ?: 'Sin cobrador' }}</div>
                 </div>
             </div>
@@ -114,10 +116,10 @@
                             <tr>
                                 <td>#{{ $detail->installment->installment_number }}</td>
                                 <td>{{ $detail->installment->due_date->format('d/m/Y') }}</td>
-                                <td class="text-end">RD$ {{ number_format((float) $detail->principal_paid, 2) }}</td>
-                                <td class="text-end">RD$ {{ number_format((float) $detail->interest_paid, 2) }}</td>
-                                <td class="text-end">RD$ {{ number_format((float) $detail->late_fee_paid, 2) }}</td>
-                                <td class="text-end">RD$ {{ number_format((float) $detail->amount_paid, 2) }}</td>
+                                <td class="text-end">{{ currency() }} {{ number_format((float) $detail->principal_paid, 2) }}</td>
+                                <td class="text-end">{{ currency() }} {{ number_format((float) $detail->interest_paid, 2) }}</td>
+                                <td class="text-end">{{ currency() }} {{ number_format((float) $detail->late_fee_paid, 2) }}</td>
+                                <td class="text-end">{{ currency() }} {{ number_format((float) $detail->amount_paid, 2) }}</td>
                             </tr>
                         @endforeach
                     </tbody>

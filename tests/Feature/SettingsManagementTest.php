@@ -26,6 +26,7 @@ class SettingsManagementTest extends TestCase
         $this->actingAs($user)
             ->put('/configuracion', [
                 'name' => 'Prestamista Actualizado',
+                'plan' => 'full',
                 'rnc' => '123456789',
                 'phone' => '809-555-0000',
                 'email' => 'info@example.com',

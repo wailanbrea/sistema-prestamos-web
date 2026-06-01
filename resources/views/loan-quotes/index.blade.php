@@ -67,14 +67,14 @@
                         @forelse ($quotes as $quote)
                             <tr>
                                 <td>
-                                    <a href="{{ route('loan-quotes.show', $quote) }}" class="fw-semibold text-decoration-none">COT-{{ str_pad((string) $quote->id, 5, '0', STR_PAD_LEFT) }}</a>
+                                    <a href="{{ route('loan-quotes.show', $quote) }}" class="fw-semibold text-decoration-none">{{ company_setting('quote_prefix', 'COT') }}-{{ str_pad((string) $quote->id, 5, '0', STR_PAD_LEFT) }}</a>
                                     <div class="text-muted small">{{ $quote->created_at->format('d/m/Y') }}</div>
                                 </td>
                                 <td>{{ $quote->client?->full_name ?? 'Sin cliente' }}</td>
                                 <td>{{ $frequencyLabels[$quote->payment_frequency] ?? $quote->payment_frequency }}</td>
                                 <td>{{ $methodLabels[$quote->calculation_method] ?? $quote->calculation_method }}</td>
-                                <td class="text-end">RD$ {{ number_format((float) $quote->amount, 2) }}</td>
-                                <td class="text-end">RD$ {{ number_format((float) $quote->installment_amount, 2) }}</td>
+                                <td class="text-end">{{ currency() }} {{ number_format((float) $quote->amount, 2) }}</td>
+                                <td class="text-end">{{ currency() }} {{ number_format((float) $quote->installment_amount, 2) }}</td>
                                 <td><span class="badge {{ $statusLabels[$quote->status]['class'] ?? 'text-bg-secondary' }}">{{ $statusLabels[$quote->status]['label'] ?? $quote->status }}</span></td>
                                 <td class="text-end">
                                     @can('quotes.delete')

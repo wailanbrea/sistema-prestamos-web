@@ -49,7 +49,7 @@
             <article class="card metric-card h-100">
                 <div class="card-body">
                     <div class="text-muted small">Balance en ruta</div>
-                    <div class="h4 fw-bold mb-0">RD$ {{ number_format((float) $totals['remaining_balance'], 2) }}</div>
+                    <div class="h4 fw-bold mb-0">{{ currency() }} {{ number_format((float) $totals['remaining_balance'], 2) }}</div>
                 </div>
             </article>
         </div>
@@ -127,11 +127,11 @@
                                 <div class="row g-2 mt-2 small">
                                     <div class="col-6">
                                         <span class="text-muted d-block">Debe</span>
-                                        <strong>RD$ {{ number_format((float) $client['remaining_balance'], 2) }}</strong>
+                                        <strong>{{ currency() }} {{ number_format((float) $client['remaining_balance'], 2) }}</strong>
                                     </div>
                                     <div class="col-6">
                                         <span class="text-muted d-block">Pagado</span>
-                                        <strong>RD$ {{ number_format((float) $client['total_paid'], 2) }}</strong>
+                                        <strong>{{ currency() }} {{ number_format((float) $client['total_paid'], 2) }}</strong>
                                     </div>
                                 </div>
                             </div>

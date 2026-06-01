@@ -95,7 +95,7 @@
                                         <td>{{ $expense->category?->name ?: 'Sin categoría' }}</td>
                                         <td>@include('expenses.partials.method-label', ['method' => $expense->payment_method])</td>
                                         <td>{{ $expense->expense_date->format('d/m/Y') }}</td>
-                                        <td class="text-end">RD$ {{ number_format((float) $expense->amount, 2) }}</td>
+                                        <td class="text-end">{{ currency() }} {{ number_format((float) $expense->amount, 2) }}</td>
                                     </tr>
                                 @empty
                                     <tr>

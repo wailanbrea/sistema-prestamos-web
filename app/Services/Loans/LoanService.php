@@ -21,11 +21,10 @@ class LoanService
         private readonly InstallmentGeneratorService $installmentGenerator,
         private readonly CashMovementService $cashMovementService,
         private readonly AuditService $auditService,
-    ) {
-    }
+    ) {}
 
     /**
-     * @param array<string, mixed> $filters
+     * @param  array<string, mixed>  $filters
      */
     public function paginateForCompany(int $companyId, array $filters = []): LengthAwarePaginator
     {
@@ -40,7 +39,7 @@ class LoanService
     }
 
     /**
-     * @param array<string, mixed> $data
+     * @param  array<string, mixed>  $data
      */
     public function create(int $companyId, ?int $userId, array $data): Loan
     {
@@ -68,12 +67,15 @@ class LoanService
                 method: (string) $data['calculation_method'],
             );
 
+            $settings = CompanySetting::query()->where('company_id', $companyId)->first();
+            $requiresApproval = (bool) ($settings?->require_approval_for_loans ?? false);
+
             $loan = Loan::query()->create([
                 'company_id' => $companyId,
                 'client_id' => $data['client_id'],
                 'collector_id' => $data['collector_id'] ?? null,
                 'quote_id' => $quote?->id,
-                'loan_number' => $this->nextLoanNumber($companyId),
+                'loan_number' => $this->nextLoanNumber($companyId, $settings?->loan_prefix ?: 'PRE'),
                 'principal_amount' => $data['principal_amount'],
                 'interest_rate' => $data['interest_rate'],
                 'interest_type' => $data['interest_type'],
@@ -86,27 +88,30 @@ class LoanService
                 'remaining_balance' => $data['principal_amount'],
                 'late_fee_type' => $data['late_fee_type'],
                 'late_fee_value' => $data['late_fee_value'] ?? 0,
+                'allows_capital_prepayment' => (bool) ($data['allows_capital_prepayment'] ?? true),
                 'start_date' => $data['start_date'],
                 'first_payment_date' => $data['first_payment_date'],
-                'status' => 'active',
+                'status' => $requiresApproval ? 'pending' : 'active',
                 'guarantee_description' => $data['guarantee_description'] ?? null,
                 'notes' => $data['notes'] ?? null,
-                'approved_by' => $userId,
+                'approved_by' => $requiresApproval ? null : $userId,
                 'created_by' => $userId,
             ]);
 
-            $settings = CompanySetting::query()->where('company_id', $companyId)->first();
             $this->installmentGenerator->createForLoan($loan, $calculation, (bool) ($settings?->exclude_sundays_for_daily_loans ?? false));
 
-            $this->cashMovementService->create(
-                companyId: $companyId,
-                type: 'loan_disbursement',
-                amount: (float) $loan->principal_amount,
-                direction: 'out',
-                reference: $loan,
-                description: "Desembolso de préstamo {$loan->loan_number}",
-                createdBy: $userId,
-            );
+            // El desembolso en caja solo ocurre al aprobar (o de inmediato si no requiere aprobación).
+            if (! $requiresApproval) {
+                $this->cashMovementService->create(
+                    companyId: $companyId,
+                    type: 'loan_disbursement',
+                    amount: (float) $loan->principal_amount,
+                    direction: 'out',
+                    reference: $loan,
+                    description: "Desembolso de préstamo {$loan->loan_number}",
+                    createdBy: $userId,
+                );
+            }
 
             if ($quote) {
                 $quote->forceFill(['status' => 'converted'])->save();
@@ -136,7 +141,157 @@ class LoanService
     }
 
     /**
-     * @param array<string, mixed> $data
+     * Aprueba un préstamo pendiente: lo activa y registra el desembolso en caja.
+     */
+    public function approve(int $companyId, ?int $userId, Loan $loan): Loan
+    {
+        return DB::transaction(function () use ($companyId, $userId, $loan): Loan {
+            $loan = Loan::query()->forCompany($companyId)->whereKey($loan->id)->lockForUpdate()->firstOrFail();
+
+            if ($loan->status !== 'pending') {
+                throw new InvalidArgumentException('Solo se pueden aprobar préstamos pendientes.');
+            }
+
+            $loan->forceFill([
+                'status' => 'active',
+                'approved_by' => $userId,
+            ])->save();
+
+            $this->cashMovementService->create(
+                companyId: $companyId,
+                type: 'loan_disbursement',
+                amount: (float) $loan->principal_amount,
+                direction: 'out',
+                reference: $loan,
+                description: "Desembolso de préstamo {$loan->loan_number}",
+                createdBy: $userId,
+            );
+
+            $this->auditService->record(
+                action: 'loan_approved',
+                module: 'loans',
+                companyId: $companyId,
+                userId: $userId,
+                auditable: $loan,
+                description: "Préstamo {$loan->loan_number} aprobado.",
+                newValues: $loan->fresh()?->toArray(),
+            );
+
+            return $loan->fresh(['client', 'collector', 'installments']) ?? $loan;
+        });
+    }
+
+    /**
+     * Actualiza un préstamo. Los campos no contables (cobrador, garantía, notas) se aplican siempre.
+     * Las condiciones financieras solo si el préstamo no tiene pagos válidos (recalcula y regenera cuotas).
+     *
+     * @param  array<string, mixed>  $data
+     */
+    public function update(int $companyId, ?int $userId, Loan $loan, array $data): Loan
+    {
+        return DB::transaction(function () use ($companyId, $userId, $loan, $data): Loan {
+            $loan = Loan::query()->forCompany($companyId)->whereKey($loan->id)->lockForUpdate()->firstOrFail();
+
+            $original = $loan->only(['principal_amount', 'interest_rate', 'term_quantity', 'calculation_method', 'payment_frequency']);
+
+            // Campos siempre editables.
+            $loan->fill([
+                'collector_id' => $data['collector_id'] ?? null,
+                'guarantee_description' => $data['guarantee_description'] ?? null,
+                'notes' => $data['notes'] ?? null,
+                'allows_capital_prepayment' => (bool) ($data['allows_capital_prepayment'] ?? false),
+            ]);
+
+            $hasPayments = $loan->payments()->where('status', 'valid')->exists();
+
+            if (! $hasPayments && array_key_exists('principal_amount', $data) && $data['principal_amount'] !== null) {
+                $calculation = $this->calculator->calculate(
+                    principal: (float) $data['principal_amount'],
+                    annualRate: (float) $data['interest_rate'],
+                    termQuantity: (int) $data['term_quantity'],
+                    method: (string) $data['calculation_method'],
+                );
+
+                $loan->fill([
+                    'principal_amount' => $data['principal_amount'],
+                    'interest_rate' => $data['interest_rate'],
+                    'interest_type' => $data['interest_type'],
+                    'payment_frequency' => $data['payment_frequency'],
+                    'calculation_method' => $data['calculation_method'],
+                    'term_quantity' => $data['term_quantity'],
+                    'installment_amount' => $calculation['installment_amount'],
+                    'total_interest' => $calculation['total_interest'],
+                    'total_amount' => $calculation['total_amount'],
+                    'remaining_balance' => $data['principal_amount'],
+                    'late_fee_type' => $data['late_fee_type'],
+                    'late_fee_value' => $data['late_fee_value'] ?? 0,
+                    'start_date' => $data['start_date'],
+                    'first_payment_date' => $data['first_payment_date'],
+                ]);
+
+                $loan->save();
+
+                $loan->installments()->delete();
+                $settings = CompanySetting::query()->where('company_id', $companyId)->first();
+                $this->installmentGenerator->createForLoan($loan, $calculation, (bool) ($settings?->exclude_sundays_for_daily_loans ?? false));
+            } else {
+                $loan->save();
+            }
+
+            $this->auditService->record(
+                action: 'loan_updated',
+                module: 'loans',
+                companyId: $companyId,
+                userId: $userId,
+                auditable: $loan,
+                description: "Préstamo {$loan->loan_number} actualizado.",
+                oldValues: $original,
+                newValues: $loan->fresh()?->toArray(),
+            );
+
+            return $loan->fresh(['client', 'collector', 'installments']) ?? $loan;
+        });
+    }
+
+    /**
+     * Anula (soft delete) un préstamo sin pagos válidos, revirtiendo el desembolso en caja.
+     */
+    public function delete(int $companyId, ?int $userId, Loan $loan): void
+    {
+        DB::transaction(function () use ($companyId, $userId, $loan): void {
+            $loan = Loan::query()->forCompany($companyId)->whereKey($loan->id)->lockForUpdate()->firstOrFail();
+
+            if ($loan->payments()->where('status', 'valid')->exists()) {
+                throw new InvalidArgumentException('No se puede eliminar un préstamo con pagos registrados. Anula los pagos primero.');
+            }
+
+            $this->cashMovementService->create(
+                companyId: $companyId,
+                type: 'adjustment',
+                amount: (float) $loan->principal_amount,
+                direction: 'in',
+                reference: $loan,
+                description: "Reverso por anulación de préstamo {$loan->loan_number}",
+                createdBy: $userId,
+            );
+
+            $this->auditService->record(
+                action: 'loan_deleted',
+                module: 'loans',
+                companyId: $companyId,
+                userId: $userId,
+                auditable: $loan,
+                description: "Préstamo {$loan->loan_number} anulado.",
+                oldValues: $loan->toArray(),
+            );
+
+            $loan->installments()->delete();
+            $loan->delete();
+        });
+    }
+
+    /**
+     * @param  array<string, mixed>  $data
      * @return array<string, mixed>
      */
     private function mergeQuoteData(array $data, LoanQuote $quote): array
@@ -154,10 +309,10 @@ class LoanService
         ]);
     }
 
-    private function nextLoanNumber(int $companyId): string
+    private function nextLoanNumber(int $companyId, string $prefix = 'PRE'): string
     {
         $nextId = (int) Loan::query()->forCompany($companyId)->withTrashed()->count() + 1;
 
-        return 'PRE-'.now()->format('Ymd').'-'.str_pad((string) $nextId, 5, '0', STR_PAD_LEFT);
+        return $prefix.'-'.now()->format('Ymd').'-'.str_pad((string) $nextId, 5, '0', STR_PAD_LEFT);
     }
 }

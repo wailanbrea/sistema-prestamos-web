@@ -21,11 +21,12 @@ class UpdateCompanySettingsRequest extends FormRequest
     {
         return [
             'name' => ['required', 'string', 'max:150'],
+            'plan' => ['required', Rule::in(array_keys(config('plans')))],
             'rnc' => ['nullable', 'string', 'max:50'],
             'phone' => ['nullable', 'string', 'max:50'],
             'email' => ['nullable', 'email', 'max:150'],
             'address' => ['nullable', 'string', 'max:2000'],
-            'currency' => ['required', 'string', 'max:10'],
+            'currency' => ['required', Rule::in(array_keys(config('loan_labels.currencies')))],
             'default_interest_rate' => ['required', 'numeric', 'min:0', 'max:999.9999'],
             'default_late_fee_type' => ['required', Rule::in(['none', 'fixed', 'daily_percentage', 'daily_fixed'])],
             'default_late_fee_value' => ['required', 'numeric', 'min:0', 'max:999999999.99'],

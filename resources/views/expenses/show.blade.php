@@ -25,7 +25,7 @@
                 <dt class="col-sm-3">Método</dt>
                 <dd class="col-sm-9">@include('expenses.partials.method-label', ['method' => $expense->payment_method])</dd>
                 <dt class="col-sm-3">Monto</dt>
-                <dd class="col-sm-9 fs-4 fw-bold">RD$ {{ number_format((float) $expense->amount, 2) }}</dd>
+                <dd class="col-sm-9 fs-4 fw-bold">{{ currency() }} {{ number_format((float) $expense->amount, 2) }}</dd>
             </dl>
         </div>
     </section>

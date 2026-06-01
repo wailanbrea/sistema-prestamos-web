@@ -4,8 +4,9 @@ namespace App\Providers;
 
 use App\Models\Client;
 use App\Models\LoanInstallment;
-use Illuminate\Support\ServiceProvider;
+use App\Support\MenuAccess;
 use Illuminate\Support\Facades\View;
+use Illuminate\Support\ServiceProvider;
 
 class AppServiceProvider extends ServiceProvider
 {
@@ -23,9 +24,26 @@ class AppServiceProvider extends ServiceProvider
     public function boot(): void
     {
         View::composer('layouts.app', function ($view): void {
-            $companyId = (int) (auth()->user()?->company_id ?? 0);
+            $user = auth()->user();
+            $companyId = (int) ($user?->company_id ?? 0);
 
-            $view->with('navigationSections', config('navigation.sections', []));
+            $sections = config('navigation.sections', []);
+            if ($user) {
+                $sections = collect($sections)
+                    ->map(function (array $section) use ($user): array {
+                        $section['items'] = array_values(array_filter(
+                            $section['items'] ?? [],
+                            static fn (array $item): bool => MenuAccess::isItemVisible($user, $item),
+                        ));
+
+                        return $section;
+                    })
+                    ->filter(static fn (array $section): bool => count($section['items']) > 0)
+                    ->values()
+                    ->all();
+            }
+
+            $view->with('navigationSections', $sections);
             $view->with('operationAlerts', $companyId > 0 ? [
                 'missing_coordinates' => Client::query()
                     ->forCompany($companyId)

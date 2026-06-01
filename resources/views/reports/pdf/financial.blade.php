@@ -24,15 +24,15 @@
     <div class="grid">
         <div class="cell">
             <div class="muted">Cobrado</div>
-            <div class="value">RD$ {{ number_format((float) $report['summary']['total_payments'], 2) }}</div>
+            <div class="value">{{ currency() }} {{ number_format((float) $report['summary']['total_payments'], 2) }}</div>
         </div>
         <div class="cell">
             <div class="muted">Ganancia neta</div>
-            <div class="value">RD$ {{ number_format((float) $report['summary']['net_profit'], 2) }}</div>
+            <div class="value">{{ currency() }} {{ number_format((float) $report['summary']['net_profit'], 2) }}</div>
         </div>
         <div class="cell">
             <div class="muted">Capital activo</div>
-            <div class="value">RD$ {{ number_format((float) $report['summary']['active_principal'], 2) }}</div>
+            <div class="value">{{ currency() }} {{ number_format((float) $report['summary']['active_principal'], 2) }}</div>
         </div>
     </div>
 
@@ -66,7 +66,7 @@
                     <td>{{ $installment->loan->loan_number }}</td>
                     <td>#{{ $installment->installment_number }}</td>
                     <td>{{ $installment->due_date->format('d/m/Y') }}</td>
-                    <td class="right">RD$ {{ number_format((float) $installment->installment_amount + (float) $installment->late_fee - (float) $installment->total_paid, 2) }}</td>
+                    <td class="right">{{ currency() }} {{ number_format((float) $installment->installment_amount + (float) $installment->late_fee - (float) $installment->total_paid, 2) }}</td>
                 </tr>
             @empty
                 <tr><td colspan="5">No hay cuotas atrasadas.</td></tr>

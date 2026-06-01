@@ -21,6 +21,7 @@ class Loan extends Model
             'start_date' => 'date',
             'first_payment_date' => 'date',
             'end_date' => 'date',
+            'allows_capital_prepayment' => 'boolean',
         ];
     }
 

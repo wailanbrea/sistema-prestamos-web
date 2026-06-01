@@ -1,14 +1,14 @@
-@extends('layouts.app')
+﻿@extends('layouts.app')
 
 @include('loan-quotes.partials.labels')
 
-@section('title', 'Cotizacion COT-'.str_pad((string) $quote->id, 5, '0', STR_PAD_LEFT).' - '.config('app.name'))
+@section('title', 'Cotizacion '.company_setting('quote_prefix', 'COT').'-'.str_pad((string) $quote->id, 5, '0', STR_PAD_LEFT).' - '.config('app.name'))
 
 @section('content')
     <section class="mb-4">
         <div class="d-flex flex-column flex-lg-row align-items-lg-end justify-content-between gap-3">
             <div>
-                <h1 class="h3 fw-bold mb-1">Cotizacion COT-{{ str_pad((string) $quote->id, 5, '0', STR_PAD_LEFT) }}</h1>
+                <h1 class="h3 fw-bold mb-1">Cotizacion {{ company_setting('quote_prefix', 'COT') }}-{{ str_pad((string) $quote->id, 5, '0', STR_PAD_LEFT) }}</h1>
                 <p class="text-muted mb-0">{{ $quote->client?->full_name ?? 'Sin cliente asignado' }}</p>
             </div>
             <div class="d-flex gap-2">
@@ -43,16 +43,16 @@
 
     <section class="row g-3 mb-4">
         <div class="col-12 col-md-6 col-xl-3">
-            <article class="card metric-card"><div class="card-body"><div class="text-muted small">Monto</div><div class="h4 fw-bold mb-0">RD$ {{ number_format((float) $quote->amount, 2) }}</div></div></article>
+            <article class="card metric-card"><div class="card-body"><div class="text-muted small">Monto</div><div class="h4 fw-bold mb-0">{{ currency() }} {{ number_format((float) $quote->amount, 2) }}</div></div></article>
         </div>
         <div class="col-12 col-md-6 col-xl-3">
-            <article class="card metric-card"><div class="card-body"><div class="text-muted small">Cuota</div><div class="h4 fw-bold mb-0">RD$ {{ number_format((float) $quote->installment_amount, 2) }}</div></div></article>
+            <article class="card metric-card"><div class="card-body"><div class="text-muted small">Cuota</div><div class="h4 fw-bold mb-0">{{ currency() }} {{ number_format((float) $quote->installment_amount, 2) }}</div></div></article>
         </div>
         <div class="col-12 col-md-6 col-xl-3">
-            <article class="card metric-card"><div class="card-body"><div class="text-muted small">Interes total</div><div class="h4 fw-bold mb-0">RD$ {{ number_format((float) $quote->total_interest, 2) }}</div></div></article>
+            <article class="card metric-card"><div class="card-body"><div class="text-muted small">Interes total</div><div class="h4 fw-bold mb-0">{{ currency() }} {{ number_format((float) $quote->total_interest, 2) }}</div></div></article>
         </div>
         <div class="col-12 col-md-6 col-xl-3">
-            <article class="card metric-card"><div class="card-body"><div class="text-muted small">Total a pagar</div><div class="h4 fw-bold mb-0">RD$ {{ number_format((float) $quote->total_to_pay, 2) }}</div></div></article>
+            <article class="card metric-card"><div class="card-body"><div class="text-muted small">Total a pagar</div><div class="h4 fw-bold mb-0">{{ currency() }} {{ number_format((float) $quote->total_to_pay, 2) }}</div></div></article>
         </div>
     </section>
 
@@ -78,9 +78,9 @@
                                 @foreach ($calculation['installments'] as $installment)
                                     <tr>
                                         <td>{{ $installment['number'] }}</td>
-                                        <td class="text-end">RD$ {{ number_format((float) $installment['principal'], 2) }}</td>
-                                        <td class="text-end">RD$ {{ number_format((float) $installment['interest'], 2) }}</td>
-                                        <td class="text-end fw-semibold">RD$ {{ number_format((float) $installment['amount'], 2) }}</td>
+                                        <td class="text-end">{{ currency() }} {{ number_format((float) $installment['principal'], 2) }}</td>
+                                        <td class="text-end">{{ currency() }} {{ number_format((float) $installment['interest'], 2) }}</td>
+                                        <td class="text-end fw-semibold">{{ currency() }} {{ number_format((float) $installment['amount'], 2) }}</td>
                                     </tr>
                                 @endforeach
                             </tbody>
@@ -99,7 +99,7 @@
                     <div class="d-flex justify-content-between border-bottom py-3"><span class="text-muted">Estado</span><span class="badge {{ $statusLabels[$quote->status]['class'] ?? 'text-bg-secondary' }}">{{ $statusLabels[$quote->status]['label'] ?? $quote->status }}</span></div>
                     <div class="d-flex justify-content-between border-bottom py-3"><span class="text-muted">Frecuencia</span><strong>{{ $frequencyLabels[$quote->payment_frequency] ?? $quote->payment_frequency }}</strong></div>
                     <div class="d-flex justify-content-between border-bottom py-3"><span class="text-muted">Metodo</span><strong>{{ $methodLabels[$quote->calculation_method] ?? $quote->calculation_method }}</strong></div>
-                    <div class="d-flex justify-content-between border-bottom py-3"><span class="text-muted">Tasa</span><strong>{{ number_format((float) $quote->interest_rate, 4) }}%</strong></div>
+                    <div class="d-flex justify-content-between border-bottom py-3"><span class="text-muted">Tasa</span><strong>{{ rtrim(rtrim(number_format((float) $quote->interest_rate, 4, '.', ''), '0'), '.') ?: '0' }}%</strong></div>
                     <div class="d-flex justify-content-between py-3"><span class="text-muted">Cuotas</span><strong>{{ $quote->term_quantity }}</strong></div>
                 </div>
             </article>

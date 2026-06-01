@@ -1,11 +1,1 @@
-@php
-    $labels = [
-        'cash' => 'Efectivo',
-        'transfer' => 'Transferencia',
-        'card' => 'Tarjeta',
-        'check' => 'Cheque',
-        'other' => 'Otro',
-    ];
-@endphp
-
-{{ $labels[$method] ?? $method }}
+{{ config('loan_labels.payment_methods.'.$method, $method) }}

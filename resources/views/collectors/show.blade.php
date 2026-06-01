@@ -53,7 +53,7 @@
                             @if ($collector->commission_type === 'percentage')
                                 {{ number_format((float) $collector->commission_value, 2) }}%
                             @elseif ($collector->commission_type === 'fixed')
-                                RD$ {{ number_format((float) $collector->commission_value, 2) }}
+                                {{ currency() }} {{ number_format((float) $collector->commission_value, 2) }}
                             @else
                                 No aplica
                             @endif

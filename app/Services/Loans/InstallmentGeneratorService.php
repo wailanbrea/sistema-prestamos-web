@@ -26,6 +26,24 @@ class InstallmentGeneratorService
         }
     }
 
+    /**
+     * Secuencia de fechas de vencimiento (Y-m-d) para una vista previa, sin persistir nada.
+     *
+     * @return list<string>
+     */
+    public function dueDatesFor(string $firstPaymentDate, string $frequency, int $count, bool $excludeSundays = false): array
+    {
+        $date = CarbonImmutable::parse($firstPaymentDate);
+        $dates = [];
+
+        for ($i = 0; $i < $count; $i++) {
+            $dates[] = $date->toDateString();
+            $date = $this->nextDueDate($date, $frequency, $excludeSundays);
+        }
+
+        return $dates;
+    }
+
     private function nextDueDate(CarbonImmutable $date, string $frequency, bool $excludeSundays): CarbonImmutable
     {
         $nextDate = match ($frequency) {

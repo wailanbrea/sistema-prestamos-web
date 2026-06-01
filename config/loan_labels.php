@@ -23,6 +23,7 @@ return [
         'converted' => ['label' => 'Convertida', 'class' => 'text-bg-primary'],
     ],
     'loan_statuses' => [
+        'pending' => ['label' => 'Pendiente de aprobación', 'class' => 'text-bg-warning'],
         'active' => ['label' => 'Activo', 'class' => 'text-bg-success'],
         'late' => ['label' => 'Atrasado', 'class' => 'text-bg-warning'],
         'paid' => ['label' => 'Saldado', 'class' => 'text-bg-primary'],
@@ -30,5 +31,27 @@ return [
         'cancelled' => ['label' => 'Cancelado', 'class' => 'text-bg-secondary'],
         'legal' => ['label' => 'Legal', 'class' => 'text-bg-dark'],
         'written_off' => ['label' => 'Castigado', 'class' => 'text-bg-danger'],
+    ],
+    'installment_statuses' => [
+        'pending' => ['label' => 'Pendiente', 'class' => 'text-bg-secondary'],
+        'partial' => ['label' => 'Parcial', 'class' => 'text-bg-info'],
+        'paid' => ['label' => 'Pagada', 'class' => 'text-bg-success'],
+        'late' => ['label' => 'Atrasada', 'class' => 'text-bg-warning'],
+        'cancelled' => ['label' => 'Cancelada', 'class' => 'text-bg-dark'],
+    ],
+    'payment_methods' => [
+        'cash' => 'Efectivo',
+        'transfer' => 'Transferencia',
+        'card' => 'Tarjeta',
+        'check' => 'Cheque',
+        'other' => 'Otro',
+    ],
+    'payment_statuses' => [
+        'valid' => ['label' => 'Válido', 'class' => 'text-bg-success'],
+        'cancelled' => ['label' => 'Anulado', 'class' => 'text-bg-danger'],
+    ],
+    'currencies' => [
+        'RD$' => 'Peso dominicano (RD$)',
+        'US$' => 'Dólar (US$)',
     ],
 ];

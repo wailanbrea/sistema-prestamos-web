@@ -19,6 +19,13 @@
         </div>
     </section>
 
+    @if ($errors->has('loan'))
+        <div class="alert alert-danger alert-dismissible fade show" role="alert">
+            {{ $errors->first('loan') }}
+            <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Cerrar"></button>
+        </div>
+    @endif
+
     <section class="card content-card mb-4">
         <div class="card-body">
             <form method="GET" action="{{ route('loans.index') }}" class="row g-3 align-items-end">
@@ -59,6 +66,7 @@
                             <th class="text-end">Monto</th>
                             <th class="text-end">Balance</th>
                             <th>Estado</th>
+                            <th class="text-end">Acciones</th>
                         </tr>
                     </thead>
                     <tbody>
@@ -70,13 +78,26 @@
                                 </td>
                                 <td>{{ $loan->client->full_name }}</td>
                                 <td>{{ $frequencyLabels[$loan->payment_frequency] ?? $loan->payment_frequency }}</td>
-                                <td class="text-end">RD$ {{ number_format((float) $loan->principal_amount, 2) }}</td>
-                                <td class="text-end">RD$ {{ number_format((float) $loan->remaining_balance, 2) }}</td>
+                                <td class="text-end">{{ currency() }} {{ number_format((float) $loan->principal_amount, 2) }}</td>
+                                <td class="text-end">{{ currency() }} {{ number_format((float) $loan->remaining_balance, 2) }}</td>
                                 <td><span class="badge {{ $loanStatusLabels[$loan->status]['class'] ?? 'text-bg-secondary' }}">{{ $loanStatusLabels[$loan->status]['label'] ?? $loan->status }}</span></td>
+                                <td class="text-end text-nowrap">
+                                    <a href="{{ route('loans.show', $loan) }}" class="btn btn-sm btn-link text-decoration-none" title="Ver"><i class="fa-solid fa-eye"></i></a>
+                                    @can('loans.update')
+                                        <a href="{{ route('loans.edit', $loan) }}" class="btn btn-sm btn-link text-dark text-decoration-none" title="Editar"><i class="fa-solid fa-pen"></i></a>
+                                    @endcan
+                                    @can('loans.delete')
+                                        <form action="{{ route('loans.destroy', $loan) }}" method="POST" class="d-inline" onsubmit="return confirm('¿Eliminar este préstamo? Solo es posible si no tiene pagos registrados.');">
+                                            @csrf
+                                            @method('DELETE')
+                                            <button type="submit" class="btn btn-sm btn-link text-danger text-decoration-none" title="Eliminar"><i class="fa-solid fa-trash"></i></button>
+                                        </form>
+                                    @endcan
+                                </td>
                             </tr>
                         @empty
                             <tr>
-                                <td colspan="6" class="text-center text-muted py-5">No hay préstamos registrados.</td>
+                                <td colspan="7" class="text-center text-muted py-5">No hay préstamos registrados.</td>
                             </tr>
                         @endforelse
                     </tbody>

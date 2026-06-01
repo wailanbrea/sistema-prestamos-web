@@ -12,6 +12,7 @@ use App\Models\Loan;
 use App\Models\LoanInstallment;
 use App\Models\Payment;
 use App\Models\User;
+use Carbon\CarbonImmutable;
 use Database\Seeders\RolePermissionSeeder;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Hash;
@@ -207,6 +208,231 @@ class PaymentManagementTest extends TestCase
             'id' => $payment->id,
             'status' => 'valid',
         ]);
+    }
+
+    public function test_interest_only_payment_does_not_reduce_balance(): void
+    {
+        $user = $this->adminUser();
+        [$loan] = $this->loanWithCollector((int) $user->company_id);
+
+        $this->actingAs($user)
+            ->post('/cobros', [
+                'loan_id' => $loan->id,
+                'payment_date' => '2026-05-06',
+                'allocation_mode' => 'interest_only',
+                'amount' => 100,
+                'payment_method' => 'cash',
+            ])
+            ->assertRedirect();
+
+        $this->assertDatabaseHas('payments', [
+            'loan_id' => $loan->id,
+            'principal_paid' => 0,
+            'interest_paid' => 100,
+            'new_balance' => 1000,
+        ]);
+        $this->assertDatabaseHas('loans', ['id' => $loan->id, 'remaining_balance' => 1000, 'status' => 'active']);
+    }
+
+    public function test_principal_only_payment_reduces_balance_and_keeps_interest_due(): void
+    {
+        $user = $this->adminUser();
+        [$loan] = $this->loanWithCollector((int) $user->company_id);
+
+        $this->actingAs($user)
+            ->post('/cobros', [
+                'loan_id' => $loan->id,
+                'payment_date' => '2026-05-06',
+                'allocation_mode' => 'principal_only',
+                'amount' => 400,
+                'payment_method' => 'cash',
+            ])
+            ->assertRedirect();
+
+        $this->assertDatabaseHas('payments', [
+            'loan_id' => $loan->id,
+            'principal_paid' => 400,
+            'interest_paid' => 0,
+            'new_balance' => 600,
+        ]);
+        $this->assertDatabaseHas('loan_installments', [
+            'loan_id' => $loan->id,
+            'paid_principal' => 400,
+            'paid_interest' => 0,
+            'status' => 'partial',
+        ]);
+    }
+
+    public function test_custom_payment_applies_explicit_installment_amount(): void
+    {
+        $user = $this->adminUser();
+        [$loan] = $this->loanWithCollector((int) $user->company_id);
+        $installment = $loan->installments()->firstOrFail();
+
+        $this->actingAs($user)
+            ->post('/cobros', [
+                'loan_id' => $loan->id,
+                'payment_date' => '2026-05-06',
+                'allocation_mode' => 'custom',
+                'payment_method' => 'cash',
+                'allocations' => [
+                    ['installment_id' => $installment->id, 'amount' => 600],
+                ],
+            ])
+            ->assertRedirect();
+
+        // 600 => 100 interés + 500 capital
+        $this->assertDatabaseHas('payments', [
+            'loan_id' => $loan->id,
+            'amount' => 600,
+            'principal_paid' => 500,
+            'interest_paid' => 100,
+            'new_balance' => 500,
+        ]);
+    }
+
+    public function test_capital_prepayment_recalculates_remaining_installments(): void
+    {
+        $user = $this->adminUser();
+        // Préstamo flat 10000 @10% en 10 cuotas mensuales (cuota 1100: 1000 capital + 100 interés).
+        $loan = $this->multiInstallmentLoan((int) $user->company_id);
+        $first = $loan->installments()->orderBy('installment_number')->first();
+
+        $this->actingAs($user)
+            ->post('/cobros', [
+                'loan_id' => $loan->id,
+                'payment_date' => '2026-05-06',
+                'allocation_mode' => 'auto',
+                'target_installment_id' => $first->id,
+                'amount' => 2000,
+                'excess_action' => 'prepayment',
+                'payment_method' => 'cash',
+            ])
+            ->assertRedirect();
+
+        $this->assertDatabaseHas('payments', [
+            'loan_id' => $loan->id,
+            'principal_paid' => 1900, // 1000 cuota + 900 abono
+            'capital_prepaid' => 900,
+            'change_given' => 0,
+            'amount' => 2000,
+        ]);
+        $this->assertDatabaseHas('loans', ['id' => $loan->id, 'remaining_balance' => 8100]);
+
+        // 9 cuotas restantes re-amortizadas: capital 900, interés 90, cuota 990.
+        $this->assertDatabaseHas('loan_installments', [
+            'loan_id' => $loan->id,
+            'installment_number' => 2,
+            'principal_amount' => 900,
+            'interest_amount' => 90,
+            'installment_amount' => 990,
+        ]);
+    }
+
+    public function test_overpayment_can_be_returned_as_change(): void
+    {
+        $user = $this->adminUser();
+        $loan = $this->multiInstallmentLoan((int) $user->company_id);
+        $first = $loan->installments()->orderBy('installment_number')->first();
+
+        $this->actingAs($user)
+            ->post('/cobros', [
+                'loan_id' => $loan->id,
+                'payment_date' => '2026-05-06',
+                'allocation_mode' => 'auto',
+                'target_installment_id' => $first->id,
+                'amount' => 1600,
+                'excess_action' => 'change',
+                'payment_method' => 'cash',
+            ])
+            ->assertRedirect();
+
+        $this->assertDatabaseHas('payments', [
+            'loan_id' => $loan->id,
+            'amount' => 1100,
+            'change_given' => 500,
+            'capital_prepaid' => 0,
+        ]);
+        $this->assertDatabaseHas('loans', ['id' => $loan->id, 'remaining_balance' => 9000]);
+    }
+
+    public function test_partial_payment_rejected_when_not_allowed(): void
+    {
+        $user = $this->adminUser();
+        CompanySetting::query()->create([
+            'company_id' => $user->company_id,
+            'allow_partial_payments' => false,
+        ]);
+        [$loan] = $this->loanWithCollector((int) $user->company_id);
+
+        // Pago parcial (500 < cuota 1100) => la cuota quedaría parcial => rechazado.
+        $this->actingAs($user)
+            ->from('/cobros/crear')
+            ->post('/cobros', [
+                'loan_id' => $loan->id,
+                'payment_date' => '2026-05-06',
+                'amount' => 500,
+                'payment_method' => 'cash',
+            ])
+            ->assertSessionHasErrors('amount');
+
+        $this->assertDatabaseCount('payments', 0);
+
+        // Pago completo de la cuota (1100) => aceptado.
+        $this->actingAs($user)
+            ->post('/cobros', [
+                'loan_id' => $loan->id,
+                'payment_date' => '2026-05-06',
+                'amount' => 1100,
+                'payment_method' => 'cash',
+            ])
+            ->assertRedirect();
+        $this->assertDatabaseCount('payments', 1);
+    }
+
+    private function multiInstallmentLoan(int $companyId): Loan
+    {
+        $client = Client::query()->create([
+            'company_id' => $companyId,
+            'full_name' => 'Cliente Abono',
+            'status' => 'active',
+            'risk_level' => 'low',
+        ]);
+        $loan = Loan::query()->create([
+            'company_id' => $companyId,
+            'client_id' => $client->id,
+            'loan_number' => 'PRE-ABONO-'.fake()->unique()->numerify('####'),
+            'principal_amount' => 10000,
+            'interest_rate' => 10,
+            'interest_type' => 'fixed',
+            'payment_frequency' => 'monthly',
+            'calculation_method' => 'flat_interest',
+            'term_quantity' => 10,
+            'installment_amount' => 1100,
+            'total_interest' => 1000,
+            'total_amount' => 11000,
+            'remaining_balance' => 10000,
+            'late_fee_type' => 'none',
+            'late_fee_value' => 0,
+            'allows_capital_prepayment' => true,
+            'start_date' => '2026-05-01',
+            'first_payment_date' => '2026-06-01',
+            'status' => 'active',
+        ]);
+        $due = CarbonImmutable::parse('2026-06-01');
+        for ($n = 1; $n <= 10; $n++) {
+            $loan->installments()->create([
+                'installment_number' => $n,
+                'due_date' => $due->toDateString(),
+                'principal_amount' => 1000,
+                'interest_amount' => 100,
+                'installment_amount' => 1100,
+                'status' => 'pending',
+            ]);
+            $due = $due->addMonthNoOverflow();
+        }
+
+        return $loan;
     }
 
     private function adminUser(): User

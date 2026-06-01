@@ -21,7 +21,7 @@
                                 <option value="">Seleccione un préstamo</option>
                                 @foreach ($loans as $loan)
                                     <option value="{{ $loan->id }}" @selected((string) old('loan_id') === (string) $loan->id)>
-                                        {{ $loan->loan_number }} · {{ $loan->client->full_name }} · {{ $loan->status }}
+                                        {{ $loan->loan_number }} · {{ $loan->client->full_name }} · {{ config('loan_labels.loan_statuses.'.$loan->status.'.label', $loan->status) }}
                                     </option>
                                 @endforeach
                             </select>
@@ -56,7 +56,7 @@
                                 <option value="">Seleccione un cobro</option>
                                 @foreach ($payments as $payment)
                                     <option value="{{ $payment->id }}" @selected((string) old('payment_id') === (string) $payment->id)>
-                                        {{ $payment->receipt_number }} · {{ $payment->client->full_name }} · RD$ {{ number_format((float) $payment->amount, 2) }}
+                                        {{ $payment->receipt_number }} · {{ $payment->client->full_name }} · {{ currency() }} {{ number_format((float) $payment->amount, 2) }}
                                     </option>
                                 @endforeach
                             </select>

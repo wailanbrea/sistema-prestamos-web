@@ -28,7 +28,7 @@
                     <label for="payment_method" class="form-label">Método</label>
                     <select id="payment_method" name="payment_method" class="form-select">
                         <option value="">Todos</option>
-                        @foreach (['cash' => 'Efectivo', 'transfer' => 'Transferencia', 'card' => 'Tarjeta', 'check' => 'Cheque', 'other' => 'Otro'] as $value => $label)
+                        @foreach (config('loan_labels.payment_methods') as $value => $label)
                             <option value="{{ $value }}" @selected(($filters['payment_method'] ?? '') === $value)>{{ $label }}</option>
                         @endforeach
                     </select>
@@ -74,8 +74,8 @@
                                 <td>{{ $payment->client->full_name }}</td>
                                 <td>{{ $payment->loan->loan_number }}</td>
                                 <td>@include('payments.partials.method-label', ['method' => $payment->payment_method])</td>
-                                <td class="text-end">RD$ {{ number_format((float) $payment->amount, 2) }}</td>
-                                <td class="text-end">RD$ {{ number_format((float) $payment->new_balance, 2) }}</td>
+                                <td class="text-end">{{ currency() }} {{ number_format((float) $payment->amount, 2) }}</td>
+                                <td class="text-end">{{ currency() }} {{ number_format((float) $payment->new_balance, 2) }}</td>
                             </tr>
                         @empty
                             <tr>

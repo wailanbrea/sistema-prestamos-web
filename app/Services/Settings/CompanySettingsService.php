@@ -10,18 +10,17 @@ use Illuminate\Support\Facades\DB;
 
 class CompanySettingsService
 {
-    public function __construct(private readonly AuditService $auditService)
-    {
-    }
+    public function __construct(private readonly AuditService $auditService) {}
 
     /**
-     * @param array<string, mixed> $data
+     * @param  array<string, mixed>  $data
      */
     public function update(Company $company, array $data, int $userId): Company
     {
         return DB::transaction(function () use ($company, $data, $userId): Company {
             $companyData = [
                 'name' => $data['name'],
+                'plan' => $data['plan'],
                 'rnc' => $data['rnc'] ?? null,
                 'phone' => $data['phone'] ?? null,
                 'email' => $data['email'] ?? null,

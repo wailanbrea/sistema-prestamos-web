@@ -20,7 +20,7 @@
             <div class="card content-card h-100">
                 <div class="card-body">
                     <div class="text-muted small text-uppercase">Entradas</div>
-                    <div class="fs-3 fw-bold text-success">RD$ {{ number_format($totals['total_in'], 2) }}</div>
+                    <div class="fs-3 fw-bold text-success">{{ currency() }} {{ number_format($totals['total_in'], 2) }}</div>
                 </div>
             </div>
         </div>
@@ -28,7 +28,7 @@
             <div class="card content-card h-100">
                 <div class="card-body">
                     <div class="text-muted small text-uppercase">Salidas</div>
-                    <div class="fs-3 fw-bold text-danger">RD$ {{ number_format($totals['total_out'], 2) }}</div>
+                    <div class="fs-3 fw-bold text-danger">{{ currency() }} {{ number_format($totals['total_out'], 2) }}</div>
                 </div>
             </div>
         </div>
@@ -36,7 +36,7 @@
             <div class="card content-card h-100">
                 <div class="card-body">
                     <div class="text-muted small text-uppercase">Balance</div>
-                    <div class="fs-3 fw-bold">RD$ {{ number_format($totals['balance'], 2) }}</div>
+                    <div class="fs-3 fw-bold">{{ currency() }} {{ number_format($totals['balance'], 2) }}</div>
                 </div>
             </div>
         </div>
@@ -101,10 +101,10 @@
                                 <td>{{ $movement->description ?: 'Sin descripción' }}</td>
                                 <td>{{ $movement->createdBy?->name ?: 'Sistema' }}</td>
                                 <td class="text-end text-success">
-                                    {{ $movement->direction === 'in' ? 'RD$ '.number_format((float) $movement->amount, 2) : '-' }}
+                                    {{ $movement->direction === 'in' ? currency().' '.number_format((float) $movement->amount, 2) : '-' }}
                                 </td>
                                 <td class="text-end text-danger">
-                                    {{ $movement->direction === 'out' ? 'RD$ '.number_format((float) $movement->amount, 2) : '-' }}
+                                    {{ $movement->direction === 'out' ? currency().' '.number_format((float) $movement->amount, 2) : '-' }}
                                 </td>
                             </tr>
                         @empty

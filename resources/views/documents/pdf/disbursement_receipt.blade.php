@@ -18,13 +18,13 @@
     <p>
         Por medio del presente, <strong>{{ $company->name }}</strong> hace constar que ha desembolsado a
         <strong>{{ $loan->client->full_name }}</strong> la suma de
-        <strong>RD$ {{ number_format((float) $loan->principal_amount, 2) }}</strong>.
+        <strong>{{ currency() }} {{ number_format((float) $loan->principal_amount, 2) }}</strong>.
     </p>
 
     <table>
-        <tr><th>Capital desembolsado</th><td class="right">RD$ {{ number_format((float) $loan->principal_amount, 2) }}</td></tr>
-        <tr><th>Total a pagar</th><td class="right">RD$ {{ number_format((float) $loan->total_amount, 2) }}</td></tr>
-        <tr><th>Frecuencia</th><td>{{ $loan->payment_frequency }}</td></tr>
+        <tr><th>Capital desembolsado</th><td class="right">{{ currency() }} {{ number_format((float) $loan->principal_amount, 2) }}</td></tr>
+        <tr><th>Total a pagar</th><td class="right">{{ currency() }} {{ number_format((float) $loan->total_amount, 2) }}</td></tr>
+        <tr><th>Frecuencia</th><td>{{ config('loan_labels.frequencies.'.$loan->payment_frequency, $loan->payment_frequency) }}</td></tr>
         <tr><th>Cantidad de cuotas</th><td>{{ $loan->term_quantity }}</td></tr>
     </table>
 

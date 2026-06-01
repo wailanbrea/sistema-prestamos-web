@@ -14,6 +14,7 @@ return Application::configure(basePath: dirname(__DIR__))
     ->withMiddleware(function (Middleware $middleware): void {
         $middleware->alias([
             'company.active' => \App\Http\Middleware\EnsureCompanyIsActive::class,
+            'menu.visible' => \App\Http\Middleware\EnsureMenuIsVisible::class,
             'permission' => \Spatie\Permission\Middleware\PermissionMiddleware::class,
             'permission.company' => \App\Http\Middleware\SetPermissionCompanyContext::class,
             'role' => \Spatie\Permission\Middleware\RoleMiddleware::class,

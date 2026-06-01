@@ -10,6 +10,7 @@ use App\Models\Collector;
 use App\Models\Loan;
 use App\Services\Payments\PaymentService;
 use Illuminate\Database\Eloquent\Collection;
+use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\View\View;
@@ -17,9 +18,7 @@ use InvalidArgumentException;
 
 class PaymentController extends Controller
 {
-    public function __construct(private readonly PaymentService $paymentService)
-    {
-    }
+    public function __construct(private readonly PaymentService $paymentService) {}
 
     public function index(Request $request): View
     {
@@ -74,6 +73,22 @@ class PaymentController extends Controller
     {
         return view('payments.show', [
             'payment' => $this->paymentService->findForCompany((int) $request->user()->company_id, $payment),
+        ]);
+    }
+
+    public function installments(Request $request, int $loan): JsonResponse
+    {
+        $model = Loan::query()
+            ->forCompany((int) $request->user()->company_id)
+            ->whereIn('status', ['active', 'late'])
+            ->whereKey($loan)
+            ->firstOrFail();
+
+        return response()->json([
+            'loan_id' => $model->id,
+            'remaining_balance' => (float) $model->remaining_balance,
+            'allows_capital_prepayment' => (bool) $model->allows_capital_prepayment,
+            'installments' => $this->paymentService->pendingInstallmentsFor($model),
         ]);
     }
 

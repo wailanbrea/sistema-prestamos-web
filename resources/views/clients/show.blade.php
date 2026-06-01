@@ -32,7 +32,7 @@
                         <div class="col-12 col-md-6"><span class="text-muted small d-block">Teléfono</span><strong>{{ $client->phone ?: 'No registrado' }}</strong></div>
                         <div class="col-12 col-md-6"><span class="text-muted small d-block">Teléfono secundario</span><strong>{{ $client->secondary_phone ?: 'No registrado' }}</strong></div>
                         <div class="col-12 col-md-6"><span class="text-muted small d-block">Email</span><strong>{{ $client->email ?: 'No registrado' }}</strong></div>
-                        <div class="col-12 col-md-6"><span class="text-muted small d-block">Ingreso mensual</span><strong>RD$ {{ number_format((float) $client->monthly_income, 2) }}</strong></div>
+                        <div class="col-12 col-md-6"><span class="text-muted small d-block">Ingreso mensual</span><strong>{{ currency() }} {{ number_format((float) $client->monthly_income, 2) }}</strong></div>
                         <div class="col-12 col-md-6"><span class="text-muted small d-block">Lugar de trabajo</span><strong>{{ $client->workplace ?: 'No registrado' }}</strong></div>
                         <div class="col-12 col-md-6"><span class="text-muted small d-block">Teléfono laboral</span><strong>{{ $client->workplace_phone ?: 'No registrado' }}</strong></div>
                         <div class="col-12">

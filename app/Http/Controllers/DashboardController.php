@@ -16,6 +16,9 @@ class DashboardController extends Controller
 
         return view('dashboard', [
             'metrics' => $dashboardService->summary($companyId),
+            'collectionsTrend' => $dashboardService->collectionsTrend($companyId),
+            'loanDistribution' => $dashboardService->loanStatusDistribution($companyId),
+            'recentPayments' => $dashboardService->recentPayments($companyId),
         ]);
     }
 }
