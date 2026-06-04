@@ -124,6 +124,7 @@ class RouteTrackingService
     {
         $session->loadMissing(['route.clients', 'visitEvents.client', 'collector']);
         $visits = $session->visitEvents->keyBy('client_id');
+        $expectedOrderByClient = $this->expectedOrderByClient($session);
 
         return [
             'id' => $session->id,
@@ -142,8 +143,8 @@ class RouteTrackingService
                 'name' => $session->route?->name,
             ],
             'stops' => $session->route?->clients
-                ->sortBy(fn (Client $client): int => (int) $client->pivot->order_number)
-                ->map(function (Client $client) use ($visits): array {
+                ->sortBy(fn (Client $client): int => $expectedOrderByClient[(int) $client->id] ?? (int) $client->pivot->order_number)
+                ->map(function (Client $client) use ($visits, $expectedOrderByClient): array {
                     /** @var RouteVisitEvent|null $visit */
                     $visit = $visits->get($client->id);
 
@@ -153,7 +154,7 @@ class RouteTrackingService
                         'address' => $client->address,
                         'latitude' => $client->latitude === null ? null : (float) $client->latitude,
                         'longitude' => $client->longitude === null ? null : (float) $client->longitude,
-                        'expected_order' => (int) $client->pivot->order_number,
+                        'expected_order' => $expectedOrderByClient[(int) $client->id] ?? (int) $client->pivot->order_number,
                         'visited' => $visit !== null,
                         'visited_order' => $visit?->visited_order,
                         'visited_at' => $visit?->visited_at?->toIso8601String(),
@@ -216,6 +217,13 @@ class RouteTrackingService
             ->where('collector_route_session_id', $session->id)
             ->count() + 1;
 
+        $expectedOrderByClient = $this->expectedOrderByClient(
+            session: $session,
+            originLatitude: $latitude,
+            originLongitude: $longitude,
+            clients: $clients,
+        );
+
         foreach ($clients as $client) {
             if (in_array($client->id, $existingClientIds, true) || $client->latitude === null || $client->longitude === null) {
                 continue;
@@ -226,7 +234,7 @@ class RouteTrackingService
                 continue;
             }
 
-            $expectedOrder = (int) $client->pivot->order_number;
+            $expectedOrder = $expectedOrderByClient[(int) $client->id] ?? (int) $client->pivot->order_number;
 
             RouteVisitEvent::query()->create([
                 'collector_route_session_id' => $session->id,
@@ -254,6 +262,78 @@ class RouteTrackingService
             + cos(deg2rad($fromLatitude)) * cos(deg2rad($toLatitude)) * sin($lngDelta / 2) ** 2;
 
         return $earthRadiusMeters * 2 * atan2(sqrt($a), sqrt(1 - $a));
+    }
+
+    /**
+     * @param Collection<int,Client>|null $clients
+     * @return array<int,int>
+     */
+    private function expectedOrderByClient(
+        CollectorRouteSession $session,
+        ?float $originLatitude = null,
+        ?float $originLongitude = null,
+        ?Collection $clients = null,
+    ): array {
+        $clients ??= $session->route?->clients;
+        if (! $clients instanceof Collection || $clients->isEmpty()) {
+            return [];
+        }
+
+        $originLatitude ??= $session->last_latitude === null ? null : (float) $session->last_latitude;
+        $originLongitude ??= $session->last_longitude === null ? null : (float) $session->last_longitude;
+
+        if ($originLatitude === null || $originLongitude === null) {
+            return $clients
+                ->sortBy(fn (Client $client): int => (int) $client->pivot->order_number)
+                ->values()
+                ->mapWithKeys(fn (Client $client, int $index): array => [(int) $client->id => $index + 1])
+                ->all();
+        }
+
+        $remaining = $clients
+            ->filter(fn (Client $client): bool => $client->latitude !== null && $client->longitude !== null)
+            ->map(fn (Client $client): array => [
+                'id' => (int) $client->id,
+                'latitude' => (float) $client->latitude,
+                'longitude' => (float) $client->longitude,
+            ])
+            ->values()
+            ->all();
+
+        $order = [];
+        $cursorLatitude = $originLatitude;
+        $cursorLongitude = $originLongitude;
+
+        while ($remaining !== []) {
+            $nearestIndex = 0;
+            $nearestDistance = null;
+
+            foreach ($remaining as $index => $candidate) {
+                $distance = $this->distanceMeters(
+                    $cursorLatitude,
+                    $cursorLongitude,
+                    $candidate['latitude'],
+                    $candidate['longitude'],
+                );
+
+                if ($nearestDistance === null || $distance < $nearestDistance) {
+                    $nearestIndex = $index;
+                    $nearestDistance = $distance;
+                }
+            }
+
+            $nearest = $remaining[$nearestIndex];
+            $order[(int) $nearest['id']] = count($order) + 1;
+            $cursorLatitude = (float) $nearest['latitude'];
+            $cursorLongitude = (float) $nearest['longitude'];
+            array_splice($remaining, $nearestIndex, 1);
+        }
+
+        foreach ($clients->sortBy(fn (Client $client): int => (int) $client->pivot->order_number) as $client) {
+            $order[(int) $client->id] ??= count($order) + 1;
+        }
+
+        return $order;
     }
 
     private function visitRadiusMeters(int $companyId): int

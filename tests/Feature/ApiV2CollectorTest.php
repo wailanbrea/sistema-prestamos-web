@@ -201,6 +201,82 @@ class ApiV2CollectorTest extends TestCase
         ]);
     }
 
+    public function test_route_tracking_reorders_expected_stops_by_nearest_location_signal(): void
+    {
+        [$user, $collector, $loan] = $this->collectorWithLoan();
+        $companyId = (int) $collector->company_id;
+
+        $loan->client->update([
+            'full_name' => 'Parada A lejana',
+            'latitude' => 18.4861,
+            'longitude' => -69.9312,
+        ]);
+
+        $stopB = Client::query()->create([
+            'company_id' => $companyId,
+            'full_name' => 'Parada B media',
+            'identification' => '001-0000000-2',
+            'phone' => '809-555-0102',
+            'address' => 'Santo Domingo Este',
+            'latitude' => 18.4900,
+            'longitude' => -69.9200,
+            'status' => 'active',
+            'risk_level' => 'low',
+        ]);
+
+        $stopC = Client::query()->create([
+            'company_id' => $companyId,
+            'full_name' => 'Parada C cercana',
+            'identification' => '001-0000000-3',
+            'phone' => '809-555-0103',
+            'address' => 'Al lado del cobrador',
+            'latitude' => 18.5000,
+            'longitude' => -69.9000,
+            'status' => 'active',
+            'risk_level' => 'low',
+        ]);
+
+        $route = LendingRoute::query()->create([
+            'company_id' => $companyId,
+            'collector_id' => $collector->id,
+            'name' => 'Ruta Cercania API',
+            'status' => 'active',
+        ]);
+        $route->clients()->sync([
+            $loan->client_id => ['order_number' => 1],
+            $stopB->id => ['order_number' => 2],
+            $stopC->id => ['order_number' => 3],
+        ]);
+        $token = $this->loginToken($user);
+
+        $sessionId = $this->withToken($token)
+            ->postJson('/api/v2/collector/route-sessions', [
+                'route_id' => $route->id,
+            ])
+            ->assertCreated()
+            ->json('data.id');
+
+        $this->withToken($token)
+            ->postJson("/api/v2/collector/route-sessions/{$sessionId}/locations", [
+                'latitude' => 18.5001,
+                'longitude' => -69.9001,
+                'recorded_at' => '2026-05-07T08:00:00-04:00',
+            ])
+            ->assertOk()
+            ->assertJsonPath('data.stops.0.client_id', $stopC->id)
+            ->assertJsonPath('data.stops.0.expected_order', 1)
+            ->assertJsonPath('data.stops.0.visited', true)
+            ->assertJsonPath('data.stops.0.visit_status', 'visited');
+
+        $this->assertDatabaseHas('route_visit_events', [
+            'collector_route_session_id' => $sessionId,
+            'client_id' => $stopC->id,
+            'expected_order' => 1,
+            'visited_order' => 1,
+            'status' => 'visited',
+        ]);
+    }
+
 
     public function test_collector_can_read_installment_detail(): void
     {
