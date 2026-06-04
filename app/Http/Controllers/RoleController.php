@@ -171,6 +171,7 @@ class RoleController extends Controller
             ->all();
 
         $labels = [
+            'collector.access' => 'Acceso app cobrador',
             'clients.create' => 'Crear clientes',
             'clients.update' => 'Editar clientes',
             'clients.delete' => 'Eliminar clientes',

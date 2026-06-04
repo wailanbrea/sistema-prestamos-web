@@ -33,7 +33,10 @@ class ApiV2CollectorTest extends TestCase
             ->assertJsonPath('data.collector.id', $collector->id)
             ->assertJsonPath('data.assigned_clients', 1)
             ->assertJsonPath('data.active_loans', 1)
-            ->assertJsonPath('data.pending_installments', 1);
+            ->assertJsonPath('data.pending_installments', 1)
+            ->assertJsonPath('data.commissions.generated_total', 0)
+            ->assertJsonPath('data.commissions.pending_total', 0)
+            ->assertJsonPath('data.commissions.paid_total', 0);
 
         $this->withToken($token)
             ->getJson('/api/v2/collector/clients')
@@ -229,7 +232,11 @@ class ApiV2CollectorTest extends TestCase
             ->assertCreated()
             ->assertJsonPath('data.loan_id', $loan->id)
             ->assertJsonPath('data.collector.id', $collector->id)
-            ->assertJsonPath('data.new_balance', 0);
+            ->assertJsonPath('data.new_balance', 0)
+            ->assertJsonPath('data.commission.commission_type', 'percentage')
+            ->assertJsonPath('data.commission.base_amount', 1100)
+            ->assertJsonPath('data.commission.commission_amount', 55)
+            ->assertJsonPath('data.commission.status', 'pending');
 
         $this->assertDatabaseHas('payments', [
             'loan_id' => $loan->id,
@@ -294,6 +301,7 @@ class ApiV2CollectorTest extends TestCase
             ->assertOk()
             ->assertJsonPath('data.0.id', $paymentId)
             ->assertJsonPath('data.0.collector.id', $collector->id)
+            ->assertJsonPath('data.0.commission.commission_amount', 55)
             ->assertJsonPath('meta.total', 1);
 
         $this->withToken($token)
@@ -301,7 +309,16 @@ class ApiV2CollectorTest extends TestCase
             ->assertOk()
             ->assertJsonPath('data.id', $paymentId)
             ->assertJsonPath('data.details.0.installment_number', 1)
-            ->assertJsonPath('data.details.0.amount_paid', 1100);
+            ->assertJsonPath('data.details.0.amount_paid', 1100)
+            ->assertJsonPath('data.commission.base_amount', 1100)
+            ->assertJsonPath('data.commission.commission_amount', 55);
+
+        $this->withToken($token)
+            ->getJson('/api/v2/collector/summary')
+            ->assertOk()
+            ->assertJsonPath('data.commissions.generated_total', 55)
+            ->assertJsonPath('data.commissions.pending_total', 55)
+            ->assertJsonPath('data.commissions.paid_total', 0);
     }
 
     public function test_collector_cannot_register_payment_for_other_collector_loan(): void

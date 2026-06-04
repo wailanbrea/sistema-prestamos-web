@@ -16,6 +16,7 @@ class RolePermissionSeeder extends Seeder
         app(PermissionRegistrar::class)->forgetCachedPermissions();
 
         $permissions = [
+            'collector.access',
             'dashboard.view',
             'clients.view',
             'clients.create',
@@ -79,11 +80,7 @@ class RolePermissionSeeder extends Seeder
                 'documents.generate',
             ],
             'Cobrador' => [
-                'dashboard.view',
-                'clients.view',
-                'loans.view',
-                'payments.create',
-                'documents.generate',
+                'collector.access',
             ],
             'Caja/Contabilidad' => [
                 'dashboard.view',

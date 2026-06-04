@@ -8,6 +8,7 @@ use App\Http\Controllers\Api\V2\Concerns\BuildsApiPayloads;
 use App\Http\Controllers\Controller;
 use App\Models\Client;
 use App\Models\Collector;
+use App\Models\CollectorCommission;
 use App\Models\CollectorRouteSession;
 use App\Models\Loan;
 use App\Models\LoanInstallment;
@@ -53,6 +54,22 @@ class CollectorController extends Controller
                     ->where('status', 'valid')
                     ->whereDate('payment_date', now()->toDateString())
                     ->sum('amount'),
+                'commissions' => [
+                    'generated_total' => (float) CollectorCommission::query()
+                        ->forCompany((int) $collector->company_id)
+                        ->where('collector_id', $collector->id)
+                        ->sum('commission_amount'),
+                    'pending_total' => (float) CollectorCommission::query()
+                        ->forCompany((int) $collector->company_id)
+                        ->where('collector_id', $collector->id)
+                        ->where('status', 'pending')
+                        ->sum('commission_amount'),
+                    'paid_total' => (float) CollectorCommission::query()
+                        ->forCompany((int) $collector->company_id)
+                        ->where('collector_id', $collector->id)
+                        ->where('status', 'paid')
+                        ->sum('commission_amount'),
+                ],
             ],
         ]);
     }
@@ -238,7 +255,7 @@ class CollectorController extends Controller
             ->get();
 
         $payments = $this->assignedPaymentQuery($collector)
-            ->with(['loan.client', 'collector'])
+            ->with(['loan.client', 'collector', 'collectorCommission'])
             ->where('client_id', $clientModel->id)
             ->orderByDesc('payment_date')
             ->orderByDesc('id')
@@ -280,7 +297,7 @@ class CollectorController extends Controller
             ->with([
                 'client:id,code,full_name,identification,phone,address,status,risk_level',
                 'installments' => fn ($query) => $query->orderBy('installment_number'),
-                'payments' => fn ($query) => $query->with(['loan.client', 'collector'])->orderByDesc('payment_date')->orderByDesc('id'),
+                'payments' => fn ($query) => $query->with(['loan.client', 'collector', 'collectorCommission'])->orderByDesc('payment_date')->orderByDesc('id'),
             ])
             ->whereKey($loan)
             ->firstOrFail();
@@ -341,7 +358,7 @@ class CollectorController extends Controller
         ]);
 
         $payments = $this->assignedPaymentQuery($collector)
-            ->with(['loan.client', 'collector'])
+            ->with(['loan.client', 'collector', 'collectorCommission'])
             ->when($validated['client_id'] ?? null, fn (Builder $query, int $clientId): Builder => $query->where('client_id', $clientId))
             ->when($validated['loan_id'] ?? null, fn (Builder $query, int $loanId): Builder => $query->where('loan_id', $loanId))
             ->when($validated['status'] ?? null, fn (Builder $query, string $status): Builder => $query->where('status', $status))
@@ -362,7 +379,7 @@ class CollectorController extends Controller
         $collector = $this->collectorForUser($request);
 
         $paymentModel = $this->assignedPaymentQuery($collector)
-            ->with(['loan.client', 'collector', 'details.installment'])
+            ->with(['loan.client', 'collector', 'collectorCommission', 'details.installment'])
             ->whereKey($payment)
             ->firstOrFail();
 
@@ -382,7 +399,7 @@ class CollectorController extends Controller
 
         if (! empty($replayValidated['mobile_uuid'])) {
             $existingPayment = $this->assignedPaymentQuery($collector)
-                ->with(['loan.client', 'collector', 'details.installment'])
+                ->with(['loan.client', 'collector', 'collectorCommission', 'details.installment'])
                 ->where('loan_id', $replayValidated['loan_id'])
                 ->where('mobile_uuid', $replayValidated['mobile_uuid'])
                 ->first();
@@ -425,7 +442,7 @@ class CollectorController extends Controller
         }
 
         return response()->json([
-            'data' => $this->paymentPayload($payment->fresh(['loan.client', 'collector']) ?? $payment, true),
+            'data' => $this->paymentPayload($payment->fresh(['loan.client', 'collector', 'collectorCommission']) ?? $payment, true),
         ], 201);
     }
 
@@ -529,6 +546,7 @@ class CollectorController extends Controller
     protected function paymentPayload(Payment $payment, bool $includeShareData = false): array
     {
         $payload = $this->basePaymentPayload($payment);
+        $payload['commission'] = $this->paymentCommissionPayload($payment);
 
         if ($includeShareData && $payment->status === 'valid') {
             $shareData = $this->receiptShareService->shareData($payment, (int) ($payment->created_by ?? 0));
@@ -537,5 +555,31 @@ class CollectorController extends Controller
         }
 
         return $payload;
+    }
+
+    /**
+     * @return array<string, mixed>|null
+     */
+    private function paymentCommissionPayload(Payment $payment): ?array
+    {
+        if (! $payment->relationLoaded('collectorCommission')) {
+            $payment->load('collectorCommission');
+        }
+
+        $commission = $payment->collectorCommission;
+
+        if (! $commission) {
+            return null;
+        }
+
+        return [
+            'id' => $commission->id,
+            'commission_type' => $commission->commission_type,
+            'commission_value' => (float) $commission->commission_value,
+            'base_amount' => (float) $commission->base_amount,
+            'commission_amount' => (float) $commission->commission_amount,
+            'status' => $commission->status,
+            'paid_at' => $commission->paid_at?->toDateTimeString(),
+        ];
     }
 }

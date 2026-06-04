@@ -20,7 +20,7 @@ Route::prefix('v2')->name('api.v2.')->group(function (): void {
         Route::get('/me', [AuthController::class, 'me'])->name('me');
         Route::get('/dashboard', DashboardController::class)->middleware('permission:dashboard.view')->name('dashboard');
 
-        Route::prefix('collector')->name('collector.')->middleware('permission:payments.create')->group(function (): void {
+        Route::prefix('collector')->name('collector.')->middleware('permission:collector.access')->group(function (): void {
             Route::get('/summary', [CollectorController::class, 'summary'])->name('summary');
             Route::get('/map-clients', [CollectorController::class, 'mapClients'])->name('map-clients');
             Route::get('/routes', [CollectorController::class, 'routes'])->name('routes');

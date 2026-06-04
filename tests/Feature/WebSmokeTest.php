@@ -80,9 +80,11 @@ class WebSmokeTest extends TestCase
 
         $this->actingAs($collector)
             ->get('/dashboard')
-            ->assertOk()
-            ->assertDontSee(route('routes.map'), false)
-            ->assertSee(route('payments.index'), false);
+            ->assertForbidden();
+
+        $this->actingAs($collector)
+            ->get('/cobros')
+            ->assertForbidden();
 
         $dashboardOnly = $this->userWithPermissions('dashboard-only-alerts@example.com', ['dashboard.view']);
 
