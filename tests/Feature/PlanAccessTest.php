@@ -27,12 +27,14 @@ class PlanAccessTest extends TestCase
         $this->actingAs($user)->get('/cobros')->assertOk();
         $this->actingAs($user)->get('/cotizaciones')->assertOk();
 
+        // Permitido: reportes/informes también en el plan básico.
+        $this->actingAs($user)->get('/reportes')->assertOk();
+
         // Bloqueado: operación / análisis.
         $this->actingAs($user)->get('/cobradores')->assertForbidden();
         $this->actingAs($user)->get('/rutas')->assertForbidden();
         $this->actingAs($user)->get('/gastos')->assertForbidden();
         $this->actingAs($user)->get('/caja')->assertForbidden();
-        $this->actingAs($user)->get('/reportes')->assertForbidden();
 
         // Configuración, usuarios y roles SÍ se gestionan en el plan básico.
         $this->actingAs($user)->get('/configuracion')->assertOk();
@@ -45,8 +47,8 @@ class PlanAccessTest extends TestCase
             ->assertOk()
             ->assertSee(route('loans.index'), false)
             ->assertSee(route('roles.index'), false)
+            ->assertSee(route('reports.index'), false)
             ->assertDontSee(route('collectors.index'), false)
-            ->assertDontSee(route('reports.index'), false)
             ->assertDontSee('Cobradores activos');
     }
 

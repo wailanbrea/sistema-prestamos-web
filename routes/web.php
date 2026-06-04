@@ -118,6 +118,25 @@ Route::middleware(['auth', 'user.active', 'company.active', 'permission.company'
     });
     Route::prefix('reportes')->name('reports.')->controller(ReportController::class)->middleware('permission:reports.view')->group(function (): void {
         Route::get('/', 'index')->name('index');
+
+        // Reportes (pantalla). Cada uno soporta filtros globales por GET.
+        Route::get('/resumen-semanal', 'weeklySummary')->name('weekly');
+        Route::get('/semanal-consolidado', 'weeklyConsolidated')->name('weekly-consolidated');
+        Route::get('/resumen-anual', 'annualSummary')->name('annual');
+        Route::get('/prestamos-entregados', 'disbursedLoans')->name('disbursed');
+        Route::get('/elegibles-renovar', 'renewalEligible')->name('renewal');
+        Route::get('/activos-atraso', 'activeOverdue')->name('active-overdue');
+        Route::get('/inactivos-atraso', 'inactiveOverdue')->name('inactive-overdue');
+        Route::get('/gastos', 'expenses')->name('expenses');
+        Route::get('/ganancias', 'profit')->name('profit');
+        Route::get('/resumen-financiero', 'financialSummary')->name('financial-summary');
+
+        // Exportación genérica por tipo de reporte.
+        Route::get('/exportar/{type}.pdf', 'exportPdf')->name('export.pdf');
+        Route::get('/exportar/{type}.xlsx', 'exportExcel')->name('export.excel');
+
+        // Reporte financiero legacy (se conserva).
+        Route::get('/financiero', 'financialDashboard')->name('financial');
         Route::get('/financiero.pdf', 'pdf')->name('financial.pdf');
         Route::get('/financiero.csv', 'csv')->name('financial.csv');
     });

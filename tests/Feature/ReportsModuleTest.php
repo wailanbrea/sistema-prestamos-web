@@ -18,62 +18,107 @@ use Illuminate\Support\Facades\Hash;
 use Spatie\Permission\PermissionRegistrar;
 use Tests\TestCase;
 
-class FinancialReportTest extends TestCase
+class ReportsModuleTest extends TestCase
 {
     use RefreshDatabase;
 
-    public function test_admin_can_view_financial_report_for_own_company(): void
+    private const RANGE = 'date_from=2026-05-01&date_to=2026-05-31';
+
+    /** Todas las pantallas de reporte responden 200 para un administrador. */
+    public function test_all_report_screens_load(): void
     {
         $user = $this->adminUser();
-        $this->seedFinancialData((int) $user->company_id);
+        $this->seedData((int) $user->company_id);
 
-        $otherCompany = Company::query()->create(['name' => 'Otra Empresa', 'status' => 'active']);
-        $this->seedFinancialData((int) $otherCompany->id, 'Ajeno');
+        $slugs = [
+            'resumen-semanal', 'semanal-consolidado', 'resumen-anual', 'prestamos-entregados',
+            'elegibles-renovar', 'activos-atraso', 'inactivos-atraso', 'gastos',
+            'ganancias', 'resumen-financiero',
+        ];
+
+        foreach ($slugs as $slug) {
+            $this->actingAs($user)
+                ->get("/reportes/{$slug}?".self::RANGE.'&year=2026')
+                ->assertOk();
+        }
+    }
+
+    public function test_index_shows_report_cards(): void
+    {
+        $user = $this->adminUser();
+
+        $this->actingAs($user)->get('/reportes')
+            ->assertOk()
+            ->assertSee('Resumen semanal')
+            ->assertSee('Resumen financiero');
+    }
+
+    public function test_weekly_summary_shows_collected_capital_and_interest(): void
+    {
+        $user = $this->adminUser();
+        $this->seedData((int) $user->company_id);
 
         $this->actingAs($user)
-            ->get('/reportes/financiero?date_from=2026-05-01&date_to=2026-05-31')
+            ->get('/reportes/resumen-semanal?'.self::RANGE)
             ->assertOk()
-            ->assertSee('RD$ 1,100.00')
-            ->assertSee('RD$ 50.00')
+            ->assertSee('RD$ 1,000.00')  // capital cobrado
+            ->assertSee('RD$ 100.00');   // interés cobrado
+    }
+
+    public function test_reports_are_isolated_by_company(): void
+    {
+        $user = $this->adminUser();
+        $this->seedData((int) $user->company_id);
+
+        $other = Company::query()->create(['name' => 'Otra Empresa', 'status' => 'active']);
+        $this->seedData((int) $other->id, 'Ajeno');
+
+        $this->actingAs($user)
+            ->get('/reportes/prestamos-entregados?'.self::RANGE)
+            ->assertOk()
             ->assertSee('Cliente Reporte')
-            ->assertDontSee('Ajeno');
+            ->assertDontSee('Cliente Ajeno');
     }
 
-    public function test_admin_can_export_financial_report_as_csv(): void
+    public function test_pdf_and_excel_export_work(): void
     {
         $user = $this->adminUser();
-        $this->seedFinancialData((int) $user->company_id);
-
-        $response = $this->actingAs($user)
-            ->get('/reportes/financiero.csv?date_from=2026-05-01&date_to=2026-05-31')
-            ->assertOk()
-            ->assertHeader('content-type', 'text/csv; charset=UTF-8');
-
-        $content = $response->streamedContent();
-
-        $this->assertStringContainsString('total_payments', $content);
-        $this->assertStringContainsString('Cliente Reporte', $content);
-    }
-
-    public function test_admin_can_export_financial_report_as_pdf(): void
-    {
-        $user = $this->adminUser();
-        $this->seedFinancialData((int) $user->company_id);
+        $this->seedData((int) $user->company_id);
 
         $this->actingAs($user)
-            ->get('/reportes/financiero.pdf?date_from=2026-05-01&date_to=2026-05-31')
+            ->get('/reportes/exportar/resumen-semanal.pdf?'.self::RANGE)
             ->assertOk()
             ->assertHeader('content-type', 'application/pdf');
+
+        $this->actingAs($user)
+            ->get('/reportes/exportar/resumen-semanal.xlsx?'.self::RANGE)
+            ->assertOk()
+            ->assertHeader('content-type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
+    }
+
+    public function test_invalid_date_range_is_rejected(): void
+    {
+        $user = $this->adminUser();
+
+        $this->actingAs($user)
+            ->get('/reportes/resumen-semanal?date_from=2026-05-31&date_to=2026-05-01')
+            ->assertSessionHasErrors('date_to');
+    }
+
+    public function test_unknown_export_type_returns_404(): void
+    {
+        $user = $this->adminUser();
+
+        $this->actingAs($user)
+            ->get('/reportes/exportar/inexistente.pdf')
+            ->assertNotFound();
     }
 
     private function adminUser(): User
     {
         $this->seed(RolePermissionSeeder::class);
 
-        $company = Company::query()->create([
-            'name' => 'Empresa Test',
-            'status' => 'active',
-        ]);
+        $company = Company::query()->create(['name' => 'Empresa Test', 'status' => 'active']);
 
         $user = User::query()->create([
             'company_id' => $company->id,
@@ -89,7 +134,7 @@ class FinancialReportTest extends TestCase
         return $user;
     }
 
-    private function seedFinancialData(int $companyId, string $suffix = 'Reporte'): void
+    private function seedData(int $companyId, string $suffix = 'Reporte'): void
     {
         $client = Client::query()->create([
             'company_id' => $companyId,
@@ -135,6 +180,7 @@ class FinancialReportTest extends TestCase
             'principal_amount' => 1000,
             'interest_amount' => 100,
             'installment_amount' => 1100,
+            'late_fee' => 0,
             'status' => 'late',
         ]);
         Payment::query()->create([

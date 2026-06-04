@@ -296,6 +296,7 @@
             }
         }
     </style>
+    @stack('styles')
 </head>
 <body>
     <div class="app-shell">
