@@ -39,8 +39,8 @@ return new class extends Migration
             $table->timestamp('recorded_at');
             $table->timestamps();
 
-            $table->index(['collector_route_session_id', 'recorded_at'], 'location_points_session_recorded_index');
-            $table->index(['collector_id', 'recorded_at']);
+            $table->index(['collector_route_session_id', 'recorded_at'], 'clp_session_recorded_idx');
+            $table->index(['collector_id', 'recorded_at'], 'clp_collector_recorded_idx');
         });
 
         Schema::create('route_visit_events', function (Blueprint $table): void {

@@ -18,7 +18,42 @@
         </div>
     </section>
 
-    <section class="row g-4">
+    <section class="row g-4 mb-4">
+        <div class="col-12 col-md-6 col-xl-3">
+            <div class="card content-card h-100">
+                <div class="card-body">
+                    <div class="text-muted small text-uppercase">Cobrado con este cobrador</div>
+                    <div class="fs-4 fw-bold">{{ currency() }} {{ number_format((float) $commissionSummary['total_collected'], 2) }}</div>
+                </div>
+            </div>
+        </div>
+        <div class="col-12 col-md-6 col-xl-3">
+            <div class="card content-card h-100">
+                <div class="card-body">
+                    <div class="text-muted small text-uppercase">Comision generada</div>
+                    <div class="fs-4 fw-bold">{{ currency() }} {{ number_format((float) $commissionSummary['total_generated'], 2) }}</div>
+                </div>
+            </div>
+        </div>
+        <div class="col-12 col-md-6 col-xl-3">
+            <div class="card content-card h-100">
+                <div class="card-body">
+                    <div class="text-muted small text-uppercase">Pendiente por pagar</div>
+                    <div class="fs-4 fw-bold text-warning">{{ currency() }} {{ number_format((float) $commissionSummary['total_pending'], 2) }}</div>
+                </div>
+            </div>
+        </div>
+        <div class="col-12 col-md-6 col-xl-3">
+            <div class="card content-card h-100">
+                <div class="card-body">
+                    <div class="text-muted small text-uppercase">Ya pagado</div>
+                    <div class="fs-4 fw-bold text-success">{{ currency() }} {{ number_format((float) $commissionSummary['total_paid'], 2) }}</div>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <section class="row g-4 mb-4">
         <div class="col-12 col-lg-6">
             <div class="card content-card h-100">
                 <div class="card-body">
@@ -58,8 +93,90 @@
                                 No aplica
                             @endif
                         </dd>
+                        <dt class="col-sm-5">Regla</dt>
+                        <dd class="col-sm-7">{{ $collector->commission_base === 'principal_only' ? 'Solo sobre capital cobrado' : 'Sobre el total cobrado' }}</dd>
                     </dl>
                 </div>
+            </div>
+        </div>
+    </section>
+
+    <section class="card content-card">
+        <div class="card-body">
+            <div class="d-flex flex-column flex-lg-row align-items-lg-end justify-content-between gap-3 mb-3">
+                <div>
+                    <h2 class="h6 text-uppercase text-muted mb-1">Cobros y comisiones</h2>
+                    <p class="text-muted small mb-0">Cada cobro genera una comision segun el esquema del cobrador.</p>
+                </div>
+                @error('commission')
+                    <div class="alert alert-danger py-2 px-3 mb-0">{{ $message }}</div>
+                @enderror
+            </div>
+
+            <div class="table-responsive">
+                <table class="table align-middle mb-0">
+                    <thead>
+                        <tr>
+                            <th>Recibo</th>
+                            <th>Cliente</th>
+                            <th>Fecha</th>
+                            <th class="text-end">Cobrado</th>
+                            <th class="text-end">Comision</th>
+                            <th>Estado</th>
+                            <th class="text-end">Accion</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        @forelse ($collector->commissions as $commission)
+                            <tr>
+                                <td>
+                                    <div class="fw-semibold">{{ $commission->payment?->receipt_number ?: 'Sin recibo' }}</div>
+                                    <div class="small text-muted">
+                                        @if ($commission->commission_type === 'percentage')
+                                            {{ number_format((float) $commission->commission_value, 2) }}%
+                                        @else
+                                            {{ currency() }} {{ number_format((float) $commission->commission_value, 2) }}
+                                        @endif
+                                    </div>
+                                </td>
+                                <td>{{ $commission->payment?->client?->full_name ?: 'Sin cliente' }}</td>
+                                <td>{{ $commission->payment?->payment_date?->format('d/m/Y') ?: '-' }}</td>
+                                <td class="text-end">{{ currency() }} {{ number_format((float) $commission->base_amount, 2) }}</td>
+                                <td class="text-end fw-semibold">{{ currency() }} {{ number_format((float) $commission->commission_amount, 2) }}</td>
+                                <td>
+                                    @php
+                                        $statusMap = [
+                                            'pending' => ['Pendiente', 'text-bg-warning'],
+                                            'paid' => ['Pagada', 'text-bg-success'],
+                                            'cancelled' => ['Cancelada', 'text-bg-secondary'],
+                                        ];
+                                        [$statusLabel, $statusClass] = $statusMap[$commission->status] ?? [$commission->status, 'text-bg-secondary'];
+                                    @endphp
+                                    <span class="badge {{ $statusClass }}">{{ $statusLabel }}</span>
+                                    @if ($commission->paid_at)
+                                        <div class="small text-muted mt-1">{{ $commission->paid_at->format('d/m/Y H:i') }}</div>
+                                    @endif
+                                </td>
+                                <td class="text-end">
+                                    @if ($commission->status === 'pending')
+                                        <form method="POST" action="{{ route('collectors.commissions.pay', [$collector, $commission]) }}">
+                                            @csrf
+                                            <button type="submit" class="btn btn-sm btn-outline-success" onclick="return confirm('¿Marcar esta comision como pagada?');">
+                                                Pagar
+                                            </button>
+                                        </form>
+                                    @else
+                                        <span class="text-muted small">Sin accion</span>
+                                    @endif
+                                </td>
+                            </tr>
+                        @empty
+                            <tr>
+                                <td colspan="7" class="text-center text-muted py-4">No hay comisiones registradas para este cobrador.</td>
+                            </tr>
+                        @endforelse
+                    </tbody>
+                </table>
             </div>
         </div>
     </section>

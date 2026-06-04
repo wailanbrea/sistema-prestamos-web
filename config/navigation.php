@@ -90,6 +90,13 @@ return [
                     'match' => ['expenses.', 'expense-categories.'],
                 ],
                 [
+                    'label' => 'Cuentas por pagar',
+                    'route' => 'accounts-payable.index',
+                    'icon' => 'fa-file-invoice',
+                    'permission' => 'accounts-payable.manage',
+                    'match' => ['accounts-payable.'],
+                ],
+                [
                     'label' => 'Caja',
                     'route' => 'cash-movements.index',
                     'icon' => 'fa-vault',

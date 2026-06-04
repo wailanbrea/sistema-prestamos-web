@@ -106,7 +106,7 @@ if ($Seed) {
         throw "No se encontro el dump en $dump. Usa -Seed para construir la base con seeders."
     }
     Write-Step "Importando datos desde el snapshot (docs/data/seed-snapshot.sql)"
-    Get-Content $dump -Raw | & $mysqlExe @cred $Database
+    cmd.exe /c "`"$mysqlExe`" $($cred -join ' ') $Database < `"$dump`""
     if ($LASTEXITCODE -ne 0) { throw "Fallo la importacion del dump." }
     Write-Host ">> Base importada con todos los datos actuales." -ForegroundColor DarkGray
 }

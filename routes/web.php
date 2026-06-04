@@ -1,6 +1,7 @@
 <?php
 
 use App\Http\Controllers\Auth\AuthenticatedSessionController;
+use App\Http\Controllers\AccountPayableController;
 use App\Http\Controllers\CashMovementController;
 use App\Http\Controllers\ClientController;
 use App\Http\Controllers\CollectorController;
@@ -69,11 +70,20 @@ Route::middleware(['auth', 'user.active', 'company.active', 'permission.company'
         Route::get('/{payment}', 'show')->whereNumber('payment')->name('show');
         Route::post('/{payment}/anular', 'cancel')->whereNumber('payment')->middleware('permission:payments.cancel')->name('cancel');
     });
+    Route::prefix('cuentas-por-pagar')->name('accounts-payable.')->controller(AccountPayableController::class)->middleware('permission:accounts-payable.manage')->group(function (): void {
+        Route::get('/', 'index')->name('index');
+        Route::get('/crear', 'create')->name('create');
+        Route::post('/', 'store')->name('store');
+        Route::post('/acreedores', 'storeCreditor')->name('creditors.store');
+        Route::get('/{accountPayable}', 'show')->whereNumber('accountPayable')->name('show');
+        Route::post('/{accountPayable}/pagos', 'storePayment')->whereNumber('accountPayable')->name('payments.store');
+    });
     Route::prefix('cobradores')->name('collectors.')->controller(CollectorController::class)->middleware('permission:collectors.manage')->group(function (): void {
         Route::get('/', 'index')->name('index');
         Route::get('/crear', 'create')->name('create');
         Route::post('/', 'store')->name('store');
         Route::get('/{collector}', 'show')->whereNumber('collector')->name('show');
+        Route::post('/{collector}/comisiones/{commission}/pagar', 'payCommission')->whereNumber('collector')->whereNumber('commission')->name('commissions.pay');
         Route::get('/{collector}/editar', 'edit')->whereNumber('collector')->name('edit');
         Route::put('/{collector}', 'update')->whereNumber('collector')->name('update');
         Route::delete('/{collector}', 'destroy')->whereNumber('collector')->name('destroy');

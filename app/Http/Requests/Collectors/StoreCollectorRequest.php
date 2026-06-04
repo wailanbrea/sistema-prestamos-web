@@ -30,6 +30,7 @@ class StoreCollectorRequest extends FormRequest
             'name' => ['required', 'string', 'max:150'],
             'phone' => ['nullable', 'string', 'max:50'],
             'commission_type' => ['required', Rule::in(['percentage', 'fixed', 'none'])],
+            'commission_base' => ['required', Rule::in(['payment_total', 'principal_only'])],
             'commission_value' => [
                 'nullable',
                 'numeric',

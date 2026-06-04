@@ -339,18 +339,20 @@
                         $canViewPayments = auth()->user()->can('payments.create');
                         $alertCount = ($canViewRouteMap ? (int) ($operationAlerts['missing_coordinates'] ?? 0) : 0)
                             + ($canViewPayments ? (int) ($operationAlerts['late_installments'] ?? 0) : 0);
+                        $unreadCount = (int) ($unreadNotificationsCount ?? 0);
+                        $topbarNotificationCount = $unreadCount + $alertCount;
                     @endphp
                     <div class="dropdown">
                         <button class="btn btn-outline-secondary position-relative" type="button" data-bs-toggle="dropdown" aria-expanded="false" title="Notificaciones">
                             <i class="fa-solid fa-bell"></i>
-                            @if (($unreadNotificationsCount ?? 0) > 0)
-                                <span class="position-absolute top-0 start-100 translate-middle badge rounded-pill bg-danger">{{ $unreadNotificationsCount > 99 ? '99+' : $unreadNotificationsCount }}</span>
+                            @if ($topbarNotificationCount > 0)
+                                <span class="position-absolute top-0 start-100 translate-middle badge rounded-pill bg-danger">{{ $topbarNotificationCount > 99 ? '99+' : $topbarNotificationCount }}</span>
                             @endif
                         </button>
                         <div class="dropdown-menu dropdown-menu-end p-0 operation-alerts-menu">
                             <div class="px-3 py-2 border-bottom fw-semibold d-flex justify-content-between align-items-center">
                                 <span>Notificaciones</span>
-                                @if (($unreadNotificationsCount ?? 0) > 0)
+                                @if ($unreadCount > 0)
                                     <form method="POST" action="{{ route('notifications.read-all') }}" class="m-0">
                                         @csrf
                                         <button type="submit" class="btn btn-link btn-sm p-0 text-decoration-none">Marcar todas</button>
@@ -374,36 +376,31 @@
                             @empty
                                 <div class="px-3 py-3 text-muted small">No tienes notificaciones nuevas.</div>
                             @endforelse
+                            <div class="border-top">
+                                <div class="px-3 py-2 border-bottom fw-semibold">Alertas operativas</div>
+                                @if ($canViewRouteMap)
+                                    <a class="dropdown-item py-3" href="{{ route('routes.map') }}">
+                                        <div class="d-flex justify-content-between align-items-start gap-3">
+                                            <span class="alert-label"><i class="fa-solid fa-map-location-dot me-2 text-primary"></i> Clientes sin coordenadas</span>
+                                            <strong class="alert-count">{{ (int) ($operationAlerts['missing_coordinates'] ?? 0) }}</strong>
+                                        </div>
+                                    </a>
+                                @endif
+                                @if ($canViewPayments)
+                                    <a class="dropdown-item py-3" href="{{ route('payments.index') }}">
+                                        <div class="d-flex justify-content-between align-items-start gap-3">
+                                            <span class="alert-label"><i class="fa-solid fa-triangle-exclamation me-2 text-warning"></i> Cuotas en mora</span>
+                                            <strong class="alert-count">{{ (int) ($operationAlerts['late_installments'] ?? 0) }}</strong>
+                                        </div>
+                                    </a>
+                                @endif
+                                @if (! $canViewRouteMap && ! $canViewPayments)
+                                    <div class="px-3 py-3 text-muted small">No tienes alertas disponibles para tu rol.</div>
+                                @endif
+                            </div>
                             <a class="dropdown-item text-center py-2 border-top" href="{{ route('notifications.index') }}">Ver todas</a>
-                        </div>
-                    </div>
-                    <div class="dropdown">
-                        <button class="btn btn-outline-secondary position-relative" type="button" data-bs-toggle="dropdown" aria-expanded="false" title="Alertas operativas">
-                            <i class="fa-solid fa-triangle-exclamation"></i>
-                            @if ($alertCount > 0)
-                                <span class="position-absolute top-0 start-100 translate-middle badge rounded-pill bg-danger">{{ $alertCount }}</span>
-                            @endif
-                        </button>
-                        <div class="dropdown-menu dropdown-menu-end p-0 operation-alerts-menu">
-                            <div class="px-3 py-2 border-bottom fw-semibold">Alertas operativas</div>
-                            @if ($canViewRouteMap)
-                                <a class="dropdown-item py-3" href="{{ route('routes.map') }}">
-                                    <div class="d-flex justify-content-between align-items-start gap-3">
-                                        <span class="alert-label"><i class="fa-solid fa-map-location-dot me-2 text-primary"></i> Clientes sin coordenadas</span>
-                                        <strong class="alert-count">{{ (int) ($operationAlerts['missing_coordinates'] ?? 0) }}</strong>
-                                    </div>
-                                </a>
-                            @endif
-                            @if ($canViewPayments)
-                                <a class="dropdown-item py-3" href="{{ route('payments.index') }}">
-                                    <div class="d-flex justify-content-between align-items-start gap-3">
-                                        <span class="alert-label"><i class="fa-solid fa-triangle-exclamation me-2 text-warning"></i> Cuotas en mora</span>
-                                        <strong class="alert-count">{{ (int) ($operationAlerts['late_installments'] ?? 0) }}</strong>
-                                    </div>
-                                </a>
-                            @endif
-                            @if (! $canViewRouteMap && ! $canViewPayments)
-                                <div class="px-3 py-3 text-muted small">No tienes alertas disponibles para tu rol.</div>
+                            @if ($unreadCount === 0 && $alertCount === 0)
+                                <div class="px-3 pb-3 text-muted small text-center">No hay novedades pendientes.</div>
                             @endif
                         </div>
                     </div>

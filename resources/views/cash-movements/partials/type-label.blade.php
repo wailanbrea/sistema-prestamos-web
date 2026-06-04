@@ -3,8 +3,10 @@
         'loan_disbursement' => 'Desembolso',
         'payment_received' => 'Cobro recibido',
         'expense' => 'Gasto',
-        'collector_commission' => 'Comisión cobrador',
-        'capital_injection' => 'Inyección de capital',
+        'accounts_payable_disbursement' => 'Prestamo tomado',
+        'accounts_payable_payment' => 'Pago cuenta por pagar',
+        'collector_commission' => 'Comision cobrador',
+        'capital_injection' => 'Inyeccion de capital',
         'capital_withdrawal' => 'Retiro de capital',
         'adjustment' => 'Ajuste',
     ];

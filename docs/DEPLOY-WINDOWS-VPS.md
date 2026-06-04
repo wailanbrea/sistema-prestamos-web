@@ -83,7 +83,7 @@ $mysql = "C:\xampp\mysql\bin\mysql.exe"
 # Crea la base
 & $mysql -u root -e "CREATE DATABASE IF NOT EXISTS sistema_prestamos CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;"
 # Importa el dump con todos los datos
-Get-Content "docs\data\seed-snapshot.sql" -Raw | & $mysql -u root sistema_prestamos
+cmd /c "\"$mysql\" -u root sistema_prestamos < \"docs\\data\\seed-snapshot.sql\""
 ```
 
 > En producción usa un usuario MySQL dedicado (no `root`) con contraseña fuerte y

@@ -55,6 +55,15 @@
         <input id="commission_value" name="commission_value" type="number" step="0.01" min="0" max="1000000" value="{{ old('commission_value', $collector->commission_value ?? '0') }}" class="form-control @error('commission_value') is-invalid @enderror">
         @error('commission_value') <div class="invalid-feedback">{{ $message }}</div> @enderror
     </div>
+    <div class="col-12 col-md-6">
+        <label for="commission_base" class="form-label">Regla de comision</label>
+        <select id="commission_base" name="commission_base" class="form-select @error('commission_base') is-invalid @enderror" required>
+            @foreach (['payment_total' => 'Sobre el total cobrado', 'principal_only' => 'Solo sobre capital cobrado'] as $value => $label)
+                <option value="{{ $value }}" @selected(old('commission_base', $collector->commission_base ?? 'payment_total') === $value)>{{ $label }}</option>
+            @endforeach
+        </select>
+        @error('commission_base') <div class="invalid-feedback">{{ $message }}</div> @enderror
+    </div>
 </div>
 
 <div class="d-flex justify-content-end gap-2 mt-4">

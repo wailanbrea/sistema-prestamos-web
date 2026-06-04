@@ -357,6 +357,6 @@
     </script>
 
     @if ($googleMapsApiKey !== '')
-        <script async defer src="https://maps.googleapis.com/maps/api/js?key={{ urlencode($googleMapsApiKey) }}&callback=initTrackingMap"></script>
+    <script async defer src="https://maps.googleapis.com/maps/api/js?key={{ urlencode($googleMapsApiKey) }}&libraries=places&v=weekly&callback=initTrackingMap"></script>
     @endif
 @endsection
