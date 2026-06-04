@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Http\Controllers\Api\V2;
 
 use App\Http\Controllers\Controller;
+use App\Models\Collector;
 use App\Models\User;
 use Illuminate\Auth\Events\PasswordReset;
 use Illuminate\Http\JsonResponse;
@@ -153,6 +154,13 @@ class AuthController extends Controller
             'status' => $user->status,
             'roles' => $user->getRoleNames()->values(),
             'permissions' => $user->getAllPermissions()->pluck('name')->values(),
+            // Cobrador de campo "real": vinculado a un Collector activo. Distingue al
+            // cobrador (usa /collector) del admin que también tiene payments.create.
+            'is_collector' => Collector::query()
+                ->where('company_id', $user->company_id)
+                ->where('user_id', $user->id)
+                ->where('status', 'active')
+                ->exists(),
             'company' => [
                 'id' => $user->company?->id,
                 'name' => $user->company?->name,

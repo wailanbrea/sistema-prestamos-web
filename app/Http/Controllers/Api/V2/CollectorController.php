@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Http\Controllers\Api\V2;
 
+use App\Http\Controllers\Api\V2\Concerns\BuildsApiPayloads;
 use App\Http\Controllers\Controller;
 use App\Models\Client;
 use App\Models\Collector;
@@ -23,6 +24,8 @@ use InvalidArgumentException;
 
 class CollectorController extends Controller
 {
+    use BuildsApiPayloads;
+
     public function __construct(
         private readonly PaymentService $paymentService,
         private readonly RouteTrackingService $routeTrackingService,
@@ -497,71 +500,6 @@ class CollectorController extends Controller
     /**
      * @return array<string, mixed>
      */
-    private function collectorPayload(Collector $collector): array
-    {
-        return [
-            'id' => $collector->id,
-            'name' => $collector->name,
-            'phone' => $collector->phone,
-            'commission_type' => $collector->commission_type,
-            'commission_value' => (float) $collector->commission_value,
-        ];
-    }
-
-    /**
-     * @return array<string, mixed>
-     */
-    private function clientPayload(Client $client): array
-    {
-        return [
-            'id' => $client->id,
-            'code' => $client->code,
-            'full_name' => $client->full_name,
-            'identification' => $client->identification,
-            'phone' => $client->phone,
-            'address' => $client->address,
-            'latitude' => $client->latitude === null ? null : (float) $client->latitude,
-            'longitude' => $client->longitude === null ? null : (float) $client->longitude,
-            'location_reference' => $client->location_reference,
-            'status' => $client->status,
-            'risk_level' => $client->risk_level,
-        ];
-    }
-
-    /**
-     * @return array<string, mixed>
-     */
-    private function clientDetailPayload(Client $client): array
-    {
-        return [
-            ...$this->clientPayload($client),
-            'secondary_phone' => $client->secondary_phone,
-            'email' => $client->email,
-            'workplace' => $client->workplace,
-            'workplace_phone' => $client->workplace_phone,
-            'monthly_income' => (float) $client->monthly_income,
-            'notes' => $client->notes,
-            'references' => $client->references
-                ->map(fn ($reference): array => [
-                    'id' => $reference->id,
-                    'name' => $reference->name,
-                    'phone' => $reference->phone,
-                    'relationship' => $reference->relationship,
-                    'address' => $reference->address,
-                ])
-                ->values(),
-            'routes' => $client->routes
-                ->map(fn ($route): array => [
-                    'id' => $route->id,
-                    'name' => $route->name,
-                ])
-                ->values(),
-        ];
-    }
-
-    /**
-     * @return array<string, mixed>
-     */
     private function clientFinancialSummary(Collector $collector, int $clientId): array
     {
         $loanQuery = $this->assignedLoanQuery($collector)->where('client_id', $clientId);
@@ -581,149 +519,4 @@ class CollectorController extends Controller
         ];
     }
 
-    /**
-     * @return array<string, mixed>
-     */
-    private function loanPayload(Loan $loan): array
-    {
-        return [
-            'id' => $loan->id,
-            'loan_number' => $loan->loan_number,
-            'client' => $loan->client ? $this->clientPayload($loan->client) : null,
-            'principal_amount' => (float) $loan->principal_amount,
-            'interest_rate' => (float) $loan->interest_rate,
-            'interest_type' => $loan->interest_type,
-            'calculation_method' => $loan->calculation_method,
-            'term_quantity' => (int) $loan->term_quantity,
-            'installment_amount' => (float) $loan->installment_amount,
-            'total_interest' => (float) $loan->total_interest,
-            'total_amount' => (float) $loan->total_amount,
-            'paid_principal' => (float) $loan->paid_principal,
-            'paid_interest' => (float) $loan->paid_interest,
-            'paid_late_fee' => (float) $loan->paid_late_fee,
-            'remaining_balance' => (float) $loan->remaining_balance,
-            'payment_frequency' => $loan->payment_frequency,
-            'status' => $loan->status,
-            'start_date' => $loan->start_date?->toDateString(),
-            'first_payment_date' => $loan->first_payment_date?->toDateString(),
-            'end_date' => $loan->end_date?->toDateString(),
-        ];
-    }
-
-    /**
-     * @return array<string, mixed>
-     */
-    private function loanDetailPayload(Loan $loan): array
-    {
-        return [
-            ...$this->loanPayload($loan),
-            'late_fee_type' => $loan->late_fee_type,
-            'late_fee_value' => (float) $loan->late_fee_value,
-            'guarantee_description' => $loan->guarantee_description,
-            'notes' => $loan->notes,
-            'summary' => [
-                'installments_total' => $loan->installments->count(),
-                'installments_pending' => $loan->installments->whereIn('status', ['pending', 'partial', 'late'])->count(),
-                'installments_late' => $loan->installments->where('status', 'late')->count(),
-                'payments_total' => $loan->payments->where('status', 'valid')->count(),
-                'amount_paid' => (float) $loan->payments->where('status', 'valid')->sum('amount'),
-            ],
-        ];
-    }
-
-    /**
-     * @return array<string, mixed>
-     */
-    private function installmentPayload(LoanInstallment $installment): array
-    {
-        return [
-            'id' => $installment->id,
-            'loan_id' => $installment->loan_id,
-            'loan_number' => $installment->loan?->loan_number,
-            'client' => $installment->loan?->client ? $this->clientPayload($installment->loan->client) : null,
-            'installment_number' => $installment->installment_number,
-            'due_date' => $installment->due_date?->toDateString(),
-            'principal_amount' => (float) $installment->principal_amount,
-            'interest_amount' => (float) $installment->interest_amount,
-            'late_fee' => (float) $installment->late_fee,
-            'installment_amount' => (float) $installment->installment_amount,
-            'total_paid' => (float) $installment->total_paid,
-            'pending_amount' => max(0.0, (float) $installment->installment_amount + (float) $installment->late_fee - (float) $installment->total_paid),
-            'days_late' => (int) $installment->days_late,
-            'status' => $installment->status,
-        ];
-    }
-
-    /**
-     * @return array<string, mixed>
-     */
-    private function installmentDetailPayload(LoanInstallment $installment): array
-    {
-        return [
-            ...$this->installmentPayload($installment),
-            'payments' => $installment->paymentDetails
-                ->map(fn ($detail): array => [
-                    'id' => $detail->id,
-                    'payment_id' => $detail->payment_id,
-                    'receipt_number' => $detail->payment?->receipt_number,
-                    'payment_date' => $detail->payment?->payment_date?->toDateString(),
-                    'payment_method' => $detail->payment?->payment_method,
-                    'payment_status' => $detail->payment?->status,
-                    'principal_paid' => (float) $detail->principal_paid,
-                    'interest_paid' => (float) $detail->interest_paid,
-                    'late_fee_paid' => (float) $detail->late_fee_paid,
-                    'amount_paid' => (float) $detail->amount_paid,
-                ])
-                ->values(),
-        ];
-    }
-
-    /**
-     * @return array<string, mixed>
-     */
-    private function paymentPayload(Payment $payment): array
-    {
-        return [
-            'id' => $payment->id,
-            'receipt_number' => $payment->receipt_number,
-            'loan_id' => $payment->loan_id,
-            'loan_number' => $payment->loan?->loan_number,
-            'client' => $payment->client ? $this->clientPayload($payment->client) : null,
-            'collector' => $payment->collector ? $this->collectorPayload($payment->collector) : null,
-            'payment_date' => $payment->payment_date?->toDateString(),
-            'amount' => (float) $payment->amount,
-            'principal_paid' => (float) $payment->principal_paid,
-            'interest_paid' => (float) $payment->interest_paid,
-            'late_fee_paid' => (float) $payment->late_fee_paid,
-            'previous_balance' => (float) $payment->previous_balance,
-            'new_balance' => (float) $payment->new_balance,
-            'payment_method' => $payment->payment_method,
-            'mobile_uuid' => $payment->mobile_uuid,
-            'status' => $payment->status,
-            'details' => $payment->relationLoaded('details')
-                ? $payment->details->map(fn ($detail): array => [
-                    'id' => $detail->id,
-                    'installment_id' => $detail->installment_id,
-                    'installment_number' => $detail->installment?->installment_number,
-                    'principal_paid' => (float) $detail->principal_paid,
-                    'interest_paid' => (float) $detail->interest_paid,
-                    'late_fee_paid' => (float) $detail->late_fee_paid,
-                    'amount_paid' => (float) $detail->amount_paid,
-                ])->values()
-                : [],
-        ];
-    }
-
-    /**
-     * @return array<string, int|null>
-     */
-    private function paginationMeta($paginator): array
-    {
-        return [
-            'current_page' => $paginator->currentPage(),
-            'last_page' => $paginator->lastPage(),
-            'per_page' => $paginator->perPage(),
-            'total' => $paginator->total(),
-        ];
-    }
 }

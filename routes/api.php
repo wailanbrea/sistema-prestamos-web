@@ -2,6 +2,8 @@
 
 declare(strict_types=1);
 
+use App\Http\Controllers\Api\V2\AdminController;
+use App\Http\Controllers\Api\V2\AdminReportController;
 use App\Http\Controllers\Api\V2\AuthController;
 use App\Http\Controllers\Api\V2\CollectorController;
 use App\Http\Controllers\Api\V2\DashboardController;
@@ -34,6 +36,24 @@ Route::prefix('v2')->name('api.v2.')->group(function (): void {
             Route::get('/payments', [CollectorController::class, 'payments'])->name('payments');
             Route::get('/payments/{payment}', [CollectorController::class, 'payment'])->name('payments.show');
             Route::post('/payments', [CollectorController::class, 'storePayment'])->name('payments.store');
+        });
+
+        // Back-office (Administrador/Supervisor/Caja). Cada endpoint gated por su permiso.
+        // Nota: la vista GLOBAL de cartera usa `collectors.manage` (Admin/Supervisor) en vez de
+        // `clients.view`/`loans.view`, porque el Cobrador tiene esos permisos para su propia
+        // cartera y no debe ver la cartera completa de la empresa (eso va por /collector/*).
+        Route::prefix('admin')->name('admin.')->group(function (): void {
+            Route::get('/clients', [AdminController::class, 'clients'])->middleware('permission:collectors.manage')->name('clients');
+            Route::get('/clients/{client}', [AdminController::class, 'client'])->middleware('permission:collectors.manage')->whereNumber('client')->name('clients.show');
+            Route::get('/loans', [AdminController::class, 'loans'])->middleware('permission:collectors.manage')->name('loans');
+            Route::get('/loans/{loan}', [AdminController::class, 'loan'])->middleware('permission:collectors.manage')->whereNumber('loan')->name('loans.show');
+
+            Route::get('/approvals', [AdminController::class, 'approvals'])->middleware('permission:loans.approve')->name('approvals');
+            Route::post('/loans/{loan}/approve', [AdminController::class, 'approveLoan'])->middleware('permission:loans.approve')->whereNumber('loan')->name('loans.approve');
+            Route::post('/loans/{loan}/reject', [AdminController::class, 'rejectLoan'])->middleware('permission:loans.approve')->whereNumber('loan')->name('loans.reject');
+
+            Route::get('/reports/summary', [AdminReportController::class, 'summary'])->middleware('permission:reports.view')->name('reports.summary');
+            Route::get('/reports/collectors', [AdminReportController::class, 'collectors'])->middleware('permission:reports.view')->name('reports.collectors');
         });
     });
 });

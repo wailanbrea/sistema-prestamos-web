@@ -182,6 +182,37 @@ class LoanService
     }
 
     /**
+     * Rechaza un préstamo pendiente: lo marca como cancelado (no hubo desembolso).
+     */
+    public function reject(int $companyId, ?int $userId, Loan $loan, ?string $reason = null): Loan
+    {
+        return DB::transaction(function () use ($companyId, $userId, $loan, $reason): Loan {
+            $loan = Loan::query()->forCompany($companyId)->whereKey($loan->id)->lockForUpdate()->firstOrFail();
+
+            if ($loan->status !== 'pending') {
+                throw new InvalidArgumentException('Solo se pueden rechazar préstamos pendientes.');
+            }
+
+            $loan->forceFill([
+                'status' => 'cancelled',
+                'notes' => trim((string) $loan->notes."\n".'Rechazado: '.($reason ?: 'sin motivo')),
+            ])->save();
+
+            $this->auditService->record(
+                action: 'loan_rejected',
+                module: 'loans',
+                companyId: $companyId,
+                userId: $userId,
+                auditable: $loan,
+                description: "Préstamo {$loan->loan_number} rechazado.",
+                newValues: $loan->fresh()?->toArray(),
+            );
+
+            return $loan->fresh(['client', 'collector', 'installments']) ?? $loan;
+        });
+    }
+
+    /**
      * Actualiza un préstamo. Los campos no contables (cobrador, garantía, notas) se aplican siempre.
      * Las condiciones financieras solo si el préstamo no tiene pagos válidos (recalcula y regenera cuotas).
      *
