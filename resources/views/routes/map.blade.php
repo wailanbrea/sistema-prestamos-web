@@ -7,7 +7,7 @@
         <div class="d-flex flex-column flex-lg-row align-items-lg-end justify-content-between gap-3">
             <div>
                 <h1 class="h3 fw-bold mb-1">Mapa de cobros</h1>
-                <p class="text-muted mb-0">UbicaciÃ³n, deuda, pagos y rutas asignadas por cobrador.</p>
+                <p class="text-muted mb-0">Ubicación, deuda, pagos y rutas asignadas por cobrador.</p>
             </div>
             <div class="d-flex gap-2">
                 <a href="{{ route('routes.index') }}" class="btn btn-outline-secondary">
@@ -105,7 +105,7 @@
             <div class="card content-card h-100">
                 <div class="card-header bg-white border-0 pb-0">
                     <h2 class="h6 fw-bold mb-1">Clientes de la ruta</h2>
-                    <p class="text-muted small mb-0">Debe, pagado y estado de ubicaciÃ³n.</p>
+                    <p class="text-muted small mb-0">Debe, pagado y estado de ubicación.</p>
                 </div>
                 <div class="card-body">
                     <div class="vstack gap-3">
@@ -152,6 +152,21 @@
 
     <script>
         window.collectionMapClients = @json($mappedClients);
+
+        // Muestra un error legible dentro del contenedor del mapa en vez de
+        // dejar un recuadro gris en blanco cuando Google Maps no carga.
+        function showMapError(message) {
+            const element = document.getElementById('collection-map');
+            if (element) {
+                element.innerHTML = '<div class="alert alert-danger m-3 mb-0">' + message + '</div>';
+            }
+        }
+
+        // Google invoca este callback global ante fallos de autenticación
+        // (key inválida, dominio no permitido en las restricciones, billing apagado).
+        window.gm_authFailure = function () {
+            showMapError('No se pudo autenticar con Google Maps. Verifica que la GOOGLE_MAPS_API_KEY sea válida, que el dominio del sitio esté permitido en las restricciones de la clave y que la facturación esté activa en Google Cloud.');
+        };
 
         function initCollectionMap() {
             const element = document.getElementById('collection-map');
@@ -258,6 +273,8 @@
     </script>
 
     @if ($googleMapsApiKey !== '')
-        <script async defer src="https://maps.googleapis.com/maps/api/js?key={{ urlencode($googleMapsApiKey) }}&callback=initCollectionMap"></script>
+        <script async defer
+            src="https://maps.googleapis.com/maps/api/js?key={{ urlencode($googleMapsApiKey) }}&callback=initCollectionMap"
+            onerror="showMapError('No se pudo cargar el script de Google Maps. Revisa la conexión, que la API key sea correcta y que la Maps JavaScript API esté habilitada en Google Cloud.')"></script>
     @endif
 @endsection
