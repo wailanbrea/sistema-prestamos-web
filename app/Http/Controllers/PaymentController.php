@@ -9,6 +9,7 @@ use App\Http\Requests\Payments\StorePaymentRequest;
 use App\Models\Collector;
 use App\Models\Loan;
 use App\Services\Notifications\EventNotifier;
+use App\Services\Payments\PaymentReceiptShareService;
 use App\Services\Payments\PaymentService;
 use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Http\JsonResponse;
@@ -22,6 +23,7 @@ class PaymentController extends Controller
     public function __construct(
         private readonly PaymentService $paymentService,
         private readonly EventNotifier $notifier,
+        private readonly PaymentReceiptShareService $receiptShareService,
     ) {}
 
     public function index(Request $request): View
@@ -69,10 +71,13 @@ class PaymentController extends Controller
         }
 
         $this->notifier->paymentRegistered($payment, $request->user()->id);
+        $shareData = $this->receiptShareService->shareData($payment, (int) $request->user()->id);
 
         return redirect()
             ->route('payments.show', $payment)
-            ->with('status', 'Cobro registrado correctamente.');
+            ->with('status', 'Cobro registrado correctamente.')
+            ->with('generatedWhatsappUrl', $shareData['whatsapp_url'])
+            ->with('paymentReceiptUrl', $shareData['receipt_url']);
     }
 
     public function show(Request $request, int $payment): View
@@ -114,6 +119,18 @@ class PaymentController extends Controller
         return redirect()
             ->route('payments.show', $payment)
             ->with('status', 'Cobro anulado correctamente.');
+    }
+
+    public function openWhatsapp(Request $request, int $payment): RedirectResponse
+    {
+        $model = $this->paymentService->findForCompany((int) $request->user()->company_id, $payment);
+        $shareData = $this->receiptShareService->shareData($model, (int) $request->user()->id);
+
+        if (! $shareData['whatsapp_url']) {
+            return back()->withErrors(['phone' => 'Este cliente no tiene telefono para enviar el recibo por WhatsApp.']);
+        }
+
+        return redirect()->away($shareData['whatsapp_url']);
     }
 
     /**

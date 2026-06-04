@@ -16,6 +16,11 @@
                         <i class="fa-solid fa-plus me-2"></i> Otro cobro
                     </a>
                 @endcan
+                @if ($payment->status === 'valid' && ($payment->client->phone || $payment->client->secondary_phone))
+                    <a href="{{ route('payments.whatsapp', $payment) }}" class="btn btn-outline-success">
+                        <i class="fa-brands fa-whatsapp me-2"></i> Enviar recibo
+                    </a>
+                @endif
                 @can('payments.cancel')
                     @if ($payment->status === 'valid')
                         <button type="button" class="btn btn-outline-danger" data-bs-toggle="collapse" data-bs-target="#cancelPaymentForm">
@@ -127,4 +132,12 @@
             </div>
         </div>
     </section>
+
+    @if (session('generatedWhatsappUrl'))
+        <script>
+            window.addEventListener('load', () => {
+                window.open(@json(session('generatedWhatsappUrl')), '_blank', 'noopener');
+            });
+        </script>
+    @endif
 @endsection
