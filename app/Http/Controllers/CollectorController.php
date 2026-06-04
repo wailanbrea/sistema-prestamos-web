@@ -6,18 +6,21 @@ namespace App\Http\Controllers;
 
 use App\Http\Requests\Collectors\StoreCollectorRequest;
 use App\Http\Requests\Collectors\UpdateCollectorRequest;
+use App\Services\Collectors\CollectorCommissionService;
 use App\Models\User;
 use App\Services\Collectors\CollectorService;
 use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\View\View;
+use InvalidArgumentException;
 
 class CollectorController extends Controller
 {
-    public function __construct(private readonly CollectorService $collectorService)
-    {
-    }
+    public function __construct(
+        private readonly CollectorService $collectorService,
+        private readonly CollectorCommissionService $commissionService,
+    ) {}
 
     public function index(Request $request): View
     {
@@ -47,8 +50,12 @@ class CollectorController extends Controller
 
     public function show(Request $request, int $collector): View
     {
+        $companyId = (int) $request->user()->company_id;
+        $collectorModel = $this->collectorService->findForCompany($companyId, $collector);
+
         return view('collectors.show', [
-            'collector' => $this->collectorService->findForCompany((int) $request->user()->company_id, $collector),
+            'collector' => $collectorModel,
+            'commissionSummary' => $this->commissionService->summaryForCollector($companyId, (int) $collectorModel->id),
         ]);
     }
 
@@ -78,6 +85,24 @@ class CollectorController extends Controller
         return redirect()
             ->route('collectors.index')
             ->with('status', 'Cobrador eliminado correctamente.');
+    }
+
+    public function payCommission(Request $request, int $collector, int $commission): RedirectResponse
+    {
+        try {
+            $this->commissionService->pay(
+                companyId: (int) $request->user()->company_id,
+                collectorId: $collector,
+                commissionId: $commission,
+                paidBy: (int) $request->user()->id,
+            );
+        } catch (InvalidArgumentException $exception) {
+            return back()->withErrors(['commission' => $exception->getMessage()]);
+        }
+
+        return redirect()
+            ->route('collectors.show', $collector)
+            ->with('status', 'Comision pagada correctamente.');
     }
 
     /**

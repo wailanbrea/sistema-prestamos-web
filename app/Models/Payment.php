@@ -9,6 +9,7 @@ use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
+use Illuminate\Database\Eloquent\Relations\HasOne;
 
 class Payment extends Model
 {
@@ -47,5 +48,10 @@ class Payment extends Model
     public function details(): HasMany
     {
         return $this->hasMany(PaymentDetail::class);
+    }
+
+    public function collectorCommission(): HasOne
+    {
+        return $this->hasOne(CollectorCommission::class);
     }
 }

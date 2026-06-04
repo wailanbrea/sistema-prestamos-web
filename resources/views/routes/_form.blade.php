@@ -377,5 +377,5 @@
 </script>
 
 @if (($googleMapsApiKey ?? '') !== '')
-    <script async defer src="https://maps.googleapis.com/maps/api/js?key={{ urlencode($googleMapsApiKey) }}&callback=initRouteBuilderMap"></script>
+    <script async defer src="https://maps.googleapis.com/maps/api/js?key={{ urlencode($googleMapsApiKey) }}&libraries=places&v=weekly&callback=initRouteBuilderMap"></script>
 @endif

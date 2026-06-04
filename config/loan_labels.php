@@ -32,6 +32,12 @@ return [
         'legal' => ['label' => 'Legal', 'class' => 'text-bg-dark'],
         'written_off' => ['label' => 'Castigado', 'class' => 'text-bg-danger'],
     ],
+    'account_payable_statuses' => [
+        'active' => ['label' => 'Activa', 'class' => 'text-bg-success'],
+        'late' => ['label' => 'Atrasada', 'class' => 'text-bg-warning'],
+        'paid' => ['label' => 'Pagada', 'class' => 'text-bg-primary'],
+        'cancelled' => ['label' => 'Cancelada', 'class' => 'text-bg-secondary'],
+    ],
     'installment_statuses' => [
         'pending' => ['label' => 'Pendiente', 'class' => 'text-bg-secondary'],
         'partial' => ['label' => 'Parcial', 'class' => 'text-bg-info'],

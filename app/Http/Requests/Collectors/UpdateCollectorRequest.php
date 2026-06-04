@@ -14,6 +14,13 @@ class UpdateCollectorRequest extends FormRequest
         return (bool) $this->user()?->can('collectors.manage');
     }
 
+    protected function prepareForValidation(): void
+    {
+        $this->merge([
+            'commission_base' => $this->input('commission_base', 'payment_total'),
+        ]);
+    }
+
     /**
      * @return array<string, mixed>
      */
@@ -30,6 +37,7 @@ class UpdateCollectorRequest extends FormRequest
             'name' => ['required', 'string', 'max:150'],
             'phone' => ['nullable', 'string', 'max:50'],
             'commission_type' => ['required', Rule::in(['percentage', 'fixed', 'none'])],
+            'commission_base' => ['required', Rule::in(['payment_total', 'principal_only'])],
             'commission_value' => [
                 'nullable',
                 'numeric',

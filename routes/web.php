@@ -1,8 +1,10 @@
 <?php
 
 use App\Http\Controllers\Auth\AuthenticatedSessionController;
+use App\Http\Controllers\AccountPayableController;
 use App\Http\Controllers\CashMovementController;
 use App\Http\Controllers\ClientController;
+use App\Http\Controllers\ClientRegistrationLinkController;
 use App\Http\Controllers\CollectorController;
 use App\Http\Controllers\DashboardController;
 use App\Http\Controllers\DocumentController;
@@ -24,7 +26,13 @@ use Illuminate\Support\Facades\Route;
 Route::middleware('guest')->group(function (): void {
     Route::get('/login', [AuthenticatedSessionController::class, 'create'])->name('login');
     Route::post('/login', [AuthenticatedSessionController::class, 'store'])->name('login.store');
+    Route::get('/registro-cliente/{token}', [ClientRegistrationLinkController::class, 'showPublic'])->name('client-registration.show');
+    Route::post('/registro-cliente/{token}', [ClientRegistrationLinkController::class, 'submitPublic'])->name('client-registration.submit');
+    Route::get('/registro-cliente/{token}/completado', [ClientRegistrationLinkController::class, 'success'])->name('client-registration.success');
 });
+Route::get('/recibos-publicos/{document}/descargar', [DocumentController::class, 'publicDownload'])
+    ->middleware('signed')
+    ->name('documents.public-download');
 
 Route::post('/logout', [AuthenticatedSessionController::class, 'destroy'])
     ->middleware('auth')
@@ -42,6 +50,10 @@ Route::middleware(['auth', 'user.active', 'company.active', 'permission.company'
         Route::get('/{client}/editar', 'edit')->whereNumber('client')->middleware('permission:clients.update')->name('edit');
         Route::put('/{client}', 'update')->whereNumber('client')->middleware('permission:clients.update')->name('update');
         Route::delete('/{client}', 'destroy')->whereNumber('client')->middleware('permission:clients.delete')->name('destroy');
+    });
+    Route::prefix('clientes/enlaces-registro')->name('clients.links.')->controller(ClientRegistrationLinkController::class)->middleware('permission:clients.create')->group(function (): void {
+        Route::get('/', 'index')->name('index');
+        Route::post('/', 'store')->name('store');
     });
     Route::prefix('cotizaciones')->name('loan-quotes.')->controller(LoanQuoteController::class)->middleware('permission:quotes.manage')->group(function (): void {
         Route::get('/', 'index')->name('index');
@@ -67,13 +79,23 @@ Route::middleware(['auth', 'user.active', 'company.active', 'permission.company'
         Route::post('/', 'store')->name('store');
         Route::get('/prestamo/{loan}/cuotas', 'installments')->whereNumber('loan')->name('loan-installments');
         Route::get('/{payment}', 'show')->whereNumber('payment')->name('show');
+        Route::get('/{payment}/whatsapp', 'openWhatsapp')->whereNumber('payment')->name('whatsapp');
         Route::post('/{payment}/anular', 'cancel')->whereNumber('payment')->middleware('permission:payments.cancel')->name('cancel');
+    });
+    Route::prefix('cuentas-por-pagar')->name('accounts-payable.')->controller(AccountPayableController::class)->middleware('permission:accounts-payable.manage')->group(function (): void {
+        Route::get('/', 'index')->name('index');
+        Route::get('/crear', 'create')->name('create');
+        Route::post('/', 'store')->name('store');
+        Route::post('/acreedores', 'storeCreditor')->name('creditors.store');
+        Route::get('/{accountPayable}', 'show')->whereNumber('accountPayable')->name('show');
+        Route::post('/{accountPayable}/pagos', 'storePayment')->whereNumber('accountPayable')->name('payments.store');
     });
     Route::prefix('cobradores')->name('collectors.')->controller(CollectorController::class)->middleware('permission:collectors.manage')->group(function (): void {
         Route::get('/', 'index')->name('index');
         Route::get('/crear', 'create')->name('create');
         Route::post('/', 'store')->name('store');
         Route::get('/{collector}', 'show')->whereNumber('collector')->name('show');
+        Route::post('/{collector}/comisiones/{commission}/pagar', 'payCommission')->whereNumber('collector')->whereNumber('commission')->name('commissions.pay');
         Route::get('/{collector}/editar', 'edit')->whereNumber('collector')->name('edit');
         Route::put('/{collector}', 'update')->whereNumber('collector')->name('update');
         Route::delete('/{collector}', 'destroy')->whereNumber('collector')->name('destroy');

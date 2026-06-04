@@ -265,6 +265,11 @@ class PaymentService
                 throw new InvalidArgumentException('Este cobro ya fue anulado.');
             }
 
+            $commission = $this->commissionForPayment($payment);
+            if ($commission && $commission->status === 'paid') {
+                throw new InvalidArgumentException('No se puede anular este cobro porque su comision ya fue pagada al cobrador.');
+            }
+
             /** @var Loan $loan */
             $loan = Loan::query()
                 ->with('company.settings')
@@ -616,6 +621,15 @@ class PaymentService
 
     private function cancelCommission(Payment $payment): void
     {
+        $commission = $this->commissionForPayment($payment);
+
+        if ($commission && $commission->status !== 'paid') {
+            $commission->forceFill(['status' => 'cancelled'])->save();
+        }
+    }
+
+    private function commissionForPayment(Payment $payment): ?CollectorCommission
+    {
         $commission = $payment->collector_id
             ? $payment->collector?->commissions()->where('payment_id', $payment->id)->first()
             : null;
@@ -626,8 +640,6 @@ class PaymentService
                 ->first();
         }
 
-        if ($commission && $commission->status !== 'paid') {
-            $commission->forceFill(['status' => 'cancelled'])->save();
-        }
+        return $commission;
     }
 }

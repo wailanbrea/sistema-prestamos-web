@@ -12,6 +12,7 @@ use App\Models\CollectorRouteSession;
 use App\Models\Loan;
 use App\Models\LoanInstallment;
 use App\Models\Payment;
+use App\Services\Payments\PaymentReceiptShareService;
 use App\Models\Route as LendingRoute;
 use App\Services\Payments\PaymentService;
 use App\Services\Routes\RouteTrackingService;
@@ -24,11 +25,14 @@ use InvalidArgumentException;
 
 class CollectorController extends Controller
 {
-    use BuildsApiPayloads;
+    use BuildsApiPayloads {
+        paymentPayload as basePaymentPayload;
+    }
 
     public function __construct(
         private readonly PaymentService $paymentService,
         private readonly RouteTrackingService $routeTrackingService,
+        private readonly PaymentReceiptShareService $receiptShareService,
     ) {
     }
 
@@ -363,7 +367,7 @@ class CollectorController extends Controller
             ->firstOrFail();
 
         return response()->json([
-            'data' => $this->paymentPayload($paymentModel),
+            'data' => $this->paymentPayload($paymentModel, $paymentModel->status === 'valid'),
         ]);
     }
 
@@ -421,7 +425,7 @@ class CollectorController extends Controller
         }
 
         return response()->json([
-            'data' => $this->paymentPayload($payment->fresh(['loan.client', 'collector']) ?? $payment),
+            'data' => $this->paymentPayload($payment->fresh(['loan.client', 'collector']) ?? $payment, true),
         ], 201);
     }
 
@@ -519,4 +523,19 @@ class CollectorController extends Controller
         ];
     }
 
+    /**
+     * @return array<string, mixed>
+     */
+    protected function paymentPayload(Payment $payment, bool $includeShareData = false): array
+    {
+        $payload = $this->basePaymentPayload($payment);
+
+        if ($includeShareData && $payment->status === 'valid') {
+            $shareData = $this->receiptShareService->shareData($payment, (int) ($payment->created_by ?? 0));
+            $payload['receipt_url'] = $shareData['receipt_url'];
+            $payload['whatsapp_url'] = $shareData['whatsapp_url'];
+        }
+
+        return $payload;
+    }
 }

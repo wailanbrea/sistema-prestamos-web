@@ -10,9 +10,14 @@
                 <p class="text-muted mb-0">Gestión de clientes, riesgo, contacto y datos laborales.</p>
             </div>
             @can('clients.create')
-                <a href="{{ route('clients.create') }}" class="btn btn-primary">
-                    <i class="fa-solid fa-plus me-2"></i> Nuevo cliente
-                </a>
+                <div class="d-flex gap-2">
+                    <a href="{{ route('clients.links.index') }}" class="btn btn-outline-success">
+                        <i class="fa-brands fa-whatsapp me-2"></i> Link por WhatsApp
+                    </a>
+                    <a href="{{ route('clients.create') }}" class="btn btn-primary">
+                        <i class="fa-solid fa-plus me-2"></i> Nuevo cliente
+                    </a>
+                </div>
             @endcan
         </div>
     </section>

@@ -49,7 +49,7 @@
                     <label for="type" class="form-label">Tipo</label>
                     <select id="type" name="type" class="form-select">
                         <option value="">Todos</option>
-                        @foreach (['loan_disbursement', 'payment_received', 'expense', 'collector_commission', 'capital_injection', 'capital_withdrawal', 'adjustment'] as $type)
+                        @foreach (['loan_disbursement', 'payment_received', 'accounts_payable_disbursement', 'accounts_payable_payment', 'expense', 'collector_commission', 'capital_injection', 'capital_withdrawal', 'adjustment'] as $type)
                             <option value="{{ $type }}" @selected(($filters['type'] ?? '') === $type)>@include('cash-movements.partials.type-label', ['type' => $type])</option>
                         @endforeach
                     </select>

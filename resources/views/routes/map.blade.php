@@ -274,7 +274,7 @@
 
     @if ($googleMapsApiKey !== '')
         <script async defer
-            src="https://maps.googleapis.com/maps/api/js?key={{ urlencode($googleMapsApiKey) }}&callback=initCollectionMap"
-            onerror="showMapError('No se pudo cargar el script de Google Maps. Revisa la conexión, que la API key sea correcta y que la Maps JavaScript API esté habilitada en Google Cloud.')"></script>
+            src="https://maps.googleapis.com/maps/api/js?key={{ urlencode($googleMapsApiKey) }}&libraries=places&v=weekly&callback=initCollectionMap"
+            onerror="showMapError('No se pudo cargar el script de Google Maps. Revisa la conexion, que la API key sea correcta y que la Maps JavaScript API este habilitada en Google Cloud.')"></script>
     @endif
 @endsection

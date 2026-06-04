@@ -56,7 +56,13 @@ class CollectorService
     public function findForCompany(int $companyId, int $collectorId): Collector
     {
         return Collector::query()
-            ->with('user:id,name,email')
+            ->with([
+                'user:id,name,email',
+                'commissions' => fn ($query) => $query
+                    ->with(['payment:id,receipt_number,payment_date,client_id,amount', 'payment.client:id,full_name'])
+                    ->latest('id')
+                    ->limit(50),
+            ])
             ->forCompany($companyId)
             ->whereKey($collectorId)
             ->firstOrFail();
@@ -80,6 +86,7 @@ class CollectorService
     private function normalizeCommission(array $data): array
     {
         $data['user_id'] = $data['user_id'] ?? null;
+        $data['commission_base'] = $data['commission_base'] ?? 'payment_total';
         $data['commission_value'] = $data['commission_type'] === 'none'
             ? 0
             : (float) ($data['commission_value'] ?? 0);

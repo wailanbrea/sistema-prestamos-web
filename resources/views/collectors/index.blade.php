@@ -58,6 +58,7 @@
                             <th>Cobrador</th>
                             <th>Usuario</th>
                             <th>Comisión</th>
+                            <th>Regla</th>
                             <th>Estado</th>
                             <th class="text-end">Acciones</th>
                         </tr>
@@ -89,6 +90,7 @@
                                         @endif
                                     </div>
                                 </td>
+                                <td><span class="text-muted small">{{ $collector->commission_base === 'principal_only' ? 'Solo capital' : 'Total cobrado' }}</span></td>
                                 <td>@include('collectors.partials.status-badge', ['status' => $collector->status])</td>
                                 <td class="text-end">
                                     <a href="{{ route('collectors.edit', $collector) }}" class="btn btn-link text-dark text-decoration-none">Editar</a>
@@ -101,7 +103,7 @@
                             </tr>
                         @empty
                             <tr>
-                                <td colspan="5" class="text-center text-muted py-5">No hay cobradores registrados.</td>
+                                <td colspan="6" class="text-center text-muted py-5">No hay cobradores registrados.</td>
                             </tr>
                         @endforelse
                     </tbody>

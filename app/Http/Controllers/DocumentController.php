@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Http\Controllers;
 
+use App\Models\Document;
 use App\Models\Loan;
 use App\Models\Payment;
 use App\Services\Documents\DocumentGenerationService;
@@ -95,6 +96,19 @@ class DocumentController extends Controller
         abort_unless($request->user()?->can('documents.generate'), 403);
 
         $model = $this->documentService->findForCompany((int) $request->user()->company_id, $document);
+        abort_unless(Storage::disk('local')->exists($model->file_path), 404);
+
+        return Storage::disk('local')->download($model->file_path, basename($model->file_path), [
+            'Content-Type' => 'application/pdf',
+        ]);
+    }
+
+    public function publicDownload(int $document): StreamedResponse
+    {
+        $model = Document::query()
+            ->whereKey($document)
+            ->where('document_type', 'payment_receipt')
+            ->firstOrFail();
         abort_unless(Storage::disk('local')->exists($model->file_path), 404);
 
         return Storage::disk('local')->download($model->file_path, basename($model->file_path), [

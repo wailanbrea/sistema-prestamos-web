@@ -39,4 +39,14 @@ class Company extends Model
     {
         return $this->hasMany(Collector::class);
     }
+
+    public function creditors(): HasMany
+    {
+        return $this->hasMany(Creditor::class);
+    }
+
+    public function accountsPayable(): HasMany
+    {
+        return $this->hasMany(AccountPayable::class);
+    }
 }
