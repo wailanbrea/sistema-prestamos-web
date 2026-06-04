@@ -5,6 +5,7 @@ declare(strict_types=1);
 use App\Http\Controllers\Api\V2\AdminController;
 use App\Http\Controllers\Api\V2\AdminReportController;
 use App\Http\Controllers\Api\V2\AuthController;
+use App\Http\Controllers\Api\V2\CashboxController;
 use App\Http\Controllers\Api\V2\CollectorController;
 use App\Http\Controllers\Api\V2\DashboardController;
 use Illuminate\Support\Facades\Route;
@@ -54,6 +55,15 @@ Route::prefix('v2')->name('api.v2.')->group(function (): void {
 
             Route::get('/reports/summary', [AdminReportController::class, 'summary'])->middleware('permission:reports.view')->name('reports.summary');
             Route::get('/reports/collectors', [AdminReportController::class, 'collectors'])->middleware('permission:reports.view')->name('reports.collectors');
+        });
+
+        // Caja / Contabilidad: gastos (expenses.manage) y caja (cash.view).
+        Route::prefix('cashbox')->name('cashbox.')->group(function (): void {
+            Route::get('/expenses', [CashboxController::class, 'expenses'])->middleware('permission:expenses.manage')->name('expenses');
+            Route::post('/expenses', [CashboxController::class, 'storeExpense'])->middleware('permission:expenses.manage')->name('expenses.store');
+            Route::get('/expense-categories', [CashboxController::class, 'expenseCategories'])->middleware('permission:expenses.manage')->name('expense-categories');
+            Route::get('/movements', [CashboxController::class, 'movements'])->middleware('permission:cash.view')->name('movements');
+            Route::get('/summary', [CashboxController::class, 'summary'])->middleware('permission:cash.view')->name('summary');
         });
     });
 });
