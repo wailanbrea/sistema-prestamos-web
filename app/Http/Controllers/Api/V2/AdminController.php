@@ -256,7 +256,6 @@ class AdminController extends Controller
     }
 
     /**
-<<<<<<< HEAD
      * Registra un pago desde el back-office (Administrador). A diferencia del
      * endpoint del cobrador, acepta cualquier préstamo activo/atrasado de la
      * empresa; el cobro queda atribuido al cobrador asignado al préstamo.
@@ -339,8 +338,6 @@ class AdminController extends Controller
     /**
      * Resumen financiero del cliente a nivel empresa (sin restricción de cobrador).
      *
-=======
->>>>>>> b0b276aaf528f2727b2aedf36070922557a1c1f5
      * @return array<string, mixed>
      */
     private function clientFinancialSummary(int $companyId, int $clientId): array
