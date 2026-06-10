@@ -32,6 +32,8 @@ Route::prefix('v2')->name('api.v2.')->group(function (): void {
             Route::get('/clients/{client}', [CollectorController::class, 'client'])->name('clients.show');
             Route::get('/loans', [CollectorController::class, 'loans'])->name('loans');
             Route::get('/loans/{loan}', [CollectorController::class, 'loan'])->name('loans.show');
+            Route::get('/loans/{loan}/documents', [CollectorController::class, 'loanDocuments'])->whereNumber('loan')->name('loans.documents');
+            Route::post('/loans/{loan}/documents', [CollectorController::class, 'generateLoanDocument'])->whereNumber('loan')->name('loans.documents.generate');
             Route::get('/installments', [CollectorController::class, 'installments'])->name('installments');
             Route::get('/installments/{installment}', [CollectorController::class, 'installment'])->name('installments.show');
             Route::get('/payments', [CollectorController::class, 'payments'])->name('payments');
@@ -48,6 +50,8 @@ Route::prefix('v2')->name('api.v2.')->group(function (): void {
             Route::get('/clients/{client}', [AdminController::class, 'client'])->middleware('permission:collectors.manage')->whereNumber('client')->name('clients.show');
             Route::get('/loans', [AdminController::class, 'loans'])->middleware('permission:collectors.manage')->name('loans');
             Route::get('/loans/{loan}', [AdminController::class, 'loan'])->middleware('permission:collectors.manage')->whereNumber('loan')->name('loans.show');
+            Route::get('/loans/{loan}/documents', [AdminController::class, 'loanDocuments'])->middleware('permission:collectors.manage')->whereNumber('loan')->name('loans.documents');
+            Route::post('/loans/{loan}/documents', [AdminController::class, 'generateLoanDocument'])->middleware('permission:documents.generate')->whereNumber('loan')->name('loans.documents.generate');
 
             // Cobro desde back-office: exige cartera global ADEMÁS de payments.create,
             // para que un Cobrador (que también tiene payments.create) no pueda cobrar

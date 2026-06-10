@@ -97,6 +97,13 @@ return [
                     'match' => ['accounts-payable.'],
                 ],
                 [
+                    'label' => 'Acreedores',
+                    'route' => 'creditors.index',
+                    'icon' => 'fa-hand-holding-dollar',
+                    'permission' => 'accounts-payable.manage',
+                    'match' => ['creditors.'],
+                ],
+                [
                     'label' => 'Caja',
                     'route' => 'cash-movements.index',
                     'icon' => 'fa-vault',

@@ -24,6 +24,16 @@ class AccountPayable extends Model
             'disbursement_date' => 'date',
             'first_payment_date' => 'date',
             'end_date' => 'date',
+            'principal_amount' => 'decimal:2',
+            'interest_rate' => 'decimal:4',
+            'installment_amount' => 'decimal:2',
+            'total_interest' => 'decimal:2',
+            'total_amount' => 'decimal:2',
+            'paid_principal' => 'decimal:2',
+            'paid_interest' => 'decimal:2',
+            'paid_late_fee' => 'decimal:2',
+            'remaining_balance' => 'decimal:2',
+            'late_fee_value' => 'decimal:2',
         ];
     }
 

@@ -31,9 +31,18 @@
                                 @error('creditor_id') <div class="invalid-feedback">{{ $message }}</div> @enderror
                             </div>
                             <div class="col-12 col-md-6">
+                                <label for="currency" class="form-label">Moneda</label>
+                                <select id="currency" name="currency" class="form-select @error('currency') is-invalid @enderror" required>
+                                    @foreach (config('loan_labels.currencies') as $value => $label)
+                                        <option value="{{ $value }}" @selected(old('currency', account_payable_default_currency()) === $value)>{{ $label }}</option>
+                                    @endforeach
+                                </select>
+                                @error('currency') <div class="invalid-feedback">{{ $message }}</div> @enderror
+                            </div>
+                            <div class="col-12 col-md-6">
                                 <label for="principal_amount" class="form-label">Monto recibido</label>
                                 <div class="input-group">
-                                    <span class="input-group-text">{{ currency() }}</span>
+                                    <span class="input-group-text js-account-payable-currency-symbol">{{ money_symbol(old('currency', account_payable_default_currency())) }}</span>
                                     <input id="principal_amount" name="principal_amount" type="number" step="0.01" min="0.01" value="{{ old('principal_amount') }}" class="form-control @error('principal_amount') is-invalid @enderror" required>
                                 </div>
                                 @error('principal_amount') <div class="invalid-feedback d-block">{{ $message }}</div> @enderror
@@ -188,6 +197,8 @@
 
         const method = document.getElementById('calculation_method');
         const hint = document.getElementById('methodHint');
+        const currency = document.getElementById('currency');
+        const currencySpans = document.querySelectorAll('.js-account-payable-currency-symbol');
         if (!method || !hint) {
             return;
         }
@@ -196,8 +207,16 @@
             hint.textContent = hints[method.value] || '';
         };
 
+        const updateCurrency = () => {
+            currencySpans.forEach((span) => {
+                span.textContent = currency?.value || @json(account_payable_default_currency());
+            });
+        };
+
         method.addEventListener('change', update);
+        currency?.addEventListener('change', updateCurrency);
         update();
+        updateCurrency();
     })();
 </script>
 @endpush

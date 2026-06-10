@@ -66,6 +66,7 @@
                     </thead>
                     <tbody>
                         @forelse ($payments as $payment)
+                            @php($paymentCurrency = $payment->loan->currency ?? currency())
                             <tr>
                                 <td>
                                     <a href="{{ route('payments.show', $payment) }}" class="fw-semibold text-decoration-none">{{ $payment->receipt_number }}</a>
@@ -74,8 +75,8 @@
                                 <td>{{ $payment->client->full_name }}</td>
                                 <td>{{ $payment->loan->loan_number }}</td>
                                 <td>@include('payments.partials.method-label', ['method' => $payment->payment_method])</td>
-                                <td class="text-end">{{ currency() }} {{ number_format((float) $payment->amount, 2) }}</td>
-                                <td class="text-end">{{ currency() }} {{ number_format((float) $payment->new_balance, 2) }}</td>
+                                <td class="text-end">{{ $paymentCurrency }} {{ number_format((float) $payment->amount, 2) }}</td>
+                                <td class="text-end">{{ $paymentCurrency }} {{ number_format((float) $payment->new_balance, 2) }}</td>
                             </tr>
                         @empty
                             <tr>

@@ -36,8 +36,8 @@
                                 <select id="loan_id" name="loan_id" class="form-select @error('loan_id') is-invalid @enderror" required>
                                     <option value="">Seleccione un préstamo activo</option>
                                     @foreach ($loans as $loan)
-                                        <option value="{{ $loan->id }}" @selected((string) old('loan_id', $selectedLoan->id ?? '') === (string) $loan->id)>
-                                            {{ $loan->loan_number }} · {{ $loan->client->full_name }} · balance {{ currency() }} {{ number_format((float) $loan->remaining_balance, 2) }}
+                                        <option value="{{ $loan->id }}" data-currency="{{ $loan->currency ?? currency() }}" @selected((string) old('loan_id', $selectedLoan->id ?? '') === (string) $loan->id)>
+                                            {{ $loan->loan_number }} · {{ $loan->client->full_name }} · balance {{ $loan->currency ?? currency() }} {{ number_format((float) $loan->remaining_balance, 2) }}
                                         </option>
                                     @endforeach
                                 </select>
@@ -73,7 +73,7 @@
                             </table>
                         </div>
                         <div class="d-flex justify-content-between border-top pt-2 mt-2 fw-semibold" id="totalPendingRow" style="display:none;">
-                            <span>Saldo pendiente actual</span><span id="totalPendingNow">{{ currency() }} 0.00</span>
+                            <span>Saldo pendiente actual</span><span id="totalPendingNow">{{ $selectedLoan->currency ?? currency() }} 0.00</span>
                         </div>
                         <p class="text-muted small mb-0 mt-2" id="noInstallments" style="display:none;">Este préstamo no tiene cuotas pendientes.</p>
                     </div>
@@ -112,7 +112,7 @@
                             <div class="col-12 col-md-6">
                                 <label for="amount" class="form-label">Monto a pagar</label>
                                 <div class="input-group">
-                                    <span class="input-group-text">{{ currency() }}</span>
+                                    <span class="input-group-text js-payment-currency-symbol">{{ $selectedLoan->currency ?? currency() }}</span>
                                     <input id="amount" name="amount" type="number" step="0.01" min="0.01" value="{{ old('amount') }}" class="form-control @error('amount') is-invalid @enderror">
                                 </div>
                                 @error('amount') <div class="invalid-feedback d-block">{{ $message }}</div> @enderror
@@ -129,7 +129,7 @@
                             <div class="alert alert-secondary mb-0">
                                 <div class="d-flex justify-content-between align-items-center mb-2">
                                     <span class="fw-semibold">Excedente sobre lo adeudado</span>
-                                    <strong id="excessAmount">{{ currency() }} 0.00</strong>
+                                    <strong id="excessAmount">{{ $selectedLoan->currency ?? currency() }} 0.00</strong>
                                 </div>
                                 <div class="form-check" id="prepaymentOption">
                                     <input class="form-check-input" type="radio" name="excess_action" id="excessPrepay" value="prepayment">
@@ -162,14 +162,14 @@
                         <p class="text-muted small mb-0">Cálculo estimado (el servidor confirma al guardar).</p>
                     </div>
                     <div class="card-body">
-                        <div class="d-flex justify-content-between border-bottom py-2"><span class="text-muted">Capital</span><strong id="pvPrincipal">{{ currency() }} 0.00</strong></div>
-                        <div class="d-flex justify-content-between border-bottom py-2"><span class="text-muted">Interés</span><strong id="pvInterest">{{ currency() }} 0.00</strong></div>
-                        <div class="d-flex justify-content-between border-bottom py-2"><span class="text-muted">Mora</span><strong id="pvLate">{{ currency() }} 0.00</strong></div>
-                        <div class="d-flex justify-content-between border-bottom py-2" id="pvPrepayRow" style="display:none;"><span class="text-muted">Abono a capital</span><strong id="pvPrepay">{{ currency() }} 0.00</strong></div>
-                        <div class="d-flex justify-content-between py-2 fs-5"><span>Total cobrado</span><strong id="pvTotal" class="text-primary">{{ currency() }} 0.00</strong></div>
-                        <div class="d-flex justify-content-between py-2" id="pvChangeRow" style="display:none;"><span class="text-success fw-semibold">Vuelto al cliente</span><strong id="pvChange" class="text-success">{{ currency() }} 0.00</strong></div>
-                        <div class="d-flex justify-content-between border-top pt-2 mt-1"><span class="text-muted">Saldo pendiente después</span><strong id="pvBalance">{{ currency() }} 0.00</strong></div>
-                        <div class="d-flex justify-content-between"><span class="text-muted small">Balance de capital después</span><span class="text-muted small" id="pvCapitalBalance">{{ currency() }} 0.00</span></div>
+                        <div class="d-flex justify-content-between border-bottom py-2"><span class="text-muted">Capital</span><strong id="pvPrincipal">{{ $selectedLoan->currency ?? currency() }} 0.00</strong></div>
+                        <div class="d-flex justify-content-between border-bottom py-2"><span class="text-muted">Interés</span><strong id="pvInterest">{{ $selectedLoan->currency ?? currency() }} 0.00</strong></div>
+                        <div class="d-flex justify-content-between border-bottom py-2"><span class="text-muted">Mora</span><strong id="pvLate">{{ $selectedLoan->currency ?? currency() }} 0.00</strong></div>
+                        <div class="d-flex justify-content-between border-bottom py-2" id="pvPrepayRow" style="display:none;"><span class="text-muted">Abono a capital</span><strong id="pvPrepay">{{ $selectedLoan->currency ?? currency() }} 0.00</strong></div>
+                        <div class="d-flex justify-content-between py-2 fs-5"><span>Total cobrado</span><strong id="pvTotal" class="text-primary">{{ $selectedLoan->currency ?? currency() }} 0.00</strong></div>
+                        <div class="d-flex justify-content-between py-2" id="pvChangeRow" style="display:none;"><span class="text-success fw-semibold">Vuelto al cliente</span><strong id="pvChange" class="text-success">{{ $selectedLoan->currency ?? currency() }} 0.00</strong></div>
+                        <div class="d-flex justify-content-between border-top pt-2 mt-1"><span class="text-muted">Saldo pendiente después</span><strong id="pvBalance">{{ $selectedLoan->currency ?? currency() }} 0.00</strong></div>
+                        <div class="d-flex justify-content-between"><span class="text-muted small">Balance de capital después</span><span class="text-muted small" id="pvCapitalBalance">{{ $selectedLoan->currency ?? currency() }} 0.00</span></div>
                         <div id="pvLeftover" class="alert alert-warning small mt-3 mb-0" style="display:none;"></div>
                     </div>
                 </section>
@@ -251,11 +251,19 @@
     let balance = 0;
     let allowsPrepayment = false;
 
-    const money = (n) => @json(currency().' ') + Number(n || 0).toLocaleString('es-DO', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+    const currencySpans = document.querySelectorAll('.js-payment-currency-symbol');
+    const currentCurrency = () => loanSelect.selectedOptions[0]?.dataset.currency || @json($selectedLoan->currency ?? currency());
+    const money = (n) => `${currentCurrency()} ${Number(n || 0).toLocaleString('es-DO', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+    const syncCurrencySymbol = () => {
+        currencySpans.forEach((span) => {
+            span.textContent = currentCurrency();
+        });
+    };
     const round2 = (n) => Math.round((Number(n) + Number.EPSILON) * 100) / 100;
 
     async function loadInstallments(loanId) {
         installments = [];
+        syncCurrencySymbol();
         if (!loanId) { render(); return; }
         try {
             const res = await fetch(urlTpl.replace('__LOAN__', loanId), { headers: { 'Accept': 'application/json' } });
@@ -502,6 +510,7 @@
     });
 
     // Preselect loan if provided
+    syncCurrencySymbol();
     if (loanSelect.value) loadInstallments(loanSelect.value);
 })();
 </script>

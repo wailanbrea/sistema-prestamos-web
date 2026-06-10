@@ -132,7 +132,7 @@
 
         function initTrackingMap() {
             const element = document.getElementById('tracking-map');
-            const defaultCenter = { lat: 18.4861, lng: -69.9312 };
+            const defaultCenter = @json(default_map_center());
             window.trackingMapState.map = new google.maps.Map(element, {
                 center: defaultCenter,
                 zoom: 11,

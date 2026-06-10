@@ -68,13 +68,31 @@
                     </div>
 
                     <div class="col-12 col-md-3">
-                        <label for="currency" class="form-label">Moneda</label>
+                        <label for="currency" class="form-label">Moneda general</label>
                         <select id="currency" name="currency" class="form-select @error('currency') is-invalid @enderror" required>
                             @foreach (config('loan_labels.currencies') as $value => $label)
                                 <option value="{{ $value }}" @selected(old('currency', $settings->currency ?? 'RD$') === $value)>{{ $label }}</option>
                             @endforeach
                         </select>
                         @error('currency') <div class="invalid-feedback">{{ $message }}</div> @enderror
+                    </div>
+                    <div class="col-12 col-md-3">
+                        <label for="default_loan_currency" class="form-label">Moneda por defecto de préstamos</label>
+                        <select id="default_loan_currency" name="default_loan_currency" class="form-select @error('default_loan_currency') is-invalid @enderror" required>
+                            @foreach (config('loan_labels.currencies') as $value => $label)
+                                <option value="{{ $value }}" @selected(old('default_loan_currency', $settings->default_loan_currency ?? $settings->currency ?? 'RD$') === $value)>{{ $label }}</option>
+                            @endforeach
+                        </select>
+                        @error('default_loan_currency') <div class="invalid-feedback">{{ $message }}</div> @enderror
+                    </div>
+                    <div class="col-12 col-md-3">
+                        <label for="default_account_payable_currency" class="form-label">Moneda por defecto de cuentas por pagar</label>
+                        <select id="default_account_payable_currency" name="default_account_payable_currency" class="form-select @error('default_account_payable_currency') is-invalid @enderror" required>
+                            @foreach (config('loan_labels.currencies') as $value => $label)
+                                <option value="{{ $value }}" @selected(old('default_account_payable_currency', $settings->default_account_payable_currency ?? $settings->default_loan_currency ?? $settings->currency ?? 'RD$') === $value)>{{ $label }}</option>
+                            @endforeach
+                        </select>
+                        @error('default_account_payable_currency') <div class="invalid-feedback">{{ $message }}</div> @enderror
                     </div>
                     <div class="col-12 col-md-3">
                         <label for="default_interest_rate" class="form-label">Interés por defecto</label>
@@ -118,6 +136,34 @@
                         @error('route_visit_radius_meters') <div class="invalid-feedback">{{ $message }}</div> @enderror
                     </div>
 
+                    <div class="col-12 mt-2">
+                        <div class="text-muted small text-uppercase fw-semibold">Mapa base</div>
+                    </div>
+                    <div class="col-12">
+                        <label for="default_map_address" class="form-label">Direccion inicial de los mapas</label>
+                        <input id="default_map_address" name="default_map_address" type="text" value="{{ old('default_map_address', $settings->default_map_address ?? $company->address ?? '') }}" class="form-control @error('default_map_address') is-invalid @enderror" placeholder="Escribe la direccion base que debe cargar por defecto" autocomplete="off">
+                        @error('default_map_address') <div class="invalid-feedback">{{ $message }}</div> @enderror
+                        <div class="form-text">Se usa como punto inicial en clientes, rutas y mapas operativos cuando no hay una ubicacion previa.</div>
+                    </div>
+                    <div class="col-12">
+                        <div class="border rounded-3 overflow-hidden bg-white">
+                            @if ((string) config('services.google_maps.api_key') === '')
+                                <div class="alert alert-warning rounded-0 m-0">
+                                    El mapa no esta disponible ahora mismo. Aun puedes guardar la direccion manualmente.
+                                </div>
+                            @endif
+                            <div id="settings-map" style="height: 320px;"></div>
+                        </div>
+                    </div>
+                    <div class="col-12 col-md-6 d-grid">
+                        <label class="form-label">&nbsp;</label>
+                        <button type="button" class="btn btn-outline-secondary btn-sm" id="settings-use-location">Usar mi ubicacion</button>
+                    </div>
+                    <input id="default_map_latitude" name="default_map_latitude" type="hidden" value="{{ old('default_map_latitude', $settings->default_map_latitude ?? '') }}">
+                    <input id="default_map_longitude" name="default_map_longitude" type="hidden" value="{{ old('default_map_longitude', $settings->default_map_longitude ?? '') }}">
+                    @error('default_map_latitude') <div class="col-12"><div class="invalid-feedback d-block">{{ $message }}</div></div> @enderror
+                    @error('default_map_longitude') <div class="col-12"><div class="invalid-feedback d-block">{{ $message }}</div></div> @enderror
+
                     @foreach ([
                         'allow_partial_payments' => 'Permitir pagos parciales',
                         'allow_payment_cancellation' => 'Permitir anulación de pagos',
@@ -142,6 +188,117 @@
             </form>
         </div>
     </section>
+
+    @push('scripts')
+    <script>
+        window.initSettingsMap = function () {
+            if (typeof google === 'undefined' || !document.getElementById('settings-map')) {
+                return;
+            }
+
+            const latInput = document.getElementById('default_map_latitude');
+            const lngInput = document.getElementById('default_map_longitude');
+            const addressField = document.getElementById('default_map_address');
+            const existingLat = parseFloat(latInput?.value || '');
+            const existingLng = parseFloat(lngInput?.value || '');
+            const initialCenter = (!Number.isNaN(existingLat) && !Number.isNaN(existingLng))
+                ? { lat: existingLat, lng: existingLng }
+                : { lat: 18.4861, lng: -69.9312 };
+
+            const map = new google.maps.Map(document.getElementById('settings-map'), {
+                center: initialCenter,
+                zoom: (!Number.isNaN(existingLat) && !Number.isNaN(existingLng)) ? 15 : 11,
+                mapTypeControl: false,
+                streetViewControl: false,
+                fullscreenControl: true,
+            });
+
+            const marker = new google.maps.Marker({
+                map,
+                position: initialCenter,
+                draggable: true,
+            });
+
+            const geocoder = new google.maps.Geocoder();
+            const autocomplete = addressField
+                ? new google.maps.places.Autocomplete(addressField, { fields: ['formatted_address', 'geometry'] })
+                : null;
+
+            const setCoordinates = (lat, lng, shouldPan = true) => {
+                const latitude = Number(lat);
+                const longitude = Number(lng);
+                if (Number.isNaN(latitude) || Number.isNaN(longitude)) {
+                    return;
+                }
+
+                latInput.value = latitude.toFixed(7);
+                lngInput.value = longitude.toFixed(7);
+                marker.setPosition({ lat: latitude, lng: longitude });
+                if (shouldPan) {
+                    map.panTo({ lat: latitude, lng: longitude });
+                }
+            };
+
+            const reverseGeocode = (lat, lng) => {
+                geocoder.geocode({ location: { lat: Number(lat), lng: Number(lng) } }, (results, status) => {
+                    if (status !== 'OK' || !results || !results.length) {
+                        return;
+                    }
+
+                    addressField.value = results[0].formatted_address || '';
+                });
+            };
+
+            map.addListener('click', (event) => {
+                const lat = event.latLng.lat();
+                const lng = event.latLng.lng();
+                setCoordinates(lat, lng);
+                reverseGeocode(lat, lng);
+            });
+
+            marker.addListener('dragend', (event) => {
+                const lat = event.latLng.lat();
+                const lng = event.latLng.lng();
+                setCoordinates(lat, lng);
+                reverseGeocode(lat, lng);
+            });
+
+            if (autocomplete) {
+                autocomplete.bindTo('bounds', map);
+                autocomplete.addListener('place_changed', () => {
+                    const place = autocomplete.getPlace();
+                    if (!place.geometry || !place.geometry.location) {
+                        return;
+                    }
+
+                    const lat = place.geometry.location.lat();
+                    const lng = place.geometry.location.lng();
+                    setCoordinates(lat, lng);
+                    addressField.value = place.formatted_address || '';
+                    map.setZoom(16);
+                });
+            }
+
+            document.getElementById('settings-use-location')?.addEventListener('click', () => {
+                if (!navigator.geolocation) {
+                    return;
+                }
+
+                navigator.geolocation.getCurrentPosition((position) => {
+                    const lat = position.coords.latitude;
+                    const lng = position.coords.longitude;
+                    setCoordinates(lat, lng);
+                    reverseGeocode(lat, lng);
+                });
+            });
+        };
+
+        document.addEventListener('DOMContentLoaded', window.initSettingsMap);
+    </script>
+    @if ((string) config('services.google_maps.api_key') !== '')
+        <script async defer src="https://maps.googleapis.com/maps/api/js?key={{ urlencode((string) config('services.google_maps.api_key')) }}&libraries=places&v=weekly&callback=initSettingsMap"></script>
+    @endif
+    @endpush
 
     @php $canManageUsers = auth()->user()->can('users.manage') && \App\Support\MenuAccess::canManageUsers(auth()->user()); @endphp
     @unless ($canManageUsers)

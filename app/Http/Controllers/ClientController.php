@@ -6,15 +6,21 @@ namespace App\Http\Controllers;
 
 use App\Http\Requests\Clients\StoreClientRequest;
 use App\Http\Requests\Clients\UpdateClientRequest;
+use App\Services\Clients\ClientDocumentService;
 use App\Services\Clients\ClientService;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Storage;
 use Illuminate\View\View;
+use Symfony\Component\HttpFoundation\BinaryFileResponse;
+use Symfony\Component\HttpFoundation\StreamedResponse;
 
 class ClientController extends Controller
 {
-    public function __construct(private readonly ClientService $clientService)
-    {
+    public function __construct(
+        private readonly ClientService $clientService,
+        private readonly ClientDocumentService $clientDocumentService,
+    ) {
     }
 
     public function index(Request $request): View
@@ -44,7 +50,9 @@ class ClientController extends Controller
     public function show(Request $request, int $client): View
     {
         return view('clients.show', [
-            'client' => $this->clientService->findForCompany((int) $request->user()->company_id, $client),
+            'client' => $this->clientService
+                ->findForCompany((int) $request->user()->company_id, $client)
+                ->load('documents'),
         ]);
     }
 
@@ -75,5 +83,21 @@ class ClientController extends Controller
         return redirect()
             ->route('clients.index')
             ->with('status', 'Cliente eliminado correctamente.');
+    }
+
+    public function downloadDocument(Request $request, int $client, int $document): StreamedResponse
+    {
+        $model = $this->clientDocumentService->findForClient((int) $request->user()->company_id, $client, $document);
+        abort_unless($this->clientDocumentService->exists($model), 404);
+
+        return Storage::disk('local')->download($model->file_path, basename($model->file_path));
+    }
+
+    public function previewDocument(Request $request, int $client, int $document): BinaryFileResponse
+    {
+        $model = $this->clientDocumentService->findForClient((int) $request->user()->company_id, $client, $document);
+        abort_unless($this->clientDocumentService->exists($model), 404);
+
+        return response()->file(Storage::disk('local')->path($model->file_path));
     }
 }

@@ -351,7 +351,7 @@
         window.routeBuilderAddClient = addClient;
         window.initRouteBuilderMap = function () {
             map = new google.maps.Map(document.getElementById('route-builder-map'), {
-                center: { lat: 18.4861, lng: -69.9312 },
+                center: @json(default_map_center()),
                 zoom: 11,
                 mapTypeControl: false,
                 streetViewControl: false,

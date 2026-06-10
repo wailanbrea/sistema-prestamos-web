@@ -3,7 +3,8 @@
 <head>
     <meta charset="utf-8">
     <title>Carta de saldo</title>
-    @include('documents.pdf._styles')
+@include('documents.pdf._styles')
+@php($currencyCode = $loan->currency ?? currency())
 </head>
 <body>
     <h1>Carta de saldo</h1>
@@ -16,11 +17,11 @@
     </p>
 
     <table>
-        <tr><th>Capital original</th><td class="right">{{ currency() }} {{ number_format((float) $loan->principal_amount, 2) }}</td></tr>
-        <tr><th>Total pagado a capital</th><td class="right">{{ currency() }} {{ number_format((float) $loan->paid_principal, 2) }}</td></tr>
-        <tr><th>Total pagado a interés</th><td class="right">{{ currency() }} {{ number_format((float) $loan->paid_interest, 2) }}</td></tr>
-        <tr><th>Total pagado a mora</th><td class="right">{{ currency() }} {{ number_format((float) $loan->paid_late_fee, 2) }}</td></tr>
-        <tr><th>Balance pendiente</th><td class="right">{{ currency() }} {{ number_format((float) $loan->remaining_balance, 2) }}</td></tr>
+        <tr><th>Capital original</th><td class="right">{{ $currencyCode }} {{ number_format((float) $loan->principal_amount, 2) }}</td></tr>
+        <tr><th>Total pagado a capital</th><td class="right">{{ $currencyCode }} {{ number_format((float) $loan->paid_principal, 2) }}</td></tr>
+        <tr><th>Total pagado a interés</th><td class="right">{{ $currencyCode }} {{ number_format((float) $loan->paid_interest, 2) }}</td></tr>
+        <tr><th>Total pagado a mora</th><td class="right">{{ $currencyCode }} {{ number_format((float) $loan->paid_late_fee, 2) }}</td></tr>
+        <tr><th>Balance pendiente</th><td class="right">{{ $currencyCode }} {{ number_format((float) $loan->remaining_balance, 2) }}</td></tr>
     </table>
 
     <p>

@@ -36,3 +36,52 @@ if (! function_exists('currency')) {
         return (string) company_setting('currency', 'RD$');
     }
 }
+
+if (! function_exists('loan_default_currency')) {
+    /**
+     * Moneda por defecto al crear prestamos.
+     */
+    function loan_default_currency(): string
+    {
+        return (string) company_setting('default_loan_currency', currency());
+    }
+}
+
+if (! function_exists('account_payable_default_currency')) {
+    /**
+     * Moneda por defecto al crear cuentas por pagar.
+     */
+    function account_payable_default_currency(): string
+    {
+        return (string) company_setting('default_account_payable_currency', loan_default_currency());
+    }
+}
+
+if (! function_exists('money_symbol')) {
+    /**
+     * Simbolo de moneda puntual. Fallback: moneda general de la empresa.
+     */
+    function money_symbol(?string $currency = null): string
+    {
+        return (string) ($currency ?: currency());
+    }
+}
+
+if (! function_exists('default_map_center')) {
+    /**
+     * Centro inicial para mapas de la empresa autenticada.
+     *
+     * @return array{lat: float, lng: float, address: string}
+     */
+    function default_map_center(): array
+    {
+        $lat = (float) company_setting('default_map_latitude', 18.4861);
+        $lng = (float) company_setting('default_map_longitude', -69.9312);
+
+        return [
+            'lat' => $lat ?: 18.4861,
+            'lng' => $lng ?: -69.9312,
+            'address' => (string) company_setting('default_map_address', ''),
+        ];
+    }
+}

@@ -6,6 +6,7 @@ use App\Http\Controllers\CashMovementController;
 use App\Http\Controllers\ClientController;
 use App\Http\Controllers\ClientRegistrationLinkController;
 use App\Http\Controllers\CollectorController;
+use App\Http\Controllers\CreditorController;
 use App\Http\Controllers\DashboardController;
 use App\Http\Controllers\DocumentController;
 use App\Http\Controllers\ExpenseCategoryController;
@@ -47,6 +48,8 @@ Route::middleware(['auth', 'user.active', 'company.active', 'permission.company'
         Route::get('/crear', 'create')->middleware('permission:clients.create')->name('create');
         Route::post('/', 'store')->middleware('permission:clients.create')->name('store');
         Route::get('/{client}', 'show')->whereNumber('client')->middleware('permission:clients.view')->name('show');
+        Route::get('/{client}/documentos/{document}', 'previewDocument')->whereNumber('client')->whereNumber('document')->middleware('permission:clients.view')->name('documents.preview');
+        Route::get('/{client}/documentos/{document}/descargar', 'downloadDocument')->whereNumber('client')->whereNumber('document')->middleware('permission:clients.view')->name('documents.download');
         Route::get('/{client}/editar', 'edit')->whereNumber('client')->middleware('permission:clients.update')->name('edit');
         Route::put('/{client}', 'update')->whereNumber('client')->middleware('permission:clients.update')->name('update');
         Route::delete('/{client}', 'destroy')->whereNumber('client')->middleware('permission:clients.delete')->name('destroy');
@@ -73,6 +76,10 @@ Route::middleware(['auth', 'user.active', 'company.active', 'permission.company'
         Route::post('/{loan}/aprobar', 'approve')->whereNumber('loan')->middleware('permission:loans.approve')->name('approve');
         Route::delete('/{loan}', 'destroy')->whereNumber('loan')->middleware('permission:loans.delete')->name('destroy');
     });
+    Route::post('/prestamos/{loan}/documentos', [DocumentController::class, 'generateLoanDocumentForLoan'])
+        ->whereNumber('loan')
+        ->middleware('permission:documents.generate')
+        ->name('loans.documents.generate');
     Route::prefix('cobros')->name('payments.')->controller(PaymentController::class)->middleware('permission:payments.create')->group(function (): void {
         Route::get('/', 'index')->name('index');
         Route::get('/crear', 'create')->name('create');
@@ -88,7 +95,18 @@ Route::middleware(['auth', 'user.active', 'company.active', 'permission.company'
         Route::post('/', 'store')->name('store');
         Route::post('/acreedores', 'storeCreditor')->name('creditors.store');
         Route::get('/{accountPayable}', 'show')->whereNumber('accountPayable')->name('show');
+        Route::get('/{accountPayable}/editar', 'edit')->whereNumber('accountPayable')->name('edit');
+        Route::put('/{accountPayable}', 'update')->whereNumber('accountPayable')->name('update');
         Route::post('/{accountPayable}/pagos', 'storePayment')->whereNumber('accountPayable')->name('payments.store');
+        Route::delete('/{accountPayable}', 'destroy')->whereNumber('accountPayable')->name('destroy');
+    });
+    Route::prefix('acreedores')->name('creditors.')->controller(CreditorController::class)->middleware('permission:accounts-payable.manage')->group(function (): void {
+        Route::get('/', 'index')->name('index');
+        Route::get('/crear', 'create')->name('create');
+        Route::post('/', 'store')->name('store');
+        Route::get('/{creditor}/editar', 'edit')->whereNumber('creditor')->name('edit');
+        Route::put('/{creditor}', 'update')->whereNumber('creditor')->name('update');
+        Route::delete('/{creditor}', 'destroy')->whereNumber('creditor')->name('destroy');
     });
     Route::prefix('cobradores')->name('collectors.')->controller(CollectorController::class)->middleware('permission:collectors.manage')->group(function (): void {
         Route::get('/', 'index')->name('index');

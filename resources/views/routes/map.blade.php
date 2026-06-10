@@ -171,7 +171,7 @@
         function initCollectionMap() {
             const element = document.getElementById('collection-map');
             const clients = window.collectionMapClients || [];
-            const defaultCenter = { lat: 18.4861, lng: -69.9312 };
+            const defaultCenter = @json(default_map_center());
             const map = new google.maps.Map(element, {
                 center: defaultCenter,
                 zoom: clients.length ? 12 : 10,

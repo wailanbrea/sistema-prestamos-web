@@ -31,18 +31,24 @@ class DocumentController extends Controller
 
         return view('documents.index', [
             'documents' => $this->documentService->paginateForCompany($companyId, $filters),
+            'loanDocumentTypes' => $this->documentGenerationService->supportedLoanDocumentTypes(),
             'loans' => Loan::query()
                 ->with('client:id,full_name')
                 ->forCompany($companyId)
-                ->latest('id')
-                ->limit(100)
-                ->get(['id', 'client_id', 'loan_number', 'status']),
+                ->orderBy('client_id')
+                ->orderByDesc('id')
+                ->limit(200)
+                ->get(['id', 'client_id', 'loan_number', 'status'])
+                ->values(),
             'payments' => Payment::query()
                 ->with('client:id,full_name')
                 ->forCompany($companyId)
+                ->orderBy('client_id')
+                ->orderByDesc('payment_date')
                 ->latest('id')
-                ->limit(100)
-                ->get(['id', 'client_id', 'receipt_number', 'amount']),
+                ->limit(200)
+                ->get(['id', 'client_id', 'receipt_number', 'amount', 'payment_date'])
+                ->values(),
             'filters' => $filters,
         ]);
     }
@@ -53,11 +59,11 @@ class DocumentController extends Controller
 
         $validated = $request->validate([
             'loan_id' => ['required', 'integer'],
-            'document_type' => ['required', 'in:promissory_note,disbursement_receipt,balance_letter'],
+            'document_type' => ['required', 'in:'.implode(',', $this->documentGenerationService->supportedLoanDocumentTypes())],
         ]);
 
         try {
-            $document = $this->documentGenerationService->generateForLoan(
+            $document = $this->documentGenerationService->generateOrReuseLoanDocument(
                 (int) $request->user()->company_id,
                 (int) $validated['loan_id'],
                 $validated['document_type'],
@@ -65,6 +71,32 @@ class DocumentController extends Controller
             );
         } catch (InvalidArgumentException $exception) {
             return back()->withInput()->withErrors(['document_type' => $exception->getMessage()]);
+        }
+
+        return redirect()
+            ->route('documents.download', $document)
+            ->with('status', 'Documento generado correctamente.');
+    }
+
+    public function generateLoanDocumentForLoan(Request $request, int $loan): RedirectResponse
+    {
+        abort_unless($request->user()?->can('documents.generate'), 403);
+
+        $validated = $request->validate([
+            'document_type' => ['required', 'in:'.implode(',', $this->documentGenerationService->supportedLoanDocumentTypes())],
+        ]);
+
+        try {
+            $document = $this->documentGenerationService->generateOrReuseLoanDocument(
+                (int) $request->user()->company_id,
+                $loan,
+                $validated['document_type'],
+                (int) $request->user()->id,
+            );
+        } catch (InvalidArgumentException $exception) {
+            return redirect()
+                ->route('loans.show', $loan)
+                ->withErrors(['loan_document' => $exception->getMessage()]);
         }
 
         return redirect()
@@ -105,10 +137,7 @@ class DocumentController extends Controller
 
     public function publicDownload(int $document): StreamedResponse
     {
-        $model = Document::query()
-            ->whereKey($document)
-            ->where('document_type', 'payment_receipt')
-            ->firstOrFail();
+        $model = Document::query()->whereKey($document)->firstOrFail();
         abort_unless(Storage::disk('local')->exists($model->file_path), 404);
 
         return Storage::disk('local')->download($model->file_path, basename($model->file_path), [

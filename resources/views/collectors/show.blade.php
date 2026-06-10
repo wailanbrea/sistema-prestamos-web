@@ -18,6 +18,18 @@
         </div>
     </section>
 
+    @if (session('collector_credentials'))
+        <section class="alert alert-success border mb-4">
+            <div class="d-flex flex-column gap-2">
+                <div class="fw-semibold">Credenciales del cobrador creadas correctamente</div>
+                <div class="small text-muted">Este mensaje se muestra una sola vez para que operacion copie el acceso.</div>
+                <div><strong>Usuario:</strong> {{ session('collector_credentials.user_name') }}</div>
+                <div><strong>Correo:</strong> {{ session('collector_credentials.email') }}</div>
+                <div><strong>Contrasena temporal:</strong> {{ session('collector_credentials.password') }}</div>
+            </div>
+        </section>
+    @endif
+
     <section class="row g-4 mb-4">
         <div class="col-12 col-md-6 col-xl-3">
             <div class="card content-card h-100">

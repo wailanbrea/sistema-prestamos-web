@@ -21,7 +21,7 @@
                     <p class="text-muted mb-0">Este enlace es de uso unico. Completa tus datos para quedar registrado como cliente.</p>
                 </div>
 
-                <form method="POST" action="{{ route('client-registration.submit', $link->token) }}" novalidate>
+                <form method="POST" action="{{ route('client-registration.submit', $link->token) }}" enctype="multipart/form-data" novalidate>
                     @csrf
                     <div class="row g-3">
                         <div class="col-12 col-md-4">
@@ -112,6 +112,26 @@
                             <label for="notes" class="form-label">Notas</label>
                             <textarea id="notes" name="notes" rows="3" class="form-control @error('notes') is-invalid @enderror">{{ old('notes') }}</textarea>
                             @error('notes') <div class="invalid-feedback">{{ $message }}</div> @enderror
+                        </div>
+                        <div class="col-12">
+                            <div class="card border-0 bg-light">
+                                <div class="card-body">
+                                    <h2 class="h6 fw-bold mb-1">Fotos del ID</h2>
+                                    <p class="text-muted small mb-3">Debes tomar o subir la foto frontal y la foto trasera de tu identificacion. Se aceptan JPG, PNG o WEBP hasta 5 MB por imagen.</p>
+                                    <div class="row g-3">
+                                        <div class="col-12 col-md-6">
+                                            <label for="id_front" class="form-label">Foto frontal del ID</label>
+                                            <input id="id_front" name="id_front" type="file" accept="image/*" capture="environment" class="form-control @error('id_front') is-invalid @enderror" required>
+                                            @error('id_front') <div class="invalid-feedback">{{ $message }}</div> @enderror
+                                        </div>
+                                        <div class="col-12 col-md-6">
+                                            <label for="id_back" class="form-label">Foto trasera del ID</label>
+                                            <input id="id_back" name="id_back" type="file" accept="image/*" capture="environment" class="form-control @error('id_back') is-invalid @enderror" required>
+                                            @error('id_back') <div class="invalid-feedback">{{ $message }}</div> @enderror
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
                         </div>
                     </div>
 
@@ -222,7 +242,7 @@
             const existingLng = parseFloat(lngInput.value);
             const initialCenter = (!Number.isNaN(existingLat) && !Number.isNaN(existingLng))
                 ? { lat: existingLat, lng: existingLng }
-                : { lat: 18.4861, lng: -69.9312 };
+                : { lat: @json(($defaultMapCenter['lat'] ?? 18.4861)), lng: @json(($defaultMapCenter['lng'] ?? -69.9312)) };
 
             const map = new google.maps.Map(document.getElementById('registration-map'), {
                 center: initialCenter,

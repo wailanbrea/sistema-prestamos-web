@@ -87,8 +87,28 @@ class LoanController extends Controller
 
     public function show(Request $request, int $loan): View
     {
+        $model = $this->loanService->findForCompany((int) $request->user()->company_id, $loan);
+        $model->loadMissing('payments');
+
+        $validPayments = $model->payments->where('status', 'valid');
+        $principalCollected = (float) $validPayments->sum('principal_paid') + (float) $validPayments->sum('capital_prepaid');
+        $interestCollected = (float) $validPayments->sum('interest_paid');
+        $lateFeeCollected = (float) $validPayments->sum('late_fee_paid');
+        $principalPending = max(0, (float) $model->principal_amount - $principalCollected);
+        $principalRecoveryRate = (float) $model->principal_amount > 0
+            ? min(100, round(($principalCollected / (float) $model->principal_amount) * 100, 2))
+            : 0.0;
+
         return view('loans.show', [
-            'loan' => $this->loanService->findForCompany((int) $request->user()->company_id, $loan),
+            'loan' => $model,
+            'financialSummary' => [
+                'principal_collected' => $principalCollected,
+                'principal_pending' => $principalPending,
+                'principal_recovery_rate' => $principalRecoveryRate,
+                'interest_collected' => $interestCollected,
+                'interest_pending' => max(0, (float) $model->total_interest - $interestCollected),
+                'late_fee_collected' => $lateFeeCollected,
+            ],
             ...$this->labels(),
         ]);
     }

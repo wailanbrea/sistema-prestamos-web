@@ -15,6 +15,7 @@ class ClientRegistrationLinkService
 {
     public function __construct(
         private readonly ClientService $clientService,
+        private readonly ClientDocumentService $clientDocumentService,
     ) {
     }
 
@@ -67,7 +68,7 @@ class ClientRegistrationLinkService
             ->firstOrFail();
 
         if (! $link->isAvailable()) {
-            throw new InvalidArgumentException('Este enlace ya fue utilizado o ya no está disponible.');
+            throw new InvalidArgumentException('Este enlace ya fue utilizado o ya no esta disponible.');
         }
 
         return $link;
@@ -79,19 +80,27 @@ class ClientRegistrationLinkService
     public function registerClientFromLink(ClientRegistrationLink $link, array $data): Client
     {
         if (! $link->isAvailable()) {
-            throw new InvalidArgumentException('Este enlace ya fue utilizado o ya no está disponible.');
+            throw new InvalidArgumentException('Este enlace ya fue utilizado o ya no esta disponible.');
         }
 
         if (! empty($data['code']) && Client::query()->where('company_id', $link->company_id)->where('code', $data['code'])->exists()) {
-            throw new InvalidArgumentException('El código ya existe en esta empresa.');
+            throw new InvalidArgumentException('El codigo ya existe en esta empresa.');
         }
 
         return DB::transaction(function () use ($link, $data): Client {
+            $clientData = $data;
+            unset($clientData['id_front'], $clientData['id_back']);
+
             $client = $this->clientService->create($link->company_id, [
-                ...$data,
-                'phone' => $data['phone'] ?? $link->recipient_phone,
+                ...$clientData,
+                'phone' => $clientData['phone'] ?? $link->recipient_phone,
                 'status' => 'active',
                 'risk_level' => 'low',
+            ]);
+
+            $this->clientDocumentService->storeIdentityDocuments($client, [
+                'front' => $data['id_front'],
+                'back' => $data['id_back'],
             ]);
 
             $link->forceFill([

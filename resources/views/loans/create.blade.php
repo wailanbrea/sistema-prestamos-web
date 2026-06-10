@@ -33,7 +33,7 @@
                 @if ($quote)
                     <input type="hidden" name="quote_id" value="{{ $quote->id }}">
                     <div class="alert alert-info">
-                        Cotización {{ company_setting('quote_prefix', 'COT') }}-{{ str_pad((string) $quote->id, 5, '0', STR_PAD_LEFT) }}: {{ currency() }} {{ number_format((float) $quote->amount, 2) }} · {{ $methodLabels[$quote->calculation_method] ?? $quote->calculation_method }}
+                        Cotización {{ company_setting('quote_prefix', 'COT') }}-{{ str_pad((string) $quote->id, 5, '0', STR_PAD_LEFT) }}: {{ money_symbol(old('currency', loan_default_currency())) }} {{ number_format((float) $quote->amount, 2) }} · {{ $methodLabels[$quote->calculation_method] ?? $quote->calculation_method }}
                     </div>
                 @endif
 
@@ -62,6 +62,15 @@
                         @error('collector_id') <div class="invalid-feedback">{{ $message }}</div> @enderror
                     </div>
                     @endif
+                    <div class="col-12 col-md-6">
+                        <label for="currency" class="form-label">Moneda</label>
+                        <select id="currency" name="currency" class="form-select @error('currency') is-invalid @enderror" required>
+                            @foreach (config('loan_labels.currencies') as $value => $label)
+                                <option value="{{ $value }}" @selected(old('currency', loan_default_currency()) === $value)>{{ $label }}</option>
+                            @endforeach
+                        </select>
+                        @error('currency') <div class="invalid-feedback">{{ $message }}</div> @enderror
+                    </div>
 
                     @unless ($quote)
                         {{-- Condiciones --}}
@@ -69,7 +78,7 @@
                         <div class="col-6 col-md-3">
                             <label for="principal_amount" class="form-label">Monto</label>
                             <div class="input-group">
-                                <span class="input-group-text">{{ currency() }}</span>
+                                <span class="input-group-text js-loan-currency-symbol">{{ old('currency', loan_default_currency()) }}</span>
                                 <input id="principal_amount" name="principal_amount" type="number" step="0.01" min="1" value="{{ old('principal_amount') }}" class="form-control @error('principal_amount') is-invalid @enderror" required>
                             </div>
                             @error('principal_amount') <div class="invalid-feedback d-block">{{ $message }}</div> @enderror
@@ -235,13 +244,21 @@
         const ids = ['principal_amount', 'interest_rate', 'term_quantity', 'calculation_method', 'payment_frequency', 'first_payment_date'];
         const el = {};
         ids.forEach((i) => el[i] = document.getElementById(i));
+        el.currency = document.getElementById('currency');
         if (ids.some((i) => !el[i])) return; // modo conversión de cotización: sin campos editables
 
         const empty = document.getElementById('previewEmpty');
         const error = document.getElementById('previewError');
         const content = document.getElementById('previewContent');
         const rowsEl = document.getElementById('previewRows');
-        const money = (n) => @json(currency().' ') + Number(n || 0).toLocaleString('es-DO', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+        const currencySpans = document.querySelectorAll('.js-loan-currency-symbol');
+        const currentCurrency = () => el.currency?.value || @json(loan_default_currency());
+        const money = (n) => `${currentCurrency()} ${Number(n || 0).toLocaleString('es-DO', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+        const syncCurrencySymbol = () => {
+            currencySpans.forEach((span) => {
+                span.textContent = currentCurrency();
+            });
+        };
 
         const show = (which) => {
             empty.classList.toggle('d-none', which !== 'empty');
@@ -292,6 +309,13 @@
         }
 
         ids.forEach((i) => { el[i].addEventListener('input', schedule); el[i].addEventListener('change', schedule); });
+        if (el.currency) {
+            el.currency.addEventListener('change', () => {
+                syncCurrencySymbol();
+                run();
+            });
+        }
+        syncCurrencySymbol();
         run();
     })();
 </script>

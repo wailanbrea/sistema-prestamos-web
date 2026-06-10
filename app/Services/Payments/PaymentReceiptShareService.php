@@ -70,12 +70,13 @@ class PaymentReceiptShareService
 
     private function whatsAppUrl(Payment $payment, string $phone, string $receiptUrl): string
     {
+        $currencyCode = $payment->loan?->currency;
         $message = implode("\n", [
             'Hola '.($payment->client?->full_name ?: 'cliente').',',
             'Hemos registrado tu pago correctamente.',
             'Recibo: '.$payment->receipt_number,
             'Prestamo: '.($payment->loan?->loan_number ?: 'N/D'),
-            'Monto: '.currency().' '.number_format((float) $payment->amount, 2),
+            'Monto: '.money_symbol($currencyCode).' '.number_format((float) $payment->amount, 2),
             'Fecha: '.$payment->payment_date?->format('d/m/Y'),
             'Ver recibo: '.$receiptUrl,
         ]);

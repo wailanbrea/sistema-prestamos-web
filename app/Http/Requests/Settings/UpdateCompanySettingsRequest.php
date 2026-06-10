@@ -26,6 +26,8 @@ class UpdateCompanySettingsRequest extends FormRequest
             'email' => ['nullable', 'email', 'max:150'],
             'address' => ['nullable', 'string', 'max:2000'],
             'currency' => ['required', Rule::in(array_keys(config('loan_labels.currencies')))],
+            'default_loan_currency' => ['required', Rule::in(array_keys(config('loan_labels.currencies')))],
+            'default_account_payable_currency' => ['required', Rule::in(array_keys(config('loan_labels.currencies')))],
             'default_interest_rate' => ['required', 'numeric', 'min:0', 'max:999.9999'],
             'default_late_fee_type' => ['required', Rule::in(['none', 'fixed', 'daily_percentage', 'daily_fixed'])],
             'default_late_fee_value' => ['required', 'numeric', 'min:0', 'max:999999999.99'],
@@ -37,6 +39,9 @@ class UpdateCompanySettingsRequest extends FormRequest
             'require_approval_for_loans' => ['nullable', 'boolean'],
             'exclude_sundays_for_daily_loans' => ['nullable', 'boolean'],
             'route_visit_radius_meters' => ['required', 'integer', 'min:20', 'max:500'],
+            'default_map_address' => ['nullable', 'string', 'max:2000'],
+            'default_map_latitude' => ['nullable', 'numeric', 'between:-90,90'],
+            'default_map_longitude' => ['nullable', 'numeric', 'between:-180,180'],
         ];
 
         // Solo quien tiene la habilidad puede cambiar el tipo de licencia (plan);

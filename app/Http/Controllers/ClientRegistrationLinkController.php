@@ -7,6 +7,7 @@ namespace App\Http\Controllers;
 use App\Http\Requests\Clients\StoreClientRegistrationLinkRequest;
 use App\Http\Requests\Clients\SubmitClientRegistrationRequest;
 use App\Services\Clients\ClientRegistrationLinkService;
+use App\Models\CompanySetting;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\View\View;
@@ -37,7 +38,7 @@ class ClientRegistrationLinkController extends Controller
         );
 
         $formUrl = route('client-registration.show', $link->token);
-        $message = 'Hola'.($link->recipient_name ? ' '.$link->recipient_name : '').', completa tu formulario de registro aquí: '.$formUrl;
+        $message = 'Hola'.($link->recipient_name ? ' '.$link->recipient_name : '').', completa tu formulario de registro aqui: '.$formUrl;
         $whatsAppUrl = $link->recipient_phone
             ? 'https://wa.me/'.$this->normalizePhone($link->recipient_phone).'?text='.rawurlencode($message)
             : null;
@@ -54,12 +55,16 @@ class ClientRegistrationLinkController extends Controller
         try {
             $link = $this->linkService->findAvailableByToken($token);
         } catch (InvalidArgumentException) {
-            abort(410, 'Este enlace ya no está disponible.');
+            abort(410, 'Este enlace ya no esta disponible.');
         }
 
         return view('public.client-registration', [
             'link' => $link,
             'googleMapsApiKey' => (string) config('services.google_maps.api_key'),
+            'defaultMapCenter' => [
+                'lat' => (float) (CompanySetting::query()->where('company_id', $link->company_id)->value('default_map_latitude') ?: 18.4861),
+                'lng' => (float) (CompanySetting::query()->where('company_id', $link->company_id)->value('default_map_longitude') ?: -69.9312),
+            ],
         ]);
     }
 
@@ -69,11 +74,11 @@ class ClientRegistrationLinkController extends Controller
             $link = $this->linkService->findAvailableByToken($token);
             $this->linkService->registerClientFromLink($link, $request->validated());
         } catch (InvalidArgumentException $exception) {
-            if ($exception->getMessage() === 'El código ya existe en esta empresa.') {
+            if ($exception->getMessage() === 'El codigo ya existe en esta empresa.') {
                 return back()->withInput()->withErrors(['code' => $exception->getMessage()]);
             }
 
-            abort(410, 'Este enlace ya no está disponible.');
+            abort(410, 'Este enlace ya no esta disponible.');
         }
 
         return redirect()->route('client-registration.success', $token);
