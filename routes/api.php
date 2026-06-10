@@ -47,7 +47,15 @@ Route::prefix('v2')->name('api.v2.')->group(function (): void {
         // cartera y no debe ver la cartera completa de la empresa (eso va por /collector/*).
         Route::prefix('admin')->name('admin.')->group(function (): void {
             Route::get('/clients', [AdminController::class, 'clients'])->middleware('permission:collectors.manage')->name('clients');
+            // clients.create se valida en el FormRequest (mismo contrato que la web).
+            Route::post('/clients', [AdminController::class, 'storeClient'])->middleware('permission:collectors.manage')->name('clients.store');
             Route::get('/clients/{client}', [AdminController::class, 'client'])->middleware('permission:collectors.manage')->whereNumber('client')->name('clients.show');
+
+            // Cotizaciones (mismo gate que la web: quotes.manage).
+            Route::get('/quotes', [AdminController::class, 'quotes'])->middleware('permission:quotes.manage')->name('quotes');
+            Route::post('/quotes', [AdminController::class, 'storeQuote'])->middleware('permission:quotes.manage')->name('quotes.store');
+            Route::get('/quotes/{quote}', [AdminController::class, 'quote'])->middleware('permission:quotes.manage')->whereNumber('quote')->name('quotes.show');
+            Route::delete('/quotes/{quote}', [AdminController::class, 'destroyQuote'])->middleware('permission:quotes.manage')->whereNumber('quote')->name('quotes.destroy');
             Route::get('/loans', [AdminController::class, 'loans'])->middleware('permission:collectors.manage')->name('loans');
             Route::get('/loans/{loan}', [AdminController::class, 'loan'])->middleware('permission:collectors.manage')->whereNumber('loan')->name('loans.show');
             Route::get('/loans/{loan}/documents', [AdminController::class, 'loanDocuments'])->middleware('permission:collectors.manage')->whereNumber('loan')->name('loans.documents');

@@ -141,6 +141,78 @@ class ApiV2AdminTest extends TestCase
         $this->assertSame(1, Payment::query()->where('loan_id', $activeLoan->id)->count());
     }
 
+    public function test_admin_can_create_client(): void
+    {
+        [$admin] = $this->adminUser();
+        $token = $this->loginToken($admin);
+
+        $this->withToken($token)
+            ->postJson('/api/v2/admin/clients', [
+                'full_name' => 'Cliente Móvil Nuevo',
+                'identification' => '001-2222222-2',
+                'phone' => '809-555-0101',
+                'address' => 'Av. Principal #1, Santo Domingo',
+                'monthly_income' => 35000,
+                'status' => 'active',
+                'risk_level' => 'low',
+            ])
+            ->assertCreated()
+            ->assertJsonPath('data.full_name', 'Cliente Móvil Nuevo')
+            ->assertJsonPath('data.status', 'active');
+
+        $this->assertDatabaseHas('clients', ['full_name' => 'Cliente Móvil Nuevo']);
+
+        // La dirección es obligatoria (mismo contrato que la web).
+        $this->withToken($token)
+            ->postJson('/api/v2/admin/clients', [
+                'full_name' => 'Sin Dirección',
+                'status' => 'active',
+                'risk_level' => 'low',
+            ])
+            ->assertStatus(422)
+            ->assertJsonValidationErrors(['address']);
+    }
+
+    public function test_admin_can_create_and_browse_quotes(): void
+    {
+        [$admin, $company] = $this->adminUser();
+        [$client] = $this->seedPortfolio($company->id);
+        $token = $this->loginToken($admin);
+
+        $created = $this->withToken($token)
+            ->postJson('/api/v2/admin/quotes', [
+                'client_id' => $client->id,
+                'amount' => 10000,
+                'interest_rate' => 10,
+                'interest_type' => 'fixed',
+                'payment_frequency' => 'weekly',
+                'calculation_method' => 'flat_interest',
+                'term_quantity' => 10,
+            ])
+            ->assertCreated()
+            ->assertJsonPath('data.client.id', $client->id)
+            ->assertJsonStructure(['data' => ['installment_amount', 'total_interest', 'total_amount', 'installments']]);
+
+        $quoteId = $created->json('data.id');
+
+        $this->withToken($token)
+            ->getJson('/api/v2/admin/quotes')
+            ->assertOk()
+            ->assertJsonPath('data.0.id', $quoteId);
+
+        $this->withToken($token)
+            ->getJson("/api/v2/admin/quotes/{$quoteId}")
+            ->assertOk()
+            ->assertJsonPath('data.id', $quoteId)
+            ->assertJsonStructure(['data' => ['installments']]);
+
+        $this->withToken($token)
+            ->deleteJson("/api/v2/admin/quotes/{$quoteId}")
+            ->assertOk();
+
+        $this->assertDatabaseMissing('loan_quotes', ['id' => $quoteId]);
+    }
+
     public function test_collector_is_forbidden_from_admin_endpoints(): void
     {
         [$admin, $company] = $this->adminUser();
