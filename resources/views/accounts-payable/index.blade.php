@@ -61,14 +61,16 @@
                             <th>Fechas</th>
                             <th class="text-end">Saldo</th>
                             <th>Estado</th>
+                            <th class="text-end">Acciones</th>
                         </tr>
                     </thead>
                     <tbody>
                         @forelse ($accounts as $account)
+                            @php($accountCurrency = $account->currency ?? currency())
                             <tr>
                                 <td>
                                     <a href="{{ route('accounts-payable.show', $account) }}" class="fw-semibold text-decoration-none">{{ $account->reference }}</a>
-                                    <div class="small text-muted">{{ currency() }} {{ number_format((float) $account->principal_amount, 2) }} tomados</div>
+                                    <div class="small text-muted">{{ $accountCurrency }} {{ number_format((float) $account->principal_amount, 2) }} tomados</div>
                                 </td>
                                 <td>
                                     <div>{{ $account->creditor?->name ?: 'Sin acreedor' }}</div>
@@ -86,14 +88,26 @@
                                     <div class="small text-muted">Primer pago: {{ $account->first_payment_date?->format('d/m/Y') }}</div>
                                 </td>
                                 <td class="text-end">
-                                    <div class="fw-semibold">{{ currency() }} {{ number_format((float) $account->remaining_balance, 2) }}</div>
-                                    <div class="small text-muted">Pagado capital: {{ currency() }} {{ number_format((float) $account->paid_principal, 2) }}</div>
+                                    <div class="fw-semibold">{{ $accountCurrency }} {{ number_format((float) $account->remaining_balance, 2) }}</div>
+                                    <div class="small text-muted">Pagado capital: {{ $accountCurrency }} {{ number_format((float) $account->paid_principal, 2) }}</div>
                                 </td>
                                 <td>@include('partials.status-badge', ['map' => 'account_payable_statuses', 'value' => $account->status])</td>
+                                <td class="text-end">
+                                    @if (($account->payments_count ?? 0) === 0)
+                                        <a href="{{ route('accounts-payable.edit', $account) }}" class="btn btn-sm btn-outline-primary">Editar</a>
+                                        <form action="{{ route('accounts-payable.destroy', $account) }}" method="POST" class="d-inline" onsubmit="return confirm('¿Eliminar esta cuenta por pagar? Solo es posible si no tiene pagos registrados.');">
+                                            @csrf
+                                            @method('DELETE')
+                                            <button type="submit" class="btn btn-sm btn-outline-danger">Eliminar</button>
+                                        </form>
+                                    @else
+                                        <span class="text-muted small">Con pagos</span>
+                                    @endif
+                                </td>
                             </tr>
                         @empty
                             <tr>
-                                <td colspan="6" class="text-center text-muted py-5">No hay cuentas por pagar registradas.</td>
+                                <td colspan="7" class="text-center text-muted py-5">No hay cuentas por pagar registradas.</td>
                             </tr>
                         @endforelse
                     </tbody>

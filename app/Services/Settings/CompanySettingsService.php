@@ -33,6 +33,8 @@ class CompanySettingsService
             }
             $settingsData = [
                 'currency' => $data['currency'],
+                'default_loan_currency' => $data['default_loan_currency'],
+                'default_account_payable_currency' => $data['default_account_payable_currency'],
                 'default_interest_rate' => $data['default_interest_rate'],
                 'default_late_fee_type' => $data['default_late_fee_type'],
                 'default_late_fee_value' => $data['default_late_fee_value'],
@@ -44,6 +46,9 @@ class CompanySettingsService
                 'require_approval_for_loans' => (bool) ($data['require_approval_for_loans'] ?? false),
                 'exclude_sundays_for_daily_loans' => (bool) ($data['exclude_sundays_for_daily_loans'] ?? false),
                 'route_visit_radius_meters' => (int) $data['route_visit_radius_meters'],
+                'default_map_address' => $data['default_map_address'] ?? null,
+                'default_map_latitude' => $data['default_map_latitude'] ?? null,
+                'default_map_longitude' => $data['default_map_longitude'] ?? null,
             ];
 
             $oldValues = [

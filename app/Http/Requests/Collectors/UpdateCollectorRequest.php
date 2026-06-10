@@ -33,6 +33,7 @@ class UpdateCollectorRequest extends FormRequest
                 'nullable',
                 'integer',
                 Rule::exists('users', 'id')->where('company_id', $companyId),
+                Rule::unique('collectors', 'user_id')->ignore($this->route('collector')),
             ],
             'name' => ['required', 'string', 'max:150'],
             'phone' => ['nullable', 'string', 'max:50'],

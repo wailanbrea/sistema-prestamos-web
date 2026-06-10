@@ -7,6 +7,8 @@ namespace App\Services\AccountsPayable;
 use App\Models\AccountPayable;
 use App\Models\AccountPayableInstallment;
 use App\Models\AccountPayablePayment;
+use App\Models\CashMovement;
+use App\Models\CompanySetting;
 use App\Services\Audit\AuditService;
 use App\Services\Cash\CashMovementService;
 use App\Services\Loans\LoanCalculatorService;
@@ -34,6 +36,7 @@ class AccountPayableService
     {
         return AccountPayable::query()
             ->with('creditor:id,name,phone')
+            ->withCount('payments')
             ->forCompany($companyId)
             ->when($filters['search'] ?? null, function (Builder $query, string $search): void {
                 $query->where(function (Builder $nested) use ($search): void {
@@ -66,6 +69,7 @@ class AccountPayableService
                 'company_id' => $companyId,
                 'creditor_id' => $data['creditor_id'],
                 'reference' => $this->referenceNumber($companyId),
+                'currency' => $data['currency'] ?? (CompanySetting::query()->where('company_id', $companyId)->value('default_account_payable_currency') ?: 'RD$'),
                 'principal_amount' => $data['principal_amount'],
                 'interest_rate' => $data['interest_rate'],
                 'interest_type' => $data['interest_type'],
@@ -122,6 +126,86 @@ class AccountPayableService
             ->forCompany($companyId)
             ->whereKey($accountId)
             ->firstOrFail();
+    }
+
+    /**
+     * @param array<string, mixed> $data
+     */
+    public function update(int $companyId, int $accountId, array $data, int $updatedBy): AccountPayable
+    {
+        return DB::transaction(function () use ($companyId, $accountId, $data, $updatedBy): AccountPayable {
+            /** @var AccountPayable $account */
+            $account = AccountPayable::query()
+                ->forCompany($companyId)
+                ->whereKey($accountId)
+                ->lockForUpdate()
+                ->firstOrFail();
+
+            if ($account->payments()->exists()) {
+                throw new InvalidArgumentException('No puedes editar una cuenta por pagar que ya tiene pagos registrados.');
+            }
+
+            $calculation = $this->calculator->calculate(
+                principal: (float) $data['principal_amount'],
+                annualRate: (float) $data['interest_rate'],
+                termQuantity: (int) $data['term_quantity'],
+                method: (string) $data['calculation_method'],
+            );
+
+            $oldValues = $account->fresh(['installments'])?->toArray() ?? $account->toArray();
+
+            $account->forceFill([
+                'creditor_id' => $data['creditor_id'],
+                'currency' => $data['currency'] ?? $account->currency,
+                'principal_amount' => $data['principal_amount'],
+                'interest_rate' => $data['interest_rate'],
+                'interest_type' => $data['interest_type'],
+                'payment_frequency' => $data['payment_frequency'],
+                'calculation_method' => $data['calculation_method'],
+                'term_quantity' => $data['term_quantity'],
+                'installment_amount' => $calculation['installment_amount'],
+                'total_interest' => $calculation['total_interest'],
+                'total_amount' => $calculation['total_amount'],
+                'remaining_balance' => $data['principal_amount'],
+                'late_fee_type' => $data['late_fee_type'],
+                'late_fee_value' => $data['late_fee_value'],
+                'disbursement_date' => $data['disbursement_date'],
+                'first_payment_date' => $data['first_payment_date'],
+                'notes' => $data['notes'] ?? null,
+                'paid_principal' => 0,
+                'paid_interest' => 0,
+                'paid_late_fee' => 0,
+                'status' => 'active',
+                'end_date' => null,
+            ])->save();
+
+            $account->installments()->delete();
+            $this->createInstallments($account, $calculation);
+
+            CashMovement::query()
+                ->where('company_id', $companyId)
+                ->where('type', 'accounts_payable_disbursement')
+                ->where('reference_type', $account->getMorphClass())
+                ->where('reference_id', $account->id)
+                ->update([
+                    'amount' => (float) $account->principal_amount,
+                    'movement_date' => $account->disbursement_date->toDateString(),
+                    'description' => "Préstamo tomado {$account->reference}",
+                ]);
+
+            $this->auditService->record(
+                action: 'account_payable_updated',
+                module: 'accounts_payable',
+                companyId: $companyId,
+                userId: $updatedBy,
+                auditable: $account,
+                description: "Cuenta por pagar actualizada {$account->reference}.",
+                oldValues: $oldValues,
+                newValues: $account->fresh(['creditor', 'installments'])?->toArray(),
+            );
+
+            return $account->fresh(['creditor', 'installments']) ?? $account;
+        });
     }
 
     /**
@@ -251,6 +335,43 @@ class AccountPayableService
             );
 
             return $payment;
+        });
+    }
+
+    public function delete(int $companyId, int $accountId, int $deletedBy): void
+    {
+        DB::transaction(function () use ($companyId, $accountId, $deletedBy): void {
+            /** @var AccountPayable $account */
+            $account = AccountPayable::query()
+                ->with(['installments', 'payments'])
+                ->forCompany($companyId)
+                ->whereKey($accountId)
+                ->lockForUpdate()
+                ->firstOrFail();
+
+            if ($account->payments->isNotEmpty()) {
+                throw new InvalidArgumentException('No puedes eliminar una cuenta por pagar que ya tiene pagos registrados.');
+            }
+
+            $snapshot = $account->toArray();
+
+            CashMovement::query()
+                ->where('company_id', $companyId)
+                ->where('type', 'accounts_payable_disbursement')
+                ->where('reference_type', $account->getMorphClass())
+                ->where('reference_id', $account->id)
+                ->delete();
+
+            $account->delete();
+
+            $this->auditService->record(
+                action: 'account_payable_deleted',
+                module: 'accounts_payable',
+                companyId: $companyId,
+                userId: $deletedBy,
+                description: "Cuenta por pagar eliminada {$snapshot['reference']}.",
+                oldValues: $snapshot,
+            );
         });
     }
 

@@ -27,6 +27,7 @@ class UpdateLoanRequest extends FormRequest
             'guarantee_description' => ['nullable', 'string', 'max:3000'],
             'notes' => ['nullable', 'string', 'max:3000'],
             'allows_capital_prepayment' => ['nullable', 'boolean'],
+            'currency' => ['nullable', Rule::in(array_keys(config('loan_labels.currencies')))],
 
             // Condiciones financieras (solo se aplican si el préstamo no tiene pagos válidos).
             'principal_amount' => ['nullable', 'numeric', 'min:1', 'max:9999999999.99'],
@@ -49,6 +50,7 @@ class UpdateLoanRequest extends FormRequest
     {
         return [
             'collector_id' => 'cobrador',
+            'currency' => 'moneda',
             'principal_amount' => 'monto principal',
             'interest_rate' => 'tasa de interés',
             'payment_frequency' => 'frecuencia de pago',

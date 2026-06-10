@@ -3,6 +3,7 @@
 @section('title', $account->reference.' - '.config('app.name'))
 
 @section('content')
+    @php($accountCurrency = $account->currency ?? currency())
     <section class="mb-4">
         <div class="d-flex flex-column flex-lg-row align-items-lg-start justify-content-between gap-3">
             <div>
@@ -10,11 +11,25 @@
                 <p class="text-muted mb-0">{{ $account->creditor?->name ?: 'Sin acreedor' }}</p>
                 <div class="mt-2">@include('partials.status-badge', ['map' => 'account_payable_statuses', 'value' => $account->status])</div>
             </div>
-            @if (in_array($account->status, ['active', 'late'], true))
-                <button type="button" class="btn btn-primary" data-bs-toggle="collapse" data-bs-target="#paymentForm">
-                    <i class="fa-solid fa-money-bill-wave me-2"></i> Registrar pago
-                </button>
-            @endif
+            <div class="d-flex flex-wrap gap-2">
+                @if ($account->payments->isEmpty())
+                    <a href="{{ route('accounts-payable.edit', $account) }}" class="btn btn-outline-primary">
+                        <i class="fa-solid fa-pen me-2"></i> Editar
+                    </a>
+                    <form action="{{ route('accounts-payable.destroy', $account) }}" method="POST" onsubmit="return confirm('¿Eliminar esta cuenta por pagar? Solo es posible si no tiene pagos registrados.');">
+                        @csrf
+                        @method('DELETE')
+                        <button type="submit" class="btn btn-outline-danger">
+                            <i class="fa-solid fa-trash me-2"></i> Eliminar
+                        </button>
+                    </form>
+                @endif
+                @if (in_array($account->status, ['active', 'late'], true))
+                    <button type="button" class="btn btn-primary" data-bs-toggle="collapse" data-bs-target="#paymentForm">
+                        <i class="fa-solid fa-money-bill-wave me-2"></i> Registrar pago
+                    </button>
+                @endif
+            </div>
         </div>
     </section>
 
@@ -23,7 +38,7 @@
             <div class="card content-card h-100">
                 <div class="card-body">
                     <div class="text-muted small text-uppercase">Capital tomado</div>
-                    <div class="fs-4 fw-bold">{{ currency() }} {{ number_format((float) $account->principal_amount, 2) }}</div>
+                    <div class="fs-4 fw-bold">{{ $accountCurrency }} {{ number_format((float) $account->principal_amount, 2) }}</div>
                 </div>
             </div>
         </div>
@@ -31,7 +46,7 @@
             <div class="card content-card h-100">
                 <div class="card-body">
                     <div class="text-muted small text-uppercase">Saldo capital</div>
-                    <div class="fs-4 fw-bold">{{ currency() }} {{ number_format((float) $account->remaining_balance, 2) }}</div>
+                    <div class="fs-4 fw-bold">{{ $accountCurrency }} {{ number_format((float) $account->remaining_balance, 2) }}</div>
                 </div>
             </div>
         </div>
@@ -39,7 +54,7 @@
             <div class="card content-card h-100">
                 <div class="card-body">
                     <div class="text-muted small text-uppercase">Interes pagado</div>
-                    <div class="fs-4 fw-bold">{{ currency() }} {{ number_format((float) $account->paid_interest, 2) }}</div>
+                    <div class="fs-4 fw-bold">{{ $accountCurrency }} {{ number_format((float) $account->paid_interest, 2) }}</div>
                 </div>
             </div>
         </div>
@@ -47,7 +62,7 @@
             <div class="card content-card h-100">
                 <div class="card-body">
                     <div class="text-muted small text-uppercase">Mora pagada</div>
-                    <div class="fs-4 fw-bold">{{ currency() }} {{ number_format((float) $account->paid_late_fee, 2) }}</div>
+                    <div class="fs-4 fw-bold">{{ $accountCurrency }} {{ number_format((float) $account->paid_late_fee, 2) }}</div>
                 </div>
             </div>
         </div>
@@ -69,7 +84,7 @@
                             <div class="col-12 col-md-4">
                                 <label for="amount" class="form-label">Monto</label>
                                 <div class="input-group">
-                                    <span class="input-group-text">{{ currency() }}</span>
+                                    <span class="input-group-text">{{ $accountCurrency }}</span>
                                     <input id="amount" name="amount" type="number" step="0.01" min="0.01" value="{{ old('amount') }}" class="form-control @error('amount') is-invalid @enderror" required>
                                 </div>
                                 @error('amount') <div class="invalid-feedback d-block">{{ $message }}</div> @enderror
@@ -108,9 +123,10 @@
                         <div class="d-flex justify-content-between gap-3"><span class="text-muted">Frecuencia</span><span>{{ config('loan_labels.frequencies.'.$account->payment_frequency, $account->payment_frequency) }}</span></div>
                         <div class="d-flex justify-content-between gap-3"><span class="text-muted">Metodo</span><span>{{ config('loan_labels.methods.'.$account->calculation_method, $account->calculation_method) }}</span></div>
                         <div class="d-flex justify-content-between gap-3"><span class="text-muted">Tasa</span><span>{{ rtrim(rtrim(number_format((float) $account->interest_rate, 4, '.', ''), '0'), '.') }}%</span></div>
-                        <div class="d-flex justify-content-between gap-3"><span class="text-muted">Cuota</span><span>{{ currency() }} {{ number_format((float) $account->installment_amount, 2) }}</span></div>
-                        <div class="d-flex justify-content-between gap-3"><span class="text-muted">Total interes</span><span>{{ currency() }} {{ number_format((float) $account->total_interest, 2) }}</span></div>
-                        <div class="d-flex justify-content-between gap-3"><span class="text-muted">Total a pagar</span><span>{{ currency() }} {{ number_format((float) $account->total_amount, 2) }}</span></div>
+                        <div class="d-flex justify-content-between gap-3"><span class="text-muted">Moneda</span><span>{{ $accountCurrency }}</span></div>
+                        <div class="d-flex justify-content-between gap-3"><span class="text-muted">Cuota</span><span>{{ $accountCurrency }} {{ number_format((float) $account->installment_amount, 2) }}</span></div>
+                        <div class="d-flex justify-content-between gap-3"><span class="text-muted">Total interes</span><span>{{ $accountCurrency }} {{ number_format((float) $account->total_interest, 2) }}</span></div>
+                        <div class="d-flex justify-content-between gap-3"><span class="text-muted">Total a pagar</span><span>{{ $accountCurrency }} {{ number_format((float) $account->total_amount, 2) }}</span></div>
                         <div class="d-flex justify-content-between gap-3"><span class="text-muted">Desembolso</span><span>{{ $account->disbursement_date?->format('d/m/Y') }}</span></div>
                         <div class="d-flex justify-content-between gap-3"><span class="text-muted">Primer pago</span><span>{{ $account->first_payment_date?->format('d/m/Y') }}</span></div>
                     </div>
@@ -145,14 +161,14 @@
                                     <tr>
                                         <td>
                                             <div class="fw-semibold">{{ $payment->payment_number }}</div>
-                                            <div class="small text-muted">Saldo: {{ currency() }} {{ number_format((float) $payment->new_balance, 2) }}</div>
+                                            <div class="small text-muted">Saldo: {{ $accountCurrency }} {{ number_format((float) $payment->new_balance, 2) }}</div>
                                         </td>
                                         <td>{{ $payment->payment_date?->format('d/m/Y') }}</td>
                                         <td>{{ config('loan_labels.payment_methods.'.$payment->payment_method, $payment->payment_method) }}</td>
-                                        <td class="text-end">{{ currency() }} {{ number_format((float) $payment->amount, 2) }}</td>
-                                        <td class="text-end">{{ currency() }} {{ number_format((float) $payment->principal_paid, 2) }}</td>
-                                        <td class="text-end">{{ currency() }} {{ number_format((float) $payment->interest_paid, 2) }}</td>
-                                        <td class="text-end">{{ currency() }} {{ number_format((float) $payment->late_fee_paid, 2) }}</td>
+                                        <td class="text-end">{{ $accountCurrency }} {{ number_format((float) $payment->amount, 2) }}</td>
+                                        <td class="text-end">{{ $accountCurrency }} {{ number_format((float) $payment->principal_paid, 2) }}</td>
+                                        <td class="text-end">{{ $accountCurrency }} {{ number_format((float) $payment->interest_paid, 2) }}</td>
+                                        <td class="text-end">{{ $accountCurrency }} {{ number_format((float) $payment->late_fee_paid, 2) }}</td>
                                     </tr>
                                 @empty
                                     <tr>
@@ -193,10 +209,10 @@
                                         <div class="small text-danger">{{ (int) $installment->days_late }} dias atraso</div>
                                     @endif
                                 </td>
-                                <td class="text-end">{{ currency() }} {{ number_format((float) $installment->principal_amount, 2) }}</td>
-                                <td class="text-end">{{ currency() }} {{ number_format((float) $installment->interest_amount, 2) }}</td>
-                                <td class="text-end">{{ currency() }} {{ number_format((float) $installment->late_fee, 2) }}</td>
-                                <td class="text-end">{{ currency() }} {{ number_format((float) $installment->total_paid, 2) }}</td>
+                                <td class="text-end">{{ $accountCurrency }} {{ number_format((float) $installment->principal_amount, 2) }}</td>
+                                <td class="text-end">{{ $accountCurrency }} {{ number_format((float) $installment->interest_amount, 2) }}</td>
+                                <td class="text-end">{{ $accountCurrency }} {{ number_format((float) $installment->late_fee, 2) }}</td>
+                                <td class="text-end">{{ $accountCurrency }} {{ number_format((float) $installment->total_paid, 2) }}</td>
                                 <td>@include('partials.status-badge', ['map' => 'installment_statuses', 'value' => $installment->status])</td>
                             </tr>
                         @endforeach

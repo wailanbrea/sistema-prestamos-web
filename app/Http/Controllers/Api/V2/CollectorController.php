@@ -10,11 +10,14 @@ use App\Models\Client;
 use App\Models\Collector;
 use App\Models\CollectorCommission;
 use App\Models\CollectorRouteSession;
+use App\Models\Document;
 use App\Models\Loan;
 use App\Models\LoanInstallment;
 use App\Models\Payment;
-use App\Services\Payments\PaymentReceiptShareService;
 use App\Models\Route as LendingRoute;
+use App\Services\Documents\DocumentGenerationService;
+use App\Services\Documents\DocumentShareService;
+use App\Services\Payments\PaymentReceiptShareService;
 use App\Services\Payments\PaymentService;
 use App\Services\Routes\RouteTrackingService;
 use Carbon\CarbonImmutable;
@@ -34,6 +37,8 @@ class CollectorController extends Controller
         private readonly PaymentService $paymentService,
         private readonly RouteTrackingService $routeTrackingService,
         private readonly PaymentReceiptShareService $receiptShareService,
+        private readonly DocumentGenerationService $documentGenerationService,
+        private readonly DocumentShareService $documentShareService,
     ) {
     }
 
@@ -311,8 +316,47 @@ class CollectorController extends Controller
                 'payments' => $loanModel->payments
                     ->map(fn (Payment $payment): array => $this->paymentPayload($payment))
                     ->values(),
+                'documents' => $this->loanDocumentPayloads($loanModel),
             ],
         ]);
+    }
+
+    public function loanDocuments(Request $request, int $loan): JsonResponse
+    {
+        $collector = $this->collectorForUser($request);
+        $loanModel = $this->assignedLoanQuery($collector)
+            ->with('client:id,full_name')
+            ->whereKey($loan)
+            ->firstOrFail();
+
+        return response()->json([
+            'data' => $this->loanDocumentPayloads($loanModel),
+        ]);
+    }
+
+    public function generateLoanDocument(Request $request, int $loan): JsonResponse
+    {
+        $collector = $this->collectorForUser($request);
+        $validated = $request->validate([
+            'document_type' => ['required', 'in:'.implode(',', $this->documentGenerationService->supportedLoanDocumentTypes())],
+        ]);
+
+        $loanModel = $this->assignedLoanQuery($collector)->whereKey($loan)->firstOrFail();
+
+        try {
+            $document = $this->documentGenerationService->generateOrReuseLoanDocument(
+                (int) $collector->company_id,
+                (int) $loanModel->id,
+                $validated['document_type'],
+                (int) $request->user()->id,
+            );
+        } catch (InvalidArgumentException $exception) {
+            return response()->json(['message' => $exception->getMessage()], 422);
+        }
+
+        return response()->json([
+            'data' => $this->documentPayload($document, true),
+        ], 201);
     }
 
     public function installments(Request $request): JsonResponse
@@ -581,5 +625,58 @@ class CollectorController extends Controller
             'status' => $commission->status,
             'paid_at' => $commission->paid_at?->toDateTimeString(),
         ];
+    }
+
+    /**
+     * @return array<int, array<string, mixed>>
+     */
+    private function loanDocumentPayloads(Loan $loan): array
+    {
+        return collect($this->documentGenerationService->supportedLoanDocumentTypes())
+            ->filter(fn (string $type): bool => $type !== 'balance_letter' || $loan->status === 'paid')
+            ->map(function (string $type) use ($loan): array {
+                $document = Document::query()
+                    ->where('company_id', $loan->company_id)
+                    ->where('loan_id', $loan->id)
+                    ->where('document_type', $type)
+                    ->latest('id')
+                    ->first();
+
+                return $this->documentPayload($document, false, $type);
+            })
+            ->values()
+            ->all();
+    }
+
+    /**
+     * @return array<string, mixed>
+     */
+    private function documentPayload(?Document $document, bool $generated = false, ?string $expectedType = null): array
+    {
+        $documentType = $document?->document_type ?? $expectedType ?? 'document';
+
+        return [
+            'document_type' => $documentType,
+            'label' => $this->documentLabel($documentType),
+            'generated' => $document !== null,
+            'document_id' => $document?->id,
+            'title' => $document?->title,
+            'download_url' => $document ? $this->documentShareService->publicDownloadUrl($document) : null,
+            'created_at' => $document?->created_at?->toDateTimeString(),
+            'just_generated' => $generated,
+        ];
+    }
+
+    private function documentLabel(string $documentType): string
+    {
+        return match ($documentType) {
+            'promissory_note' => 'Pagare notarial',
+            'loan_contract' => 'Contrato de prestamo',
+            'disbursement_receipt' => 'Comprobante de desembolso',
+            'payment_receipt' => 'Recibo de pago',
+            'balance_letter' => 'Carta de saldo',
+            'account_statement' => 'Estado de cuenta',
+            default => 'Documento',
+        };
     }
 }

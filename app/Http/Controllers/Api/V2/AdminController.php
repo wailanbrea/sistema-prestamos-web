@@ -7,9 +7,12 @@ namespace App\Http\Controllers\Api\V2;
 use App\Http\Controllers\Api\V2\Concerns\BuildsApiPayloads;
 use App\Http\Controllers\Controller;
 use App\Models\Client;
+use App\Models\Document;
 use App\Models\Loan;
 use App\Models\LoanInstallment;
 use App\Models\Payment;
+use App\Services\Documents\DocumentGenerationService;
+use App\Services\Documents\DocumentShareService;
 use App\Services\Loans\LoanService;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Http\JsonResponse;
@@ -17,18 +20,15 @@ use Illuminate\Http\Request;
 use Illuminate\Validation\Rule;
 use InvalidArgumentException;
 
-/**
- * Endpoints de back-office para la app móvil (roles Administrador/Supervisor):
- * vista global de clientes y préstamos de la empresa, y bandeja de aprobación
- * de préstamos pendientes. A diferencia de CollectorController, no se restringe
- * a la cartera de un cobrador; solo se aísla por empresa.
- */
 class AdminController extends Controller
 {
     use BuildsApiPayloads;
 
-    public function __construct(private readonly LoanService $loanService)
-    {
+    public function __construct(
+        private readonly LoanService $loanService,
+        private readonly DocumentGenerationService $documentGenerationService,
+        private readonly DocumentShareService $documentShareService,
+    ) {
     }
 
     public function clients(Request $request): JsonResponse
@@ -156,8 +156,46 @@ class AdminController extends Controller
                 'payments' => $loanModel->payments
                     ->map(fn (Payment $payment): array => $this->paymentPayload($payment))
                     ->values(),
+                'documents' => $this->loanDocumentPayloads($loanModel),
             ],
         ]);
+    }
+
+    public function loanDocuments(Request $request, int $loan): JsonResponse
+    {
+        $companyId = (int) $request->user()->company_id;
+        $loanModel = Loan::query()
+            ->forCompany($companyId)
+            ->with('client:id,full_name')
+            ->whereKey($loan)
+            ->firstOrFail();
+
+        return response()->json([
+            'data' => $this->loanDocumentPayloads($loanModel),
+        ]);
+    }
+
+    public function generateLoanDocument(Request $request, int $loan): JsonResponse
+    {
+        $companyId = (int) $request->user()->company_id;
+        $validated = $request->validate([
+            'document_type' => ['required', 'in:'.implode(',', $this->documentGenerationService->supportedLoanDocumentTypes())],
+        ]);
+
+        try {
+            $document = $this->documentGenerationService->generateOrReuseLoanDocument(
+                $companyId,
+                $loan,
+                $validated['document_type'],
+                (int) $request->user()->id,
+            );
+        } catch (InvalidArgumentException $exception) {
+            return response()->json(['message' => $exception->getMessage()], 422);
+        }
+
+        return response()->json([
+            'data' => $this->documentPayload($document, true),
+        ], 201);
     }
 
     public function approvals(Request $request): JsonResponse
@@ -213,8 +251,6 @@ class AdminController extends Controller
     }
 
     /**
-     * Resumen financiero del cliente a nivel empresa (sin restricción de cobrador).
-     *
      * @return array<string, mixed>
      */
     private function clientFinancialSummary(int $companyId, int $clientId): array
@@ -235,5 +271,58 @@ class AdminController extends Controller
             'total_paid' => (float) (clone $paymentQuery)->sum('amount'),
             'last_payment_date' => (clone $paymentQuery)->max('payment_date'),
         ];
+    }
+
+    /**
+     * @return array<int, array<string, mixed>>
+     */
+    private function loanDocumentPayloads(Loan $loan): array
+    {
+        return collect($this->documentGenerationService->supportedLoanDocumentTypes())
+            ->filter(fn (string $type): bool => $type !== 'balance_letter' || $loan->status === 'paid')
+            ->map(function (string $type) use ($loan): array {
+                $document = Document::query()
+                    ->where('company_id', $loan->company_id)
+                    ->where('loan_id', $loan->id)
+                    ->where('document_type', $type)
+                    ->latest('id')
+                    ->first();
+
+                return $this->documentPayload($document, false, $type);
+            })
+            ->values()
+            ->all();
+    }
+
+    /**
+     * @return array<string, mixed>
+     */
+    private function documentPayload(?Document $document, bool $generated = false, ?string $expectedType = null): array
+    {
+        $documentType = $document?->document_type ?? $expectedType ?? 'document';
+
+        return [
+            'document_type' => $documentType,
+            'label' => $this->documentLabel($documentType),
+            'generated' => $document !== null,
+            'document_id' => $document?->id,
+            'title' => $document?->title,
+            'download_url' => $document ? $this->documentShareService->publicDownloadUrl($document) : null,
+            'created_at' => $document?->created_at?->toDateTimeString(),
+            'just_generated' => $generated,
+        ];
+    }
+
+    private function documentLabel(string $documentType): string
+    {
+        return match ($documentType) {
+            'promissory_note' => 'Pagare notarial',
+            'loan_contract' => 'Contrato de prestamo',
+            'disbursement_receipt' => 'Comprobante de desembolso',
+            'payment_receipt' => 'Recibo de pago',
+            'balance_letter' => 'Carta de saldo',
+            'account_statement' => 'Estado de cuenta',
+            default => 'Documento',
+        };
     }
 }

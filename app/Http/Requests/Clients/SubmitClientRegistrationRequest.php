@@ -33,6 +33,8 @@ class SubmitClientRegistrationRequest extends FormRequest
             'workplace_phone' => ['nullable', 'string', 'max:50'],
             'monthly_income' => ['nullable', 'numeric', 'min:0', 'max:9999999999.99'],
             'notes' => ['nullable', 'string', 'max:3000'],
+            'id_front' => ['required', 'file', 'mimes:jpg,jpeg,png,webp', 'max:5120'],
+            'id_back' => ['required', 'file', 'mimes:jpg,jpeg,png,webp', 'max:5120'],
         ];
     }
 }

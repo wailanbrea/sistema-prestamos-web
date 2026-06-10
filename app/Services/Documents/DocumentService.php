@@ -39,4 +39,14 @@ class DocumentService
             ->whereKey($documentId)
             ->firstOrFail();
     }
+
+    public function latestForLoanAndType(int $companyId, int $loanId, string $documentType): ?Document
+    {
+        return Document::query()
+            ->forCompany($companyId)
+            ->where('loan_id', $loanId)
+            ->where('document_type', $documentType)
+            ->latest('id')
+            ->first();
+    }
 }

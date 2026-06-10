@@ -3,6 +3,7 @@
 @section('title', $payment->receipt_number.' - '.config('app.name'))
 
 @section('content')
+    @php($paymentCurrency = $payment->loan->currency ?? currency())
     <section class="mb-4">
         <div class="d-flex flex-column flex-lg-row align-items-lg-start justify-content-between gap-3">
             <div>
@@ -68,7 +69,7 @@
             <div class="card content-card h-100">
                 <div class="card-body">
                     <div class="text-muted small text-uppercase">Monto recibido</div>
-                    <div class="fs-3 fw-bold">{{ currency() }} {{ number_format((float) $payment->amount, 2) }}</div>
+                    <div class="fs-3 fw-bold">{{ $paymentCurrency }} {{ number_format((float) $payment->amount, 2) }}</div>
                     <div class="text-muted">@include('payments.partials.method-label', ['method' => $payment->payment_method]) · {{ $payment->payment_date->format('d/m/Y') }}</div>
                 </div>
             </div>
@@ -77,14 +78,14 @@
             <div class="card content-card h-100">
                 <div class="card-body">
                     <div class="text-muted small text-uppercase">Distribución</div>
-                    <div>Capital: {{ currency() }} {{ number_format((float) $payment->principal_paid, 2) }}</div>
-                    <div>Interés: {{ currency() }} {{ number_format((float) $payment->interest_paid, 2) }}</div>
-                    <div>Mora: {{ currency() }} {{ number_format((float) $payment->late_fee_paid, 2) }}</div>
+                    <div>Capital: {{ $paymentCurrency }} {{ number_format((float) $payment->principal_paid, 2) }}</div>
+                    <div>Interés: {{ $paymentCurrency }} {{ number_format((float) $payment->interest_paid, 2) }}</div>
+                    <div>Mora: {{ $paymentCurrency }} {{ number_format((float) $payment->late_fee_paid, 2) }}</div>
                     @if ((float) $payment->capital_prepaid > 0)
-                        <div class="text-primary">Abono a capital: {{ currency() }} {{ number_format((float) $payment->capital_prepaid, 2) }}</div>
+                        <div class="text-primary">Abono a capital: {{ $paymentCurrency }} {{ number_format((float) $payment->capital_prepaid, 2) }}</div>
                     @endif
                     @if ((float) $payment->change_given > 0)
-                        <div class="text-success">Vuelto al cliente: {{ currency() }} {{ number_format((float) $payment->change_given, 2) }}</div>
+                        <div class="text-success">Vuelto al cliente: {{ $paymentCurrency }} {{ number_format((float) $payment->change_given, 2) }}</div>
                     @endif
                 </div>
             </div>
@@ -93,8 +94,8 @@
             <div class="card content-card h-100">
                 <div class="card-body">
                     <div class="text-muted small text-uppercase">Balance</div>
-                    <div>Anterior: {{ currency() }} {{ number_format((float) $payment->previous_balance, 2) }}</div>
-                    <div>Nuevo: {{ currency() }} {{ number_format((float) $payment->new_balance, 2) }}</div>
+                    <div>Anterior: {{ $paymentCurrency }} {{ number_format((float) $payment->previous_balance, 2) }}</div>
+                    <div>Nuevo: {{ $paymentCurrency }} {{ number_format((float) $payment->new_balance, 2) }}</div>
                     <div>Cobrador: {{ $payment->collector?->name ?: 'Sin cobrador' }}</div>
                 </div>
             </div>
@@ -121,10 +122,10 @@
                             <tr>
                                 <td>#{{ $detail->installment->installment_number }}</td>
                                 <td>{{ $detail->installment->due_date->format('d/m/Y') }}</td>
-                                <td class="text-end">{{ currency() }} {{ number_format((float) $detail->principal_paid, 2) }}</td>
-                                <td class="text-end">{{ currency() }} {{ number_format((float) $detail->interest_paid, 2) }}</td>
-                                <td class="text-end">{{ currency() }} {{ number_format((float) $detail->late_fee_paid, 2) }}</td>
-                                <td class="text-end">{{ currency() }} {{ number_format((float) $detail->amount_paid, 2) }}</td>
+                                <td class="text-end">{{ $paymentCurrency }} {{ number_format((float) $detail->principal_paid, 2) }}</td>
+                                <td class="text-end">{{ $paymentCurrency }} {{ number_format((float) $detail->interest_paid, 2) }}</td>
+                                <td class="text-end">{{ $paymentCurrency }} {{ number_format((float) $detail->late_fee_paid, 2) }}</td>
+                                <td class="text-end">{{ $paymentCurrency }} {{ number_format((float) $detail->amount_paid, 2) }}</td>
                             </tr>
                         @endforeach
                     </tbody>

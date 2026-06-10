@@ -6,6 +6,7 @@ namespace App\Http\Controllers;
 
 use App\Http\Requests\Collectors\StoreCollectorRequest;
 use App\Http\Requests\Collectors\UpdateCollectorRequest;
+use App\Models\Collector as CollectorModel;
 use App\Services\Collectors\CollectorCommissionService;
 use App\Models\User;
 use App\Services\Collectors\CollectorService;
@@ -41,11 +42,22 @@ class CollectorController extends Controller
 
     public function store(StoreCollectorRequest $request): RedirectResponse
     {
-        $collector = $this->collectorService->create((int) $request->user()->company_id, $request->validated());
+        $validated = $request->validated();
+        $collector = $this->collectorService->create((int) $request->user()->company_id, $validated);
 
-        return redirect()
+        $redirect = redirect()
             ->route('collectors.show', $collector)
             ->with('status', 'Cobrador creado correctamente.');
+
+        if (($validated['access_mode'] ?? null) === 'new') {
+            $redirect->with('collector_credentials', [
+                'user_name' => $validated['user_name'] ?: $validated['name'],
+                'email' => $validated['user_email'],
+                'password' => $validated['user_password'],
+            ]);
+        }
+
+        return $redirect;
     }
 
     public function show(Request $request, int $collector): View
@@ -61,9 +73,11 @@ class CollectorController extends Controller
 
     public function edit(Request $request, int $collector): View
     {
+        $collectorModel = $this->collectorService->findForCompany((int) $request->user()->company_id, $collector);
+
         return view('collectors.edit', [
-            'collector' => $this->collectorService->findForCompany((int) $request->user()->company_id, $collector),
-            'users' => $this->companyUsers((int) $request->user()->company_id),
+            'collector' => $collectorModel,
+            'users' => $this->companyUsers((int) $request->user()->company_id, (int) $collectorModel->user_id),
         ]);
     }
 
@@ -108,11 +122,25 @@ class CollectorController extends Controller
     /**
      * @return Collection<int, User>
      */
-    private function companyUsers(int $companyId): Collection
+    private function companyUsers(int $companyId, ?int $includeUserId = null): Collection
     {
+        $linkedUserIds = CollectorModel::query()
+            ->forCompany($companyId)
+            ->pluck('user_id')
+            ->filter()
+            ->all();
+
         return User::query()
             ->where('company_id', $companyId)
             ->where('status', 'active')
+            ->when($linkedUserIds !== [], function ($query) use ($linkedUserIds, $includeUserId): void {
+                $query->where(function ($nested) use ($linkedUserIds, $includeUserId): void {
+                    $nested->whereNotIn('id', $linkedUserIds);
+                    if ($includeUserId) {
+                        $nested->orWhere('id', $includeUserId);
+                    }
+                });
+            })
             ->orderBy('name')
             ->get(['id', 'name', 'email']);
     }

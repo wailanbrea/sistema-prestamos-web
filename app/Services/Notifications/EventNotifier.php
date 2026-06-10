@@ -28,7 +28,7 @@ class EventNotifier
             loanId: (int) $loan->id,
             loanNumber: (string) $loan->loan_number,
             clientName: (string) ($loan->client?->full_name ?? 'Cliente'),
-            amountLabel: $this->money((float) $loan->principal_amount),
+            amountLabel: $this->money((float) $loan->principal_amount, $loan->currency),
         ));
     }
 
@@ -51,7 +51,7 @@ class EventNotifier
             paymentId: (int) $payment->id,
             receiptNumber: (string) $payment->receipt_number,
             clientName: (string) ($payment->client?->full_name ?? 'Cliente'),
-            amountLabel: $this->money((float) $payment->amount),
+            amountLabel: $this->money((float) $payment->amount, $payment->loan?->currency),
         ));
     }
 
@@ -68,8 +68,8 @@ class EventNotifier
         }
     }
 
-    private function money(float $amount): string
+    private function money(float $amount, ?string $currencyCode = null): string
     {
-        return currency().' '.number_format($amount, 2);
+        return money_symbol($currencyCode).' '.number_format($amount, 2);
     }
 }

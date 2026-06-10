@@ -5,9 +5,12 @@ declare(strict_types=1);
 namespace App\Services\Collectors;
 
 use App\Models\Collector;
+use App\Models\User;
 use Illuminate\Contracts\Pagination\LengthAwarePaginator;
 use Illuminate\Database\Eloquent\Builder;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\ValidationException;
+use Spatie\Permission\PermissionRegistrar;
 
 class CollectorService
 {
@@ -37,10 +40,13 @@ class CollectorService
      */
     public function create(int $companyId, array $data): Collector
     {
-        $data = $this->normalizeCommission($data);
-        $data['company_id'] = $companyId;
+        return DB::transaction(function () use ($companyId, $data): Collector {
+            $data = $this->normalizeCommission($data);
+            $data['company_id'] = $companyId;
+            $data['user_id'] = $this->resolveUserIdForCreate($companyId, $data);
 
-        return Collector::query()->create($data);
+            return Collector::query()->create($data);
+        });
     }
 
     /**
@@ -86,11 +92,41 @@ class CollectorService
     private function normalizeCommission(array $data): array
     {
         $data['user_id'] = $data['user_id'] ?? null;
+        $data['access_mode'] = $data['access_mode'] ?? 'none';
         $data['commission_base'] = $data['commission_base'] ?? 'payment_total';
         $data['commission_value'] = $data['commission_type'] === 'none'
             ? 0
             : (float) ($data['commission_value'] ?? 0);
 
         return $data;
+    }
+
+    /**
+     * @param array<string, mixed> $data
+     */
+    private function resolveUserIdForCreate(int $companyId, array $data): ?int
+    {
+        if (($data['access_mode'] ?? 'none') === 'existing') {
+            return isset($data['user_id']) ? (int) $data['user_id'] : null;
+        }
+
+        if (($data['access_mode'] ?? 'none') !== 'new') {
+            return null;
+        }
+
+        $user = User::query()->create([
+            'company_id' => $companyId,
+            'name' => $data['user_name'] ?: $data['name'],
+            'email' => $data['user_email'],
+            'phone' => $data['phone'] ?? null,
+            'password' => $data['user_password'],
+            'status' => $data['status'] ?? 'active',
+            'visible_menus' => null,
+        ]);
+
+        app(PermissionRegistrar::class)->setPermissionsTeamId($companyId);
+        $user->syncRoles(['Cobrador']);
+
+        return (int) $user->id;
     }
 }

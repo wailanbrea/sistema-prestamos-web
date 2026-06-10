@@ -15,24 +15,49 @@ use InvalidArgumentException;
 
 class DocumentGenerationService
 {
+    /**
+     * @var list<string>
+     */
+    private const LOAN_DOCUMENT_TYPES = [
+        'promissory_note',
+        'loan_contract',
+        'disbursement_receipt',
+        'balance_letter',
+        'account_statement',
+    ];
+
     public function __construct(private readonly AuditService $auditService)
     {
     }
 
+    /**
+     * @return list<string>
+     */
+    public function supportedLoanDocumentTypes(): array
+    {
+        return self::LOAN_DOCUMENT_TYPES;
+    }
+
     public function generateForLoan(int $companyId, int $loanId, string $documentType, int $createdBy): Document
     {
-        if (! in_array($documentType, ['promissory_note', 'disbursement_receipt', 'balance_letter'], true)) {
-            throw new InvalidArgumentException('Tipo de documento de préstamo no soportado.');
+        if (! in_array($documentType, self::LOAN_DOCUMENT_TYPES, true)) {
+            throw new InvalidArgumentException('Tipo de documento de prestamo no soportado.');
         }
 
         $loan = Loan::query()
-            ->with(['company.settings', 'client', 'collector', 'installments'])
+            ->with([
+                'company.settings',
+                'client',
+                'collector',
+                'installments' => fn ($query) => $query->orderBy('installment_number'),
+                'payments' => fn ($query) => $query->where('status', 'valid')->orderBy('payment_date')->orderBy('id'),
+            ])
             ->forCompany($companyId)
             ->whereKey($loanId)
             ->firstOrFail();
 
         if ($documentType === 'balance_letter' && $loan->status !== 'paid') {
-            throw new InvalidArgumentException('La carta de saldo solo puede generarse para préstamos saldados.');
+            throw new InvalidArgumentException('La carta de saldo solo puede generarse para prestamos saldados.');
         }
 
         $title = $this->titleFor($documentType, $loan->loan_number);
@@ -45,6 +70,37 @@ class DocumentGenerationService
         );
 
         return $this->storeDocument($companyId, $loan->client_id, $loan->id, $documentType, $title, $path, $createdBy);
+    }
+
+    public function generateOrReuseLoanDocument(int $companyId, int $loanId, string $documentType, int $createdBy): Document
+    {
+        if (! in_array($documentType, self::LOAN_DOCUMENT_TYPES, true)) {
+            throw new InvalidArgumentException('Tipo de documento de prestamo no soportado.');
+        }
+
+        $loan = Loan::query()
+            ->forCompany($companyId)
+            ->select(['id', 'client_id', 'loan_number', 'status'])
+            ->whereKey($loanId)
+            ->firstOrFail();
+
+        if ($documentType === 'balance_letter' && $loan->status !== 'paid') {
+            throw new InvalidArgumentException('La carta de saldo solo puede generarse para prestamos saldados.');
+        }
+
+        $existing = Document::query()
+            ->where('company_id', $companyId)
+            ->where('loan_id', $loan->id)
+            ->where('client_id', $loan->client_id)
+            ->where('document_type', $documentType)
+            ->latest('id')
+            ->first();
+
+        if ($existing && Storage::disk('local')->exists($existing->file_path)) {
+            return $existing;
+        }
+
+        return $this->generateForLoan($companyId, $loanId, $documentType, $createdBy);
     }
 
     public function generatePaymentReceipt(int $companyId, int $paymentId, int $createdBy): Document
@@ -116,9 +172,11 @@ class DocumentGenerationService
     private function titleFor(string $documentType, string $loanNumber): string
     {
         return match ($documentType) {
-            'promissory_note' => "Pagaré notarial {$loanNumber}",
+            'promissory_note' => "Pagare notarial {$loanNumber}",
+            'loan_contract' => "Contrato de prestamo {$loanNumber}",
             'disbursement_receipt' => "Comprobante de desembolso {$loanNumber}",
             'balance_letter' => "Carta de saldo {$loanNumber}",
+            'account_statement' => "Estado de cuenta {$loanNumber}",
             default => "Documento {$loanNumber}",
         };
     }

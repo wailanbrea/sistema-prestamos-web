@@ -71,15 +71,17 @@
                     </thead>
                     <tbody>
                         @forelse ($loans as $loan)
+                            @php($loanCurrency = $loan->currency ?? currency())
                             <tr>
                                 <td>
                                     <a href="{{ route('loans.show', $loan) }}" class="fw-semibold text-decoration-none">{{ $loan->loan_number }}</a>
                                     <div class="text-muted small">{{ $loan->start_date->format('d/m/Y') }}</div>
+                                    <div class="small text-success">Ganancia esperada: {{ $loanCurrency }} {{ number_format((float) $loan->total_interest, 2) }}</div>
                                 </td>
                                 <td>{{ $loan->client->full_name }}</td>
                                 <td>{{ $frequencyLabels[$loan->payment_frequency] ?? $loan->payment_frequency }}</td>
-                                <td class="text-end">{{ currency() }} {{ number_format((float) $loan->principal_amount, 2) }}</td>
-                                <td class="text-end">{{ currency() }} {{ number_format((float) $loan->remaining_balance, 2) }}</td>
+                                <td class="text-end">{{ $loanCurrency }} {{ number_format((float) $loan->principal_amount, 2) }}</td>
+                                <td class="text-end">{{ $loanCurrency }} {{ number_format((float) $loan->remaining_balance, 2) }}</td>
                                 <td><span class="badge {{ $loanStatusLabels[$loan->status]['class'] ?? 'text-bg-secondary' }}">{{ $loanStatusLabels[$loan->status]['label'] ?? $loan->status }}</span></td>
                                 <td class="text-end text-nowrap">
                                     <a href="{{ route('loans.show', $loan) }}" class="btn btn-sm btn-link text-decoration-none" title="Ver"><i class="fa-solid fa-eye"></i></a>

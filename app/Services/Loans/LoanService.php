@@ -73,6 +73,7 @@ class LoanService
             $loan = Loan::query()->create([
                 'company_id' => $companyId,
                 'client_id' => $data['client_id'],
+                'currency' => $data['currency'] ?? (CompanySetting::query()->where('company_id', $companyId)->value('default_loan_currency') ?: 'RD$'),
                 'collector_id' => $data['collector_id'] ?? null,
                 'quote_id' => $quote?->id,
                 'loan_number' => $this->nextLoanNumber($companyId, $settings?->loan_prefix ?: 'PRE'),
@@ -228,6 +229,7 @@ class LoanService
             // Campos siempre editables.
             $loan->fill([
                 'collector_id' => $data['collector_id'] ?? null,
+                'currency' => $data['currency'] ?? $loan->currency,
                 'guarantee_description' => $data['guarantee_description'] ?? null,
                 'notes' => $data['notes'] ?? null,
                 'allows_capital_prepayment' => (bool) ($data['allows_capital_prepayment'] ?? false),

@@ -23,6 +23,7 @@ class StoreAccountPayableRequest extends FormRequest
 
         return [
             'creditor_id' => ['required', 'integer', Rule::exists('creditors', 'id')->where('company_id', $companyId)],
+            'currency' => ['required', Rule::in(array_keys(config('loan_labels.currencies')))],
             'principal_amount' => ['required', 'numeric', 'min:0.01', 'max:999999999.99'],
             'interest_rate' => ['required', 'numeric', 'min:0', 'max:999999.9999'],
             'interest_type' => ['required', Rule::in(['fixed', 'compound', 'amortized'])],

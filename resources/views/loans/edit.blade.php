@@ -55,13 +55,22 @@
                         @error('collector_id') <div class="invalid-feedback">{{ $message }}</div> @enderror
                     </div>
                     @endif
+                    <div class="col-12 col-md-6">
+                        <label for="currency" class="form-label">Moneda</label>
+                        <select id="currency" name="currency" class="form-select @error('currency') is-invalid @enderror" {{ $disabled }}>
+                            @foreach (config('loan_labels.currencies') as $value => $label)
+                                <option value="{{ $value }}" @selected(old('currency', $loan->currency ?? loan_default_currency()) === $value)>{{ $label }}</option>
+                            @endforeach
+                        </select>
+                        @error('currency') <div class="invalid-feedback">{{ $message }}</div> @enderror
+                    </div>
 
                     {{-- Condiciones --}}
                     <div class="col-12 mt-3"><span class="form-section-title">Condiciones</span></div>
                     <div class="col-6 col-md-3">
                         <label for="principal_amount" class="form-label">Monto</label>
                         <div class="input-group">
-                            <span class="input-group-text">{{ currency() }}</span>
+                            <span class="input-group-text">{{ money_symbol(old('currency', $loan->currency ?? loan_default_currency())) }}</span>
                             <input id="principal_amount" name="principal_amount" type="number" step="0.01" min="1" value="{{ old('principal_amount', $loan->principal_amount) }}" class="form-control @error('principal_amount') is-invalid @enderror" {{ $disabled }}>
                         </div>
                         @error('principal_amount') <div class="invalid-feedback d-block">{{ $message }}</div> @enderror

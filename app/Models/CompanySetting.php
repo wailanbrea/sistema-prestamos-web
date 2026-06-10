@@ -22,6 +22,10 @@ class CompanySetting extends Model
             'require_approval_for_loans' => 'boolean',
             'exclude_sundays_for_daily_loans' => 'boolean',
             'route_visit_radius_meters' => 'integer',
+            'default_interest_rate' => 'decimal:4',
+            'default_late_fee_value' => 'decimal:2',
+            'default_map_latitude' => 'decimal:7',
+            'default_map_longitude' => 'decimal:7',
         ];
     }
 

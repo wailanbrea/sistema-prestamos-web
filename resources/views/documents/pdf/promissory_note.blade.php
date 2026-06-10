@@ -3,7 +3,8 @@
 <head>
     <meta charset="utf-8">
     <title>Pagaré notarial</title>
-    @include('documents.pdf._styles')
+@include('documents.pdf._styles')
+@php($currencyCode = $loan->currency ?? currency())
 </head>
 <body>
     <h1>Pagaré notarial</h1>
@@ -13,7 +14,7 @@
         <strong>{{ $loan->client->identification ?: 'N/A' }}</strong>, domiciliado en
         <strong>{{ $loan->client->address ?: 'N/A' }}</strong>, reconozco adeudar a
         <strong>{{ $company->name }}</strong> la suma de
-        <strong>{{ currency() }} {{ number_format((float) $loan->total_amount, 2) }}</strong>, correspondiente al préstamo
+        <strong>{{ $currencyCode }} {{ number_format((float) $loan->total_amount, 2) }}</strong>, correspondiente al préstamo
         <strong>{{ $loan->loan_number }}</strong>.
     </p>
 
@@ -26,10 +27,10 @@
 
     <h2>Condiciones financieras</h2>
     <table>
-        <tr><th>Capital</th><td class="right">{{ currency() }} {{ number_format((float) $loan->principal_amount, 2) }}</td></tr>
-        <tr><th>Interés total</th><td class="right">{{ currency() }} {{ number_format((float) $loan->total_interest, 2) }}</td></tr>
-        <tr><th>Total a pagar</th><td class="right">{{ currency() }} {{ number_format((float) $loan->total_amount, 2) }}</td></tr>
-        <tr><th>Cuota</th><td class="right">{{ currency() }} {{ number_format((float) $loan->installment_amount, 2) }}</td></tr>
+        <tr><th>Capital</th><td class="right">{{ $currencyCode }} {{ number_format((float) $loan->principal_amount, 2) }}</td></tr>
+        <tr><th>Interés total</th><td class="right">{{ $currencyCode }} {{ number_format((float) $loan->total_interest, 2) }}</td></tr>
+        <tr><th>Total a pagar</th><td class="right">{{ $currencyCode }} {{ number_format((float) $loan->total_amount, 2) }}</td></tr>
+        <tr><th>Cuota</th><td class="right">{{ $currencyCode }} {{ number_format((float) $loan->installment_amount, 2) }}</td></tr>
     </table>
 
     <p>
