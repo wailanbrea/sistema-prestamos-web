@@ -21,6 +21,7 @@ use Carbon\CarbonImmutable;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\Rule;
 use InvalidArgumentException;
 
@@ -528,13 +529,18 @@ class CollectorController extends Controller
         $pendingInstallmentQuery = $this->assignedInstallmentQuery($collector)
             ->whereHas('loan', fn (Builder $query): Builder => $query->where('client_id', $clientId));
 
+        $openLoanQuery = (clone $loanQuery)->whereIn('status', ['active', 'late']);
+
         return [
-            'active_loans' => (clone $loanQuery)->whereIn('status', ['active', 'late'])->count(),
+            'active_loans' => (clone $openLoanQuery)->count(),
             'late_loans' => (clone $loanQuery)->where('status', 'late')->count(),
             'total_principal' => (float) (clone $loanQuery)->sum('principal_amount'),
             'remaining_balance' => (float) (clone $loanQuery)->sum('remaining_balance'),
+            'pending_principal' => max(0.0, (float) (clone $openLoanQuery)->sum(DB::raw('principal_amount - paid_principal'))),
+            'pending_interest' => max(0.0, (float) (clone $openLoanQuery)->sum(DB::raw('total_interest - paid_interest'))),
             'pending_installments' => (clone $pendingInstallmentQuery)->count(),
             'late_installments' => (clone $pendingInstallmentQuery)->where('status', 'late')->count(),
+            'max_days_late' => (int) (clone $pendingInstallmentQuery)->max('days_late'),
             'total_paid' => (float) (clone $paymentQuery)->sum('amount'),
             'last_payment_date' => (clone $paymentQuery)->max('payment_date'),
         ];

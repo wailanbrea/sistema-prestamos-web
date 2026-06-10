@@ -11,9 +11,12 @@ use App\Models\Loan;
 use App\Models\LoanInstallment;
 use App\Models\Payment;
 use App\Services\Loans\LoanService;
+use App\Services\Payments\PaymentReceiptShareService;
+use App\Services\Payments\PaymentService;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\Rule;
 use InvalidArgumentException;
 
@@ -27,8 +30,11 @@ class AdminController extends Controller
 {
     use BuildsApiPayloads;
 
-    public function __construct(private readonly LoanService $loanService)
-    {
+    public function __construct(
+        private readonly LoanService $loanService,
+        private readonly PaymentService $paymentService,
+        private readonly PaymentReceiptShareService $receiptShareService,
+    ) {
     }
 
     public function clients(Request $request): JsonResponse
@@ -213,6 +219,86 @@ class AdminController extends Controller
     }
 
     /**
+     * Registra un pago desde el back-office (Administrador). A diferencia del
+     * endpoint del cobrador, acepta cualquier préstamo activo/atrasado de la
+     * empresa; el cobro queda atribuido al cobrador asignado al préstamo.
+     * Idempotente por mobile_uuid (mismo contrato que collector/payments).
+     */
+    public function storePayment(Request $request): JsonResponse
+    {
+        $companyId = (int) $request->user()->company_id;
+
+        $replayValidated = $request->validate([
+            'loan_id' => ['required', 'integer'],
+            'mobile_uuid' => ['nullable', 'uuid'],
+        ]);
+
+        if (! empty($replayValidated['mobile_uuid'])) {
+            $existingPayment = Payment::query()
+                ->forCompany($companyId)
+                ->with(['loan.client', 'collector', 'details.installment'])
+                ->where('loan_id', $replayValidated['loan_id'])
+                ->where('mobile_uuid', $replayValidated['mobile_uuid'])
+                ->first();
+
+            if ($existingPayment) {
+                return response()->json([
+                    'data' => $this->paymentWithShareData($existingPayment),
+                ]);
+            }
+        }
+
+        $validated = $request->validate([
+            'loan_id' => [
+                'required',
+                'integer',
+                Rule::exists('loans', 'id')
+                    ->where('company_id', $companyId)
+                    ->whereIn('status', ['active', 'late']),
+            ],
+            'payment_date' => ['required', 'date'],
+            'amount' => ['required', 'numeric', 'min:0.01', 'max:999999999.99'],
+            'payment_method' => ['required', Rule::in(['cash', 'transfer', 'card', 'check', 'other'])],
+            'mobile_uuid' => ['nullable', 'uuid'],
+        ]);
+
+        try {
+            // collector_id se omite a propósito: PaymentService lo toma del préstamo.
+            $payment = $this->paymentService->register([
+                ...$validated,
+                'created_by' => $request->user()->id,
+            ]);
+        } catch (InvalidArgumentException $exception) {
+            return response()->json([
+                'message' => $exception->getMessage(),
+                'errors' => [
+                    'amount' => [$exception->getMessage()],
+                ],
+            ], 422);
+        }
+
+        return response()->json([
+            'data' => $this->paymentWithShareData($payment->fresh(['loan.client', 'collector']) ?? $payment),
+        ], 201);
+    }
+
+    /**
+     * @return array<string, mixed>
+     */
+    private function paymentWithShareData(Payment $payment): array
+    {
+        $payload = $this->paymentPayload($payment);
+
+        if ($payment->status === 'valid') {
+            $shareData = $this->receiptShareService->shareData($payment, (int) ($payment->created_by ?? 0));
+            $payload['receipt_url'] = $shareData['receipt_url'];
+            $payload['whatsapp_url'] = $shareData['whatsapp_url'];
+        }
+
+        return $payload;
+    }
+
+    /**
      * Resumen financiero del cliente a nivel empresa (sin restricción de cobrador).
      *
      * @return array<string, mixed>
@@ -225,13 +311,18 @@ class AdminController extends Controller
             ->whereIn('status', ['pending', 'partial', 'late'])
             ->whereHas('loan', fn (Builder $query): Builder => $query->forCompany($companyId)->where('client_id', $clientId));
 
+        $openLoanQuery = (clone $loanQuery)->whereIn('status', ['active', 'late']);
+
         return [
-            'active_loans' => (clone $loanQuery)->whereIn('status', ['active', 'late'])->count(),
+            'active_loans' => (clone $openLoanQuery)->count(),
             'late_loans' => (clone $loanQuery)->where('status', 'late')->count(),
             'total_principal' => (float) (clone $loanQuery)->sum('principal_amount'),
             'remaining_balance' => (float) (clone $loanQuery)->sum('remaining_balance'),
+            'pending_principal' => max(0.0, (float) (clone $openLoanQuery)->sum(DB::raw('principal_amount - paid_principal'))),
+            'pending_interest' => max(0.0, (float) (clone $openLoanQuery)->sum(DB::raw('total_interest - paid_interest'))),
             'pending_installments' => (clone $pendingInstallmentQuery)->count(),
             'late_installments' => (clone $pendingInstallmentQuery)->where('status', 'late')->count(),
+            'max_days_late' => (int) (clone $pendingInstallmentQuery)->max('days_late'),
             'total_paid' => (float) (clone $paymentQuery)->sum('amount'),
             'last_payment_date' => (clone $paymentQuery)->max('payment_date'),
         ];

@@ -49,6 +49,11 @@ Route::prefix('v2')->name('api.v2.')->group(function (): void {
             Route::get('/loans', [AdminController::class, 'loans'])->middleware('permission:collectors.manage')->name('loans');
             Route::get('/loans/{loan}', [AdminController::class, 'loan'])->middleware('permission:collectors.manage')->whereNumber('loan')->name('loans.show');
 
+            // Cobro desde back-office: exige cartera global ADEMÁS de payments.create,
+            // para que un Cobrador (que también tiene payments.create) no pueda cobrar
+            // préstamos fuera de su cartera por esta vía.
+            Route::post('/payments', [AdminController::class, 'storePayment'])->middleware(['permission:collectors.manage', 'permission:payments.create'])->name('payments.store');
+
             Route::get('/approvals', [AdminController::class, 'approvals'])->middleware('permission:loans.approve')->name('approvals');
             Route::post('/loans/{loan}/approve', [AdminController::class, 'approveLoan'])->middleware('permission:loans.approve')->whereNumber('loan')->name('loans.approve');
             Route::post('/loans/{loan}/reject', [AdminController::class, 'rejectLoan'])->middleware('permission:loans.approve')->whereNumber('loan')->name('loans.reject');

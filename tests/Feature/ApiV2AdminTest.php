@@ -9,10 +9,12 @@ use App\Models\Collector;
 use App\Models\Company;
 use App\Models\Loan;
 use App\Models\LoanInstallment;
+use App\Models\Payment;
 use App\Models\User;
 use Database\Seeders\RolePermissionSeeder;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Hash;
+use Illuminate\Support\Str;
 use Spatie\Permission\PermissionRegistrar;
 use Tests\TestCase;
 
@@ -108,6 +110,37 @@ class ApiV2AdminTest extends TestCase
             ->assertJsonStructure(['data' => ['rows', 'totals']]);
     }
 
+    public function test_admin_can_register_payment_for_company_loan(): void
+    {
+        [$admin, $company] = $this->adminUser();
+        [, $activeLoan] = $this->seedPortfolio($company->id);
+        $token = $this->loginToken($admin);
+        $uuid = (string) Str::uuid();
+
+        $payload = [
+            'loan_id' => $activeLoan->id,
+            'payment_date' => '2026-05-15',
+            'amount' => 1100,
+            'payment_method' => 'cash',
+            'mobile_uuid' => $uuid,
+        ];
+
+        $response = $this->withToken($token)
+            ->postJson('/api/v2/admin/payments', $payload)
+            ->assertCreated()
+            ->assertJsonPath('data.amount', 1100)
+            ->assertJsonPath('data.status', 'valid')
+            ->assertJsonStructure(['data' => ['receipt_url', 'whatsapp_url']]);
+
+        // Reenviar el mismo mobile_uuid devuelve el pago existente (idempotencia).
+        $this->withToken($token)
+            ->postJson('/api/v2/admin/payments', $payload)
+            ->assertOk()
+            ->assertJsonPath('data.id', $response->json('data.id'));
+
+        $this->assertSame(1, Payment::query()->where('loan_id', $activeLoan->id)->count());
+    }
+
     public function test_collector_is_forbidden_from_admin_endpoints(): void
     {
         [$admin, $company] = $this->adminUser();
@@ -125,6 +158,17 @@ class ApiV2AdminTest extends TestCase
 
         $this->withToken($collectorToken)
             ->postJson("/api/v2/admin/loans/{$activeLoan->id}/approve")
+            ->assertForbidden();
+
+        // El cobrador tiene payments.create, pero el cobro back-office exige
+        // además collectors.manage: no puede cobrar fuera de su cartera por aquí.
+        $this->withToken($collectorToken)
+            ->postJson('/api/v2/admin/payments', [
+                'loan_id' => $activeLoan->id,
+                'payment_date' => '2026-05-15',
+                'amount' => 1100,
+                'payment_method' => 'cash',
+            ])
             ->assertForbidden();
     }
 
