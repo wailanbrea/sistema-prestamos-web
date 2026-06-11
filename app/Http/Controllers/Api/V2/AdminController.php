@@ -6,19 +6,28 @@ namespace App\Http\Controllers\Api\V2;
 
 use App\Http\Controllers\Api\V2\Concerns\BuildsApiPayloads;
 use App\Http\Controllers\Controller;
+use App\Http\Requests\Cash\StoreManualCashMovementRequest;
 use App\Http\Requests\Clients\StoreClientRequest;
+use App\Http\Requests\Clients\UpdateClientRequest;
+use App\Http\Requests\Collectors\StoreCollectorRequest;
+use App\Http\Requests\Collectors\UpdateCollectorRequest;
 use App\Http\Requests\Loans\StoreLoanRequest;
 use App\Http\Requests\Loans\UpdateLoanRequest;
 use App\Http\Requests\LoanQuotes\StoreLoanQuoteRequest;
+use App\Http\Requests\Payments\CancelPaymentRequest;
 use App\Models\Client;
 use App\Models\Collector;
+use App\Models\CollectorCommission;
 use App\Models\Document;
 use App\Models\Loan;
 use App\Models\LoanInstallment;
 use App\Models\LoanQuote;
 use App\Models\Payment;
+use App\Services\Cash\ManualCashMovementService;
 use App\Services\Clients\ClientRegistrationLinkService;
 use App\Services\Clients\ClientService;
+use App\Services\Collectors\CollectorCommissionService;
+use App\Services\Collectors\CollectorService;
 use App\Services\Documents\DocumentGenerationService;
 use App\Services\Documents\DocumentShareService;
 use App\Services\Loans\LoanQuoteService;
@@ -45,6 +54,9 @@ class AdminController extends Controller
         private readonly DocumentShareService $documentShareService,
         private readonly ClientService $clientService,
         private readonly ClientRegistrationLinkService $registrationLinkService,
+        private readonly CollectorService $collectorService,
+        private readonly CollectorCommissionService $collectorCommissionService,
+        private readonly ManualCashMovementService $cashMovementService,
         private readonly LoanQuoteService $loanQuoteService,
         private readonly EventNotifier $notifier,
     ) {
@@ -61,6 +73,128 @@ class AdminController extends Controller
         return response()->json([
             'data' => $this->clientPayload($client),
         ], 201);
+    }
+
+    public function updateClient(UpdateClientRequest $request, int $client): JsonResponse
+    {
+        $companyId = (int) $request->user()->company_id;
+        $clientModel = $this->clientService->findForCompany($companyId, $client);
+        $updated = $this->clientService->update($clientModel, $request->validated());
+
+        return response()->json(['data' => $this->clientDetailPayload($updated->load(['references', 'routes']))]);
+    }
+
+    public function deleteClient(Request $request, int $client): JsonResponse
+    {
+        abort_unless($request->user()?->can('clients.delete'), 403);
+        $companyId = (int) $request->user()->company_id;
+        $clientModel = $this->clientService->findForCompany($companyId, $client);
+
+        try {
+            $this->clientService->delete($clientModel);
+        } catch (InvalidArgumentException $exception) {
+            return response()->json(['message' => $exception->getMessage()], 422);
+        }
+
+        return response()->json(['message' => 'Cliente eliminado.']);
+    }
+
+    public function deleteLoan(Request $request, int $loan): JsonResponse
+    {
+        abort_unless($request->user()?->can('loans.delete'), 403);
+        $companyId = (int) $request->user()->company_id;
+        $loanModel = Loan::query()->forCompany($companyId)->whereKey($loan)->firstOrFail();
+
+        try {
+            $this->loanService->delete($companyId, (int) $request->user()->id, $loanModel);
+        } catch (InvalidArgumentException $exception) {
+            return response()->json(['message' => $exception->getMessage()], 422);
+        }
+
+        return response()->json(['message' => 'Préstamo eliminado.']);
+    }
+
+    public function cancelPayment(CancelPaymentRequest $request, int $payment): JsonResponse
+    {
+        $companyId = (int) $request->user()->company_id;
+        $validated = $request->validated();
+
+        try {
+            $cancelled = $this->paymentService->cancel(
+                companyId: $companyId,
+                paymentId: $payment,
+                cancelledBy: (int) $request->user()->id,
+                reason: $validated['cancellation_reason'],
+            );
+        } catch (InvalidArgumentException $exception) {
+            return response()->json(['message' => $exception->getMessage()], 422);
+        }
+
+        return response()->json(['data' => $this->paymentPayload($cancelled->loadMissing(['loan.client', 'collector']))]);
+    }
+
+    public function storeCollector(StoreCollectorRequest $request): JsonResponse
+    {
+        $companyId = (int) $request->user()->company_id;
+        $collector = $this->collectorService->create($companyId, $request->validated());
+
+        return response()->json(['data' => $this->collectorDetailPayload($collector->load('commissions'))], 201);
+    }
+
+    public function showCollector(Request $request, int $collector): JsonResponse
+    {
+        $companyId = (int) $request->user()->company_id;
+
+        $model = Collector::query()
+            ->where('company_id', $companyId)
+            ->with([
+                'commissions' => fn ($q) => $q->orderByDesc('id')->limit(50),
+            ])
+            ->whereKey($collector)
+            ->firstOrFail();
+
+        $stats = [
+            'active_loans' => Loan::query()->forCompany($companyId)->where('collector_id', $model->id)->whereIn('status', ['active', 'late'])->count(),
+            'late_loans' => Loan::query()->forCompany($companyId)->where('collector_id', $model->id)->where('status', 'late')->count(),
+        ];
+
+        return response()->json(['data' => [...$this->collectorDetailPayload($model), 'stats' => $stats]]);
+    }
+
+    public function updateCollector(UpdateCollectorRequest $request, int $collector): JsonResponse
+    {
+        $companyId = (int) $request->user()->company_id;
+        $model = Collector::query()->where('company_id', $companyId)->whereKey($collector)->firstOrFail();
+        $updated = $this->collectorService->update($model, $request->validated());
+
+        return response()->json(['data' => $this->collectorDetailPayload($updated->load('commissions'))]);
+    }
+
+    public function payCollectorCommission(Request $request, int $collector, int $commission): JsonResponse
+    {
+        $companyId = (int) $request->user()->company_id;
+
+        try {
+            $paid = $this->collectorCommissionService->pay(
+                companyId: $companyId,
+                collectorId: $collector,
+                commissionId: $commission,
+                paidBy: (int) $request->user()->id,
+            );
+        } catch (InvalidArgumentException $exception) {
+            return response()->json(['message' => $exception->getMessage()], 422);
+        }
+
+        return response()->json(['data' => $this->commissionPayload($paid)]);
+    }
+
+    public function storeMovement(StoreManualCashMovementRequest $request): JsonResponse
+    {
+        $companyId = (int) $request->user()->company_id;
+
+        $this->cashMovementService->create($companyId, $request->validated(), (int) $request->user()->id);
+
+        return response()->json(['message' => 'Movimiento registrado.'], 201);
     }
 
     /** Cobradores activos de la empresa (para el selector del formulario de préstamo). */
@@ -624,6 +758,48 @@ class AdminController extends Controller
             'download_url' => $document ? $this->documentShareService->publicDownloadUrl($document) : null,
             'created_at' => $document?->created_at?->toDateTimeString(),
             'just_generated' => $generated,
+        ];
+    }
+
+    /**
+     * @return array<string, mixed>
+     */
+    private function collectorDetailPayload(Collector $collector): array
+    {
+        $commissions = $collector->relationLoaded('commissions') ? $collector->commissions : collect();
+        $pending = $commissions->where('status', 'pending');
+
+        return [
+            'id' => $collector->id,
+            'name' => $collector->name,
+            'phone' => $collector->phone,
+            'commission_type' => $collector->commission_type,
+            'commission_base' => $collector->commission_base ?? 'payment_total',
+            'commission_value' => (float) $collector->commission_value,
+            'status' => $collector->status,
+            'commission_summary' => [
+                'total_generated' => (float) $commissions->sum('commission_amount'),
+                'total_pending' => (float) $pending->sum('commission_amount'),
+                'total_paid' => (float) $commissions->where('status', 'paid')->sum('commission_amount'),
+            ],
+            'pending_commissions' => $pending->map(fn (CollectorCommission $c): array => $this->commissionPayload($c))->values(),
+        ];
+    }
+
+    /**
+     * @return array<string, mixed>
+     */
+    private function commissionPayload(CollectorCommission $commission): array
+    {
+        return [
+            'id' => $commission->id,
+            'commission_type' => $commission->commission_type,
+            'commission_value' => (float) $commission->commission_value,
+            'base_amount' => (float) $commission->base_amount,
+            'commission_amount' => (float) $commission->commission_amount,
+            'status' => $commission->status,
+            'paid_at' => $commission->paid_at?->toDateTimeString(),
+            'receipt_number' => $commission->payment?->receipt_number,
         ];
     }
 

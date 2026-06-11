@@ -47,9 +47,10 @@ Route::prefix('v2')->name('api.v2.')->group(function (): void {
         // cartera y no debe ver la cartera completa de la empresa (eso va por /collector/*).
         Route::prefix('admin')->name('admin.')->group(function (): void {
             Route::get('/clients', [AdminController::class, 'clients'])->middleware('permission:collectors.manage')->name('clients');
-            // clients.create se valida en el FormRequest (mismo contrato que la web).
             Route::post('/clients', [AdminController::class, 'storeClient'])->middleware('permission:collectors.manage')->name('clients.store');
             Route::get('/clients/{client}', [AdminController::class, 'client'])->middleware('permission:collectors.manage')->whereNumber('client')->name('clients.show');
+            Route::put('/clients/{client}', [AdminController::class, 'updateClient'])->middleware('permission:clients.update')->whereNumber('client')->name('clients.update');
+            Route::delete('/clients/{client}', [AdminController::class, 'deleteClient'])->middleware('permission:collectors.manage')->whereNumber('client')->name('clients.destroy');
 
             // Cotizaciones (mismo gate que la web: quotes.manage).
             Route::get('/quotes', [AdminController::class, 'quotes'])->middleware('permission:quotes.manage')->name('quotes');
@@ -57,9 +58,14 @@ Route::prefix('v2')->name('api.v2.')->group(function (): void {
             Route::get('/quotes/{quote}', [AdminController::class, 'quote'])->middleware('permission:quotes.manage')->whereNumber('quote')->name('quotes.show');
             Route::delete('/quotes/{quote}', [AdminController::class, 'destroyQuote'])->middleware('permission:quotes.manage')->whereNumber('quote')->name('quotes.destroy');
             Route::get('/collectors', [AdminController::class, 'collectors'])->middleware('permission:collectors.manage')->name('collectors');
+            Route::post('/collectors', [AdminController::class, 'storeCollector'])->middleware('permission:collectors.manage')->name('collectors.store');
+            Route::get('/collectors/{collector}', [AdminController::class, 'showCollector'])->middleware('permission:collectors.manage')->whereNumber('collector')->name('collectors.show');
+            Route::put('/collectors/{collector}', [AdminController::class, 'updateCollector'])->middleware('permission:collectors.manage')->whereNumber('collector')->name('collectors.update');
+            Route::post('/collectors/{collector}/commissions/{commission}/pay', [AdminController::class, 'payCollectorCommission'])->middleware('permission:collectors.manage')->whereNumber('collector')->whereNumber('commission')->name('collectors.commissions.pay');
             Route::get('/loans', [AdminController::class, 'loans'])->middleware('permission:collectors.manage')->name('loans');
             Route::post('/loans', [AdminController::class, 'storeLoan'])->middleware('permission:loans.create')->name('loans.store');
             Route::put('/loans/{loan}', [AdminController::class, 'updateLoan'])->middleware('permission:loans.update')->whereNumber('loan')->name('loans.update');
+            Route::delete('/loans/{loan}', [AdminController::class, 'deleteLoan'])->middleware('permission:collectors.manage')->whereNumber('loan')->name('loans.destroy');
             Route::get('/loans/{loan}', [AdminController::class, 'loan'])->middleware('permission:collectors.manage')->whereNumber('loan')->name('loans.show');
             Route::get('/loans/{loan}/documents', [AdminController::class, 'loanDocuments'])->middleware('permission:collectors.manage')->whereNumber('loan')->name('loans.documents');
             Route::post('/loans/{loan}/documents', [AdminController::class, 'generateLoanDocument'])->middleware('permission:documents.generate')->whereNumber('loan')->name('loans.documents.generate');
@@ -68,6 +74,8 @@ Route::prefix('v2')->name('api.v2.')->group(function (): void {
             // para que un Cobrador (que también tiene payments.create) no pueda cobrar
             // préstamos fuera de su cartera por esta vía.
             Route::post('/payments', [AdminController::class, 'storePayment'])->middleware(['permission:collectors.manage', 'permission:payments.create'])->name('payments.store');
+            Route::post('/payments/{payment}/cancel', [AdminController::class, 'cancelPayment'])->middleware('permission:payments.cancel')->whereNumber('payment')->name('payments.cancel');
+            Route::post('/cash/movements', [AdminController::class, 'storeMovement'])->middleware('permission:cash.view')->name('cash.movements.store');
 
             Route::get('/approvals', [AdminController::class, 'approvals'])->middleware('permission:loans.approve')->name('approvals');
             Route::post('/loans/{loan}/approve', [AdminController::class, 'approveLoan'])->middleware('permission:loans.approve')->whereNumber('loan')->name('loans.approve');
