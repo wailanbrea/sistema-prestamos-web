@@ -15,10 +15,11 @@ class DashboardController extends Controller
         $companyId = (int) $request->user()->company_id;
 
         return view('dashboard', [
-            'metrics' => $dashboardService->summary($companyId),
+            'metrics'          => $dashboardService->summary($companyId),
             'collectionsTrend' => $dashboardService->collectionsTrend($companyId),
             'loanDistribution' => $dashboardService->loanStatusDistribution($companyId),
-            'recentPayments' => $dashboardService->recentPayments($companyId),
+            'recentPayments'   => $dashboardService->recentPayments($companyId),
+            'recentLoans'      => $dashboardService->recentLoans($companyId),
         ]);
     }
 }

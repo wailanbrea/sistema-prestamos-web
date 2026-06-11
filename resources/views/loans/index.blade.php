@@ -2,6 +2,17 @@
 
 @include('loans.partials.labels')
 
+@push('styles')
+<style>
+    .loans-table { border-collapse: separate; border-spacing: 0; }
+    .loans-table td { transition: background .12s ease, border-color .12s ease, padding-left .12s ease; }
+    .loans-table tbody tr { cursor: pointer; }
+    .loans-table tbody tr:hover td { background: rgba(0,38,83,.04); }
+    .loans-table tbody tr:hover td:first-child { border-left-color: var(--app-primary); padding-left: 13px; }
+    .loans-table tbody td:first-child { border-left: 3px solid transparent; }
+</style>
+@endpush
+
 @section('title', 'Préstamos - '.config('app.name'))
 
 @section('content')
@@ -57,7 +68,7 @@
     <section class="card content-card">
         <div class="card-body">
             <div class="table-responsive">
-                <table class="table align-middle mb-0">
+                <table class="table align-middle mb-0 loans-table">
                     <thead>
                         <tr>
                             <th>Préstamo</th>
@@ -72,7 +83,7 @@
                     <tbody>
                         @forelse ($loans as $loan)
                             @php($loanCurrency = $loan->currency ?? currency())
-                            <tr>
+                            <tr onclick="location.href='{{ route('loans.show', $loan) }}'"  >
                                 <td>
                                     <a href="{{ route('loans.show', $loan) }}" class="fw-semibold text-decoration-none">{{ $loan->loan_number }}</a>
                                     <div class="text-muted small">{{ $loan->start_date->format('d/m/Y') }}</div>
@@ -83,7 +94,7 @@
                                 <td class="text-end">{{ $loanCurrency }} {{ number_format((float) $loan->principal_amount, 2) }}</td>
                                 <td class="text-end">{{ $loanCurrency }} {{ number_format((float) $loan->remaining_balance, 2) }}</td>
                                 <td><span class="badge {{ $loanStatusLabels[$loan->status]['class'] ?? 'text-bg-secondary' }}">{{ $loanStatusLabels[$loan->status]['label'] ?? $loan->status }}</span></td>
-                                <td class="text-end text-nowrap">
+                                <td class="text-end text-nowrap" onclick="event.stopPropagation()">
                                     <a href="{{ route('loans.show', $loan) }}" class="btn btn-sm btn-link text-decoration-none" title="Ver"><i class="fa-solid fa-eye"></i></a>
                                     @can('loans.update')
                                         <a href="{{ route('loans.edit', $loan) }}" class="btn btn-sm btn-link text-dark text-decoration-none" title="Editar"><i class="fa-solid fa-pen"></i></a>

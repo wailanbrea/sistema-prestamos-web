@@ -1,66 +1,110 @@
 @extends('layouts.guest')
 
-@section('title', 'Iniciar sesión - '.config('app.name'))
+@section('title', 'Iniciar sesión — '.config('app.name'))
 
 @section('content')
-    <section class="card auth-card">
-        <div class="card-body p-4 p-sm-5">
-            <div class="mb-4">
-                <span class="brand-mark mb-3"><i class="fa-solid fa-hand-holding-dollar"></i></span>
-                <h1 class="h4 fw-bold mb-1">Iniciar sesión</h1>
-                <p class="text-muted mb-0">Accede al panel financiero de tu empresa.</p>
+<main class="w-full max-w-md px-4 flex-grow flex flex-col items-center justify-center py-10">
+
+    {{-- Logo --}}
+    <div class="flex flex-col items-center mb-10 animate-slide-up">
+        <div class="w-20 h-20 bg-primary-container rounded-2xl flex items-center justify-center shadow-sm mb-4">
+            <span class="material-symbols-outlined text-on-primary-container" style="font-size:40px; font-variation-settings:'FILL' 1,'wght' 400,'GRAD' 0,'opsz' 24;">account_balance</span>
+        </div>
+        <h1 class="text-2xl font-semibold text-primary tracking-tight mt-2">{{ config('app.name') }}</h1>
+        <p class="text-sm text-on-surface-variant mt-1">Gestión financiera profesional</p>
+    </div>
+
+    {{-- Card --}}
+    <div class="w-full bg-surface-container-lowest p-6 rounded-2xl shadow-sm border border-outline-variant/30 animate-slide-up">
+
+        @if ($errors->any())
+            <div class="mb-5 flex items-start gap-3 bg-error-container text-on-error-container px-4 py-3 rounded-xl text-sm">
+                <span class="material-symbols-outlined shrink-0" style="font-size:20px;">error</span>
+                <span>{{ $errors->first() }}</span>
+            </div>
+        @endif
+
+        <form method="POST" action="{{ route('login.store') }}" novalidate class="space-y-5">
+            @csrf
+
+            {{-- Email --}}
+            <div class="space-y-1">
+                <label class="block text-sm font-medium text-on-surface-variant ml-1" for="email">Correo electrónico</label>
+                <div class="relative group">
+                    <div class="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none text-outline group-focus-within:text-primary transition-colors">
+                        <span class="material-symbols-outlined" style="font-size:20px;">mail</span>
+                    </div>
+                    <input
+                        id="email" name="email" type="email"
+                        value="{{ old('email') }}"
+                        autocomplete="email" autofocus required
+                        placeholder="usuario@dominio.do"
+                        class="block w-full pl-11 pr-4 py-3.5 bg-transparent border {{ $errors->has('email') ? 'border-error' : 'border-outline-variant' }} rounded-xl focus:ring-2 focus:ring-primary focus:border-primary transition-all text-sm text-on-surface placeholder:text-outline outline-none">
+                </div>
             </div>
 
-            @if ($errors->any())
-                <div class="alert alert-danger">
-                    {{ $errors->first() }}
-                </div>
-            @endif
-
-            <form method="POST" action="{{ route('login.store') }}" novalidate>
-                @csrf
-
-                <div class="mb-3">
-                    <label for="email" class="form-label">Correo electrónico</label>
+            {{-- Password --}}
+            <div class="space-y-1">
+                <label class="block text-sm font-medium text-on-surface-variant ml-1" for="password">Contraseña</label>
+                <div class="relative group">
+                    <div class="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none text-outline group-focus-within:text-primary transition-colors">
+                        <span class="material-symbols-outlined" style="font-size:20px;">lock</span>
+                    </div>
                     <input
-                        id="email"
-                        type="email"
-                        name="email"
-                        value="{{ old('email') }}"
-                        class="form-control @error('email') is-invalid @enderror"
-                        autocomplete="email"
-                        autofocus
-                        required
-                    >
-                    @error('email')
-                        <div class="invalid-feedback">{{ $message }}</div>
-                    @enderror
+                        id="password" name="password" type="password"
+                        autocomplete="current-password" required
+                        placeholder="••••••••"
+                        class="block w-full pl-11 pr-12 py-3.5 bg-transparent border {{ $errors->has('password') ? 'border-error' : 'border-outline-variant' }} rounded-xl focus:ring-2 focus:ring-primary focus:border-primary transition-all text-sm text-on-surface placeholder:text-outline outline-none">
+                    <button type="button" onclick="togglePwd()" class="absolute inset-y-0 right-0 pr-4 flex items-center text-outline-variant hover:text-on-surface-variant transition-colors">
+                        <span class="material-symbols-outlined" id="pwd-icon" style="font-size:20px;">visibility</span>
+                    </button>
                 </div>
+            </div>
 
-                <div class="mb-3">
-                    <label for="password" class="form-label">Contraseña</label>
-                    <input
-                        id="password"
-                        type="password"
-                        name="password"
-                        class="form-control @error('password') is-invalid @enderror"
-                        autocomplete="current-password"
-                        required
-                    >
-                    @error('password')
-                        <div class="invalid-feedback">{{ $message }}</div>
-                    @enderror
-                </div>
+            {{-- Remember + Forgot --}}
+            <div class="flex items-center justify-between pt-1">
+                <label class="flex items-center gap-2 cursor-pointer">
+                    <input type="checkbox" name="remember" id="remember" value="1"
+                        class="w-4 h-4 rounded border-outline-variant text-primary focus:ring-primary">
+                    <span class="text-sm text-on-surface-variant">Recuérdame</span>
+                </label>
+                <a href="#" class="text-sm font-medium text-primary hover:underline underline-offset-4">
+                    ¿Olvidaste tu contraseña?
+                </a>
+            </div>
 
-                <div class="form-check mb-4">
-                    <input class="form-check-input" type="checkbox" name="remember" id="remember" value="1">
-                    <label class="form-check-label" for="remember">Mantener sesión iniciada</label>
-                </div>
-
-                <button type="submit" class="btn btn-primary w-100">
-                    <i class="fa-solid fa-lock me-2"></i> Entrar
+            {{-- Submit --}}
+            <div class="pt-2">
+                <button type="submit"
+                    class="w-full bg-primary text-on-primary py-4 rounded-xl text-sm font-bold shadow-md active:scale-[0.98] transition-all flex items-center justify-center gap-2 group hover:bg-on-primary-fixed-variant">
+                    <span>Iniciar Sesión</span>
+                    <span class="material-symbols-outlined group-hover:translate-x-1 transition-transform" style="font-size:20px;">arrow_forward</span>
                 </button>
-            </form>
-        </div>
-    </section>
+            </div>
+        </form>
+    </div>
+</main>
+
+<footer class="w-full pb-8 flex flex-col items-center text-outline px-4">
+    <p class="text-xs mb-2">{{ config('app.name') }} &middot; Versión {{ config('app.version', '2.0') }}</p>
+    <div class="flex gap-4 text-xs">
+        <a href="#" class="hover:text-primary transition-colors">Soporte</a>
+        <span class="text-outline-variant">&bull;</span>
+        <a href="#" class="hover:text-primary transition-colors">Privacidad</a>
+    </div>
+</footer>
+
+<script>
+    function togglePwd() {
+        const input = document.getElementById('password');
+        const icon  = document.getElementById('pwd-icon');
+        if (input.type === 'password') {
+            input.type = 'text';
+            icon.innerText = 'visibility_off';
+        } else {
+            input.type = 'password';
+            icon.innerText = 'visibility';
+        }
+    }
+</script>
 @endsection

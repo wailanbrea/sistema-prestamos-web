@@ -1,63 +1,65 @@
 <!doctype html>
-<html lang="es">
+<html class="light" lang="es">
 <head>
     <meta charset="utf-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <meta name="csrf-token" content="{{ csrf_token() }}">
     <title>@yield('title', config('app.name'))</title>
-    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
-    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.2/css/all.min.css" rel="stylesheet">
+    <script src="https://cdn.tailwindcss.com?plugins=forms"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@24,400,0,0" rel="stylesheet">
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    colors: {
+                        "primary": "#002653",
+                        "on-primary": "#ffffff",
+                        "primary-container": "#1a3c6e",
+                        "on-primary-container": "#8aa8e0",
+                        "primary-fixed": "#d7e3ff",
+                        "on-primary-fixed": "#001b3f",
+                        "on-primary-fixed-variant": "#264679",
+                        "secondary-container": "#feae2c",
+                        "on-secondary-container": "#6b4500",
+                        "surface-container-lowest": "#ffffff",
+                        "surface-container-low": "#f2f4f7",
+                        "surface-container": "#eceef1",
+                        "surface-container-high": "#e6e8eb",
+                        "on-surface": "#191c1e",
+                        "on-surface-variant": "#43474f",
+                        "outline": "#747780",
+                        "outline-variant": "#c4c6d0",
+                        "error": "#ba1a1a",
+                        "error-container": "#ffdad6",
+                        "on-error-container": "#93000a",
+                        "background": "#f7f9fc",
+                    },
+                    fontFamily: {
+                        sans: ['Inter', 'system-ui', 'sans-serif'],
+                    },
+                }
+            }
+        }
+    </script>
     <style>
-        :root {
-            --prestamista-bg: #f5f7fb;
-            --prestamista-primary: #5e72e4;
-            --prestamista-dark: #172b4d;
-            --prestamista-muted: #67748e;
-        }
-
         body {
-            background: radial-gradient(circle at top left, rgba(94, 114, 228, .18), transparent 36%), var(--prestamista-bg);
-            color: var(--prestamista-dark);
-            font-family: Inter, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+            font-family: 'Inter', sans-serif;
+            -webkit-tap-highlight-color: transparent;
+            min-height: max(884px, 100dvh);
         }
-
-        .auth-shell {
-            min-height: 100vh;
-            display: grid;
-            grid-template-columns: minmax(0, 1fr);
-            align-items: center;
-            padding: 32px 16px;
+        .material-symbols-outlined {
+            font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 24;
         }
-
-        .auth-card {
-            width: min(100%, 440px);
-            margin: 0 auto;
-            border: 0;
-            border-radius: 8px;
-            box-shadow: 0 20px 45px rgba(50, 50, 93, .12), 0 8px 20px rgba(0, 0, 0, .08);
+        @keyframes slide-up {
+            from { opacity: 0; transform: translateY(20px); }
+            to   { opacity: 1; transform: translateY(0); }
         }
-
-        .brand-mark {
-            width: 44px;
-            height: 44px;
-            display: inline-grid;
-            place-items: center;
-            border-radius: 8px;
-            background: var(--prestamista-primary);
-            color: #fff;
-        }
-
-        .btn-primary {
-            --bs-btn-bg: var(--prestamista-primary);
-            --bs-btn-border-color: var(--prestamista-primary);
-            --bs-btn-hover-bg: #4b5fc9;
-            --bs-btn-hover-border-color: #4b5fc9;
-        }
+        .animate-slide-up { animation: slide-up 0.6s cubic-bezier(0.16, 1, 0.3, 1) forwards; }
     </style>
 </head>
-<body>
-    <main class="auth-shell">
-        @yield('content')
-    </main>
+<body class="bg-background min-h-screen flex flex-col items-center justify-between selection:bg-primary-fixed selection:text-on-primary-fixed">
+    <div class="fixed top-0 left-0 w-full h-1/2 bg-gradient-to-b from-[#002653]/5 to-transparent -z-10 pointer-events-none"></div>
+    @yield('content')
 </body>
 </html>

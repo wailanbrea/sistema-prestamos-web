@@ -116,6 +116,22 @@ class DashboardService
     }
 
     /**
+     * Most recent loans with client and collector eager loaded.
+     *
+     * @return Collection<int, Loan>
+     */
+    public function recentLoans(int $companyId, int $limit = 6): Collection
+    {
+        return Loan::query()
+            ->forCompany($companyId)
+            ->with(['client:id,full_name', 'collector:id,name'])
+            ->orderByDesc('created_at')
+            ->orderByDesc('id')
+            ->limit($limit)
+            ->get();
+    }
+
+    /**
      * Most recent valid payments with client and collector eager loaded.
      *
      * @return Collection<int, Payment>
