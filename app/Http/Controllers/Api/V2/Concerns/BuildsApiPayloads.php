@@ -119,6 +119,10 @@ trait BuildsApiPayloads
     {
         return [
             ...$this->loanPayload($loan),
+            'collector_id' => $loan->collector_id,
+            'collector_name' => $loan->collector?->name,
+            'currency' => $loan->currency,
+            'allows_capital_prepayment' => (bool) $loan->allows_capital_prepayment,
             'late_fee_type' => $loan->late_fee_type,
             'late_fee_value' => (float) $loan->late_fee_value,
             'guarantee_description' => $loan->guarantee_description,

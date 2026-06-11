@@ -8,6 +8,7 @@ use App\Http\Controllers\Api\V2\Concerns\BuildsApiPayloads;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\Clients\StoreClientRequest;
 use App\Http\Requests\Loans\StoreLoanRequest;
+use App\Http\Requests\Loans\UpdateLoanRequest;
 use App\Http\Requests\LoanQuotes\StoreLoanQuoteRequest;
 use App\Models\Client;
 use App\Models\Collector;
@@ -16,6 +17,7 @@ use App\Models\Loan;
 use App\Models\LoanInstallment;
 use App\Models\LoanQuote;
 use App\Models\Payment;
+use App\Services\Clients\ClientRegistrationLinkService;
 use App\Services\Clients\ClientService;
 use App\Services\Documents\DocumentGenerationService;
 use App\Services\Documents\DocumentShareService;
@@ -42,6 +44,7 @@ class AdminController extends Controller
         private readonly DocumentGenerationService $documentGenerationService,
         private readonly DocumentShareService $documentShareService,
         private readonly ClientService $clientService,
+        private readonly ClientRegistrationLinkService $registrationLinkService,
         private readonly LoanQuoteService $loanQuoteService,
         private readonly EventNotifier $notifier,
     ) {
@@ -99,6 +102,71 @@ class AdminController extends Controller
 
         return response()->json([
             'data' => $this->loanPayload($loan->loadMissing('client', 'collector')),
+        ], 201);
+    }
+
+    /** Actualiza los datos de un préstamo. El FormRequest distingue campos siempre editables vs. solo-si-no-hay-pagos. */
+    public function updateLoan(UpdateLoanRequest $request, int $loan): JsonResponse
+    {
+        $companyId = (int) $request->user()->company_id;
+        $loanModel = Loan::query()->forCompany($companyId)->whereKey($loan)->firstOrFail();
+
+        try {
+            $updated = $this->loanService->update(
+                companyId: $companyId,
+                userId: (int) $request->user()->id,
+                loan: $loanModel,
+                data: $request->validated(),
+            );
+        } catch (InvalidArgumentException $exception) {
+            return response()->json(['message' => $exception->getMessage()], 422);
+        }
+
+        return response()->json([
+            'data' => $this->loanDetailPayload(
+                $updated->loadMissing([
+                    'client:id,code,full_name,identification,phone,address,status,risk_level',
+                    'collector:id,name',
+                    'installments',
+                    'payments.loan.client',
+                    'payments.collector',
+                ])
+            ),
+        ]);
+    }
+
+    /** Genera un link de auto-registro de cliente y devuelve la URL del formulario y el link de WhatsApp. */
+    public function createRegistrationLink(Request $request): JsonResponse
+    {
+        $validated = $request->validate([
+            'recipient_name' => ['nullable', 'string', 'max:255'],
+            'recipient_phone' => ['nullable', 'string', 'max:30'],
+        ]);
+
+        abort_unless($request->user()?->can('clients.create'), 403);
+
+        $link = $this->registrationLinkService->create(
+            companyId: (int) $request->user()->company_id,
+            data: $validated,
+            createdBy: (int) $request->user()->id,
+        );
+
+        $formUrl = route('client-registration.show', ['token' => $link->token]);
+
+        $whatsappUrl = null;
+        $phone = $link->recipient_phone ? preg_replace('/\D+/', '', (string) $link->recipient_phone) : null;
+        if ($phone) {
+            $message = ($link->recipient_name ? "Hola {$link->recipient_name}, " : 'Hola, ')
+                . 'completa tu formulario de registro aquí: '
+                . $formUrl;
+            $whatsappUrl = 'https://wa.me/' . $phone . '?text=' . rawurlencode($message);
+        }
+
+        return response()->json([
+            'data' => [
+                'form_url' => $formUrl,
+                'whatsapp_url' => $whatsappUrl,
+            ],
         ], 201);
     }
 
@@ -299,6 +367,7 @@ class AdminController extends Controller
             ->forCompany($companyId)
             ->with([
                 'client:id,code,full_name,identification,phone,address,status,risk_level',
+                'collector:id,name',
                 'installments' => fn ($query) => $query->orderBy('installment_number'),
                 'payments' => fn ($query) => $query->with(['loan.client', 'collector'])->orderByDesc('payment_date')->orderByDesc('id'),
             ])

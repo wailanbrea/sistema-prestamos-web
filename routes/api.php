@@ -59,6 +59,7 @@ Route::prefix('v2')->name('api.v2.')->group(function (): void {
             Route::get('/collectors', [AdminController::class, 'collectors'])->middleware('permission:collectors.manage')->name('collectors');
             Route::get('/loans', [AdminController::class, 'loans'])->middleware('permission:collectors.manage')->name('loans');
             Route::post('/loans', [AdminController::class, 'storeLoan'])->middleware('permission:loans.create')->name('loans.store');
+            Route::put('/loans/{loan}', [AdminController::class, 'updateLoan'])->middleware('permission:loans.update')->whereNumber('loan')->name('loans.update');
             Route::get('/loans/{loan}', [AdminController::class, 'loan'])->middleware('permission:collectors.manage')->whereNumber('loan')->name('loans.show');
             Route::get('/loans/{loan}/documents', [AdminController::class, 'loanDocuments'])->middleware('permission:collectors.manage')->whereNumber('loan')->name('loans.documents');
             Route::post('/loans/{loan}/documents', [AdminController::class, 'generateLoanDocument'])->middleware('permission:documents.generate')->whereNumber('loan')->name('loans.documents.generate');
@@ -71,6 +72,8 @@ Route::prefix('v2')->name('api.v2.')->group(function (): void {
             Route::get('/approvals', [AdminController::class, 'approvals'])->middleware('permission:loans.approve')->name('approvals');
             Route::post('/loans/{loan}/approve', [AdminController::class, 'approveLoan'])->middleware('permission:loans.approve')->whereNumber('loan')->name('loans.approve');
             Route::post('/loans/{loan}/reject', [AdminController::class, 'rejectLoan'])->middleware('permission:loans.approve')->whereNumber('loan')->name('loans.reject');
+
+            Route::post('/registration-links', [AdminController::class, 'createRegistrationLink'])->middleware('permission:collectors.manage')->name('registration-links.store');
 
             Route::get('/reports/summary', [AdminReportController::class, 'summary'])->middleware('permission:reports.view')->name('reports.summary');
             Route::get('/reports/collectors', [AdminReportController::class, 'collectors'])->middleware('permission:reports.view')->name('reports.collectors');
