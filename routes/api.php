@@ -56,7 +56,9 @@ Route::prefix('v2')->name('api.v2.')->group(function (): void {
             Route::post('/quotes', [AdminController::class, 'storeQuote'])->middleware('permission:quotes.manage')->name('quotes.store');
             Route::get('/quotes/{quote}', [AdminController::class, 'quote'])->middleware('permission:quotes.manage')->whereNumber('quote')->name('quotes.show');
             Route::delete('/quotes/{quote}', [AdminController::class, 'destroyQuote'])->middleware('permission:quotes.manage')->whereNumber('quote')->name('quotes.destroy');
+            Route::get('/collectors', [AdminController::class, 'collectors'])->middleware('permission:collectors.manage')->name('collectors');
             Route::get('/loans', [AdminController::class, 'loans'])->middleware('permission:collectors.manage')->name('loans');
+            Route::post('/loans', [AdminController::class, 'storeLoan'])->middleware('permission:loans.create')->name('loans.store');
             Route::get('/loans/{loan}', [AdminController::class, 'loan'])->middleware('permission:collectors.manage')->whereNumber('loan')->name('loans.show');
             Route::get('/loans/{loan}/documents', [AdminController::class, 'loanDocuments'])->middleware('permission:collectors.manage')->whereNumber('loan')->name('loans.documents');
             Route::post('/loans/{loan}/documents', [AdminController::class, 'generateLoanDocument'])->middleware('permission:documents.generate')->whereNumber('loan')->name('loans.documents.generate');

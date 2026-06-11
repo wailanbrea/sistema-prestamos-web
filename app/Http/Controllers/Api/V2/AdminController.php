@@ -7,8 +7,10 @@ namespace App\Http\Controllers\Api\V2;
 use App\Http\Controllers\Api\V2\Concerns\BuildsApiPayloads;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\Clients\StoreClientRequest;
+use App\Http\Requests\Loans\StoreLoanRequest;
 use App\Http\Requests\LoanQuotes\StoreLoanQuoteRequest;
 use App\Models\Client;
+use App\Models\Collector;
 use App\Models\Document;
 use App\Models\Loan;
 use App\Models\LoanInstallment;
@@ -19,6 +21,7 @@ use App\Services\Documents\DocumentGenerationService;
 use App\Services\Documents\DocumentShareService;
 use App\Services\Loans\LoanQuoteService;
 use App\Services\Loans\LoanService;
+use App\Services\Notifications\EventNotifier;
 use App\Services\Payments\PaymentReceiptShareService;
 use App\Services\Payments\PaymentService;
 use Illuminate\Database\Eloquent\Builder;
@@ -40,6 +43,7 @@ class AdminController extends Controller
         private readonly DocumentShareService $documentShareService,
         private readonly ClientService $clientService,
         private readonly LoanQuoteService $loanQuoteService,
+        private readonly EventNotifier $notifier,
     ) {
     }
 
@@ -53,6 +57,48 @@ class AdminController extends Controller
 
         return response()->json([
             'data' => $this->clientPayload($client),
+        ], 201);
+    }
+
+    /** Cobradores activos de la empresa (para el selector del formulario de préstamo). */
+    public function collectors(Request $request): JsonResponse
+    {
+        $companyId = (int) $request->user()->company_id;
+
+        $collectors = Collector::query()
+            ->where('company_id', $companyId)
+            ->where('status', 'active')
+            ->orderBy('name')
+            ->get(['id', 'name']);
+
+        return response()->json([
+            'data' => $collectors->map(fn (Collector $c): array => [
+                'id' => $c->id,
+                'name' => $c->name,
+            ])->values(),
+        ]);
+    }
+
+    /**
+     * Alta de préstamo desde la app móvil: mismo FormRequest que la web.
+     * Acepta `quote_id` opcional para pre-rellenar desde una cotización.
+     */
+    public function storeLoan(StoreLoanRequest $request): JsonResponse
+    {
+        if ($request->filled('quote_id')) {
+            abort_unless($request->user()?->can('quotes.convert'), 403);
+        }
+
+        $loan = $this->loanService->create(
+            companyId: (int) $request->user()->company_id,
+            userId: $request->user()?->id,
+            data: $request->validated(),
+        );
+
+        $this->notifier->loanCreated($loan, $request->user()?->id);
+
+        return response()->json([
+            'data' => $this->loanPayload($loan->loadMissing('client', 'collector')),
         ], 201);
     }
 
