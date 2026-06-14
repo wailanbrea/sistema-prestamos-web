@@ -239,7 +239,7 @@
 
     // Vista previa del plan de cuotas en vivo.
     (function () {
-        const url = @json(route('loans.preview'));
+        const url = @json(route('loans.preview', [], false));
         const token = document.querySelector('meta[name="csrf-token"]')?.content;
         const ids = ['principal_amount', 'interest_rate', 'term_quantity', 'calculation_method', 'payment_frequency', 'first_payment_date'];
         const el = {};
@@ -288,11 +288,13 @@
                 });
                 if (res.status === 422) {
                     const j = await res.json();
-                    error.textContent = j.message || 'Revisa los datos para calcular la vista previa.';
+                    const msgs = j.errors ? Object.values(j.errors).flat().join(' ') : '';
+                    error.textContent = msgs || j.message || 'Revisa los datos para calcular la vista previa.';
                     show('error');
                     return;
                 }
-                if (!res.ok) throw new Error('http');
+                if (res.status === 419) { error.textContent = 'Sesión expirada. Recarga la página y vuelve a intentarlo.'; show('error'); return; }
+                if (!res.ok) { error.textContent = `Error del servidor (${res.status}). Revisa los logs.`; show('error'); return; }
                 const data = await res.json();
                 document.getElementById('pvCuota').textContent = money(data.installment_amount);
                 document.getElementById('pvInteresTotal').textContent = money(data.total_interest);
@@ -303,7 +305,7 @@
                 ).join('');
                 show('content');
             } catch (e) {
-                error.textContent = 'No se pudo calcular la vista previa.';
+                error.textContent = 'No se pudo conectar con el servidor para calcular la vista previa.';
                 show('error');
             }
         }
