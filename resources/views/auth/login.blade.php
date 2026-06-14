@@ -20,7 +20,7 @@
             </div>
         @endif
 
-        <form method="POST" action="{{ route('login.store') }}" novalidate class="space-y-5">
+        <form method="POST" action="{{ route('login.store') }}" novalidate class="space-y-5" data-prevent-double-submit>
             @csrf
 
             <div class="space-y-1">
@@ -67,9 +67,9 @@
             </div>
 
             <div class="pt-2">
-                <button type="submit"
+                <button type="submit" data-submitting-text="Ingresando..."
                     class="w-full bg-primary text-on-primary py-4 rounded-xl text-sm font-bold shadow-md active:scale-[0.98] transition-all flex items-center justify-center gap-2 group hover:bg-on-primary-fixed-variant">
-                    <span>Iniciar sesion</span>
+                    <span data-submit-label>Iniciar sesion</span>
                     <span class="material-symbols-outlined group-hover:translate-x-1 transition-transform" style="font-size:20px;">arrow_forward</span>
                 </button>
             </div>

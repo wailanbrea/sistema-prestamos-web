@@ -3,6 +3,8 @@
 use Illuminate\Foundation\Application;
 use Illuminate\Foundation\Configuration\Exceptions;
 use Illuminate\Foundation\Configuration\Middleware;
+use Illuminate\Http\Request;
+use Symfony\Component\HttpKernel\Exception\HttpException;
 
 return Application::configure(basePath: dirname(__DIR__))
     ->withRouting(
@@ -23,5 +25,19 @@ return Application::configure(basePath: dirname(__DIR__))
         ]);
     })
     ->withExceptions(function (Exceptions $exceptions): void {
-        //
+        $exceptions->render(function (HttpException $exception, Request $request) {
+            if (
+                $exception->getStatusCode() === 419
+                && $request->isMethod('post')
+                && $request->is('login')
+            ) {
+                return redirect()
+                    ->route('login')
+                    ->withErrors([
+                        'email' => 'La sesion del formulario vencio o cambio en otra pestaña. Intenta iniciar sesion nuevamente.',
+                    ]);
+            }
+
+            return null;
+        });
     })->create();

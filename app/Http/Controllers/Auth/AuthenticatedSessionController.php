@@ -19,8 +19,6 @@ class AuthenticatedSessionController extends Controller
 {
     public function create(Request $request): Response
     {
-        $request->session()->regenerateToken();
-
         return response()
             ->view('auth.login')
             ->header('Cache-Control', 'no-store, no-cache, must-revalidate, max-age=0')

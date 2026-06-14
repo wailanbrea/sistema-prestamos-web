@@ -27,6 +27,7 @@ class AuthenticationTest extends TestCase
             ->assertDontSee('cdn.tailwindcss.com', false)
             ->assertDontSee('togglePwd(', false)
             ->assertDontSee('eval(', false)
+            ->assertSee('data-prevent-double-submit', false)
             ->assertSee('build/assets/', false);
 
         $this->assertStringContainsString(
@@ -38,6 +39,28 @@ class AuthenticationTest extends TestCase
     public function test_guest_is_redirected_to_login(): void
     {
         $this->get('/dashboard')->assertRedirect('/login');
+    }
+
+    public function test_reloading_login_does_not_invalidate_existing_csrf_token(): void
+    {
+        $firstResponse = $this->get(route('login'));
+        $firstToken = $firstResponse->getSession()->token();
+
+        $this->get(route('login'))->assertOk();
+
+        $this->assertSame($firstToken, session()->token());
+    }
+
+    public function test_expired_login_form_returns_to_login_instead_of_showing_419(): void
+    {
+        $this->withMiddleware()
+            ->post(route('login.store'), [
+                '_token' => 'expired-token',
+                'email' => 'usuario@test.local',
+                'password' => 'Password123!',
+            ])
+            ->assertRedirect(route('login'))
+            ->assertSessionHasErrors('email');
     }
 
     public function test_active_user_can_login_and_view_dashboard(): void

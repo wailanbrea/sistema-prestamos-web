@@ -16,7 +16,7 @@ class DocumentService
     public function paginateForCompany(int $companyId, array $filters = []): LengthAwarePaginator
     {
         return Document::query()
-            ->with(['client:id,full_name', 'loan:id,loan_number', 'createdBy:id,name'])
+            ->with(['client:id,full_name,phone,secondary_phone', 'loan:id,loan_number', 'createdBy:id,name'])
             ->forCompany($companyId)
             ->when($filters['document_type'] ?? null, fn (Builder $query, string $type) => $query->where('document_type', $type))
             ->when($filters['search'] ?? null, function (Builder $query, string $search): void {
@@ -34,7 +34,7 @@ class DocumentService
     public function findForCompany(int $companyId, int $documentId): Document
     {
         return Document::query()
-            ->with(['client:id,full_name', 'loan:id,loan_number', 'createdBy:id,name'])
+            ->with(['client:id,full_name,phone,secondary_phone', 'loan:id,loan_number', 'createdBy:id,name'])
             ->forCompany($companyId)
             ->whereKey($documentId)
             ->firstOrFail();

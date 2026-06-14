@@ -5,7 +5,9 @@
 @section('title', $loan->loan_number.' - '.config('app.name'))
 
 @section('content')
-    @php($loanCurrency = $loan->currency ?? currency())
+    @php
+        $loanCurrency = $loan->currency ?? currency();
+    @endphp
     <section class="mb-4">
         <div class="d-flex flex-column flex-lg-row align-items-lg-end justify-content-between gap-3">
             <div>
@@ -47,6 +49,16 @@
 
     @if ($errors->has('loan_document'))
         <div class="alert alert-danger">{{ $errors->first('loan_document') }}</div>
+    @endif
+
+    @if ($errors->has('document_share'))
+        <div class="alert alert-danger">{{ $errors->first('document_share') }}</div>
+    @endif
+
+    @if (session('generatedDocumentId'))
+        @include('documents.partials.generated-actions', ['documentId' => session('generatedDocumentId')])
+    @elseif (session('status'))
+        <div class="alert alert-success">{{ session('status') }}</div>
     @endif
 
     <section class="row g-3 mb-4">
@@ -146,7 +158,9 @@
     </section>
 
     @can('legal.manage')
-        @php($latestContract = $loan->contracts()->latest('id')->first())
+        @php
+            $latestContract = $loan->contracts()->latest('id')->first();
+        @endphp
         <section class="row g-3 mb-3">
             <div class="col-12">
                 <article class="card content-card">

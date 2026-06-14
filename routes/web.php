@@ -165,6 +165,7 @@ Route::middleware(['auth', 'user.active', 'company.active', 'permission.company'
         Route::get('/', 'index')->name('index');
         Route::post('/prestamo', 'generateLoanDocument')->name('loan.generate');
         Route::post('/recibo-pago', 'generatePaymentReceipt')->name('payment-receipt.generate');
+        Route::get('/{document}/whatsapp', 'openWhatsapp')->whereNumber('document')->name('whatsapp');
         Route::get('/{document}/descargar', 'download')->whereNumber('document')->name('download');
     });
     Route::prefix('contratos')->name('contracts.')->controller(ContractController::class)->middleware('permission:legal.manage')->group(function (): void {

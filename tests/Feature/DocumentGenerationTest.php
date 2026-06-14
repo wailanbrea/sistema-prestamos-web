@@ -34,7 +34,8 @@ class DocumentGenerationTest extends TestCase
                 'loan_id' => $loan->id,
                 'document_type' => 'promissory_note',
             ])
-            ->assertRedirect();
+            ->assertRedirect(route('documents.index'))
+            ->assertSessionHas('generatedDocumentId');
 
         $document = Document::query()->firstOrFail();
 
@@ -72,7 +73,8 @@ class DocumentGenerationTest extends TestCase
             ->post('/documentos/recibo-pago', [
                 'payment_id' => $payment->id,
             ])
-            ->assertRedirect();
+            ->assertRedirect(route('documents.index'))
+            ->assertSessionHas('generatedDocumentId');
 
         $document = Document::query()->where('document_type', 'payment_receipt')->firstOrFail();
         Storage::disk('local')->assertExists($document->file_path);
@@ -99,6 +101,65 @@ class DocumentGenerationTest extends TestCase
         $this->actingAs($user)
             ->get(route('documents.download', $foreignDocument))
             ->assertNotFound();
+    }
+
+    public function test_admin_can_open_whatsapp_with_signed_document_link(): void
+    {
+        Storage::fake('local');
+        $user = $this->adminUser();
+        $loan = $this->loanForCompany((int) $user->company_id);
+        $document = Document::query()->create([
+            'company_id' => $user->company_id,
+            'client_id' => $loan->client_id,
+            'loan_id' => $loan->id,
+            'document_type' => 'promissory_note',
+            'title' => 'Pagare de prueba',
+            'file_path' => 'documents/test.pdf',
+            'created_by' => $user->id,
+        ]);
+
+        $response = $this->actingAs($user)->get(route('documents.whatsapp', $document));
+
+        $response->assertRedirect();
+        $location = (string) $response->headers->get('Location');
+        $this->assertStringStartsWith('https://wa.me/18095551212?text=', $location);
+        $this->assertStringContainsString(rawurlencode(route('documents.public-download', $document)), $location);
+    }
+
+    public function test_user_cannot_share_document_from_another_company(): void
+    {
+        $user = $this->adminUser();
+        $otherCompany = Company::query()->create(['name' => 'Otra Empresa', 'status' => 'active']);
+        $foreignDocument = Document::query()->create([
+            'company_id' => $otherCompany->id,
+            'document_type' => 'promissory_note',
+            'title' => 'Documento ajeno',
+            'file_path' => 'documents/foreign.pdf',
+        ]);
+
+        $this->actingAs($user)
+            ->get(route('documents.whatsapp', $foreignDocument))
+            ->assertNotFound();
+    }
+
+    public function test_admin_can_share_document_without_client_phone(): void
+    {
+        $user = $this->adminUser();
+        $document = Document::query()->create([
+            'company_id' => $user->company_id,
+            'document_type' => 'account_statement',
+            'title' => 'Estado de cuenta sin cliente',
+            'file_path' => 'documents/test.pdf',
+            'created_by' => $user->id,
+        ]);
+
+        $response = $this->actingAs($user)->get(route('documents.whatsapp', $document));
+
+        $response->assertRedirect();
+        $this->assertStringStartsWith(
+            'https://wa.me/?text=',
+            (string) $response->headers->get('Location'),
+        );
     }
 
     private function adminUser(): User
@@ -130,6 +191,7 @@ class DocumentGenerationTest extends TestCase
             'company_id' => $companyId,
             'full_name' => 'Cliente Documento',
             'identification' => '001-0000000-1',
+            'phone' => '809-555-1212',
             'address' => 'Santo Domingo',
             'status' => 'active',
             'risk_level' => 'low',

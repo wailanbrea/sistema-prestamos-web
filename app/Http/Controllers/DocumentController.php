@@ -9,6 +9,7 @@ use App\Models\Loan;
 use App\Models\Payment;
 use App\Services\Documents\DocumentGenerationService;
 use App\Services\Documents\DocumentService;
+use App\Services\Documents\DocumentShareService;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Storage;
@@ -21,6 +22,7 @@ class DocumentController extends Controller
     public function __construct(
         private readonly DocumentService $documentService,
         private readonly DocumentGenerationService $documentGenerationService,
+        private readonly DocumentShareService $documentShareService,
     ) {
     }
 
@@ -74,8 +76,9 @@ class DocumentController extends Controller
         }
 
         return redirect()
-            ->route('documents.download', $document)
-            ->with('status', 'Documento generado correctamente.');
+            ->route('documents.index')
+            ->with('status', 'Documento generado correctamente.')
+            ->with('generatedDocumentId', $document->id);
     }
 
     public function generateLoanDocumentForLoan(Request $request, int $loan): RedirectResponse
@@ -100,8 +103,9 @@ class DocumentController extends Controller
         }
 
         return redirect()
-            ->route('documents.download', $document)
-            ->with('status', 'Documento generado correctamente.');
+            ->route('loans.show', $loan)
+            ->with('status', 'Documento generado correctamente.')
+            ->with('generatedDocumentId', $document->id);
     }
 
     public function generatePaymentReceipt(Request $request): RedirectResponse
@@ -119,8 +123,22 @@ class DocumentController extends Controller
         );
 
         return redirect()
-            ->route('documents.download', $document)
-            ->with('status', 'Recibo generado correctamente.');
+            ->route('documents.index')
+            ->with('status', 'Recibo generado correctamente.')
+            ->with('generatedDocumentId', $document->id);
+    }
+
+    public function openWhatsapp(Request $request, int $document): RedirectResponse
+    {
+        abort_unless($request->user()?->can('documents.generate'), 403);
+
+        $model = $this->documentService->findForCompany(
+            (int) $request->user()->company_id,
+            $document,
+        );
+        $whatsAppUrl = $this->documentShareService->whatsAppUrl($model);
+
+        return redirect()->away($whatsAppUrl);
     }
 
     public function download(Request $request, int $document): StreamedResponse

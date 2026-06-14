@@ -3,6 +3,16 @@
 @section('title', 'Documentos - '.config('app.name'))
 
 @section('content')
+    @if (session('generatedDocumentId'))
+        @include('documents.partials.generated-actions', ['documentId' => session('generatedDocumentId')])
+    @elseif (session('status'))
+        <div class="alert alert-success">{{ session('status') }}</div>
+    @endif
+
+    @if ($errors->has('document_share'))
+        <div class="alert alert-danger">{{ $errors->first('document_share') }}</div>
+    @endif
+
     <section class="mb-4">
         <h1 class="h3 fw-bold mb-1">Documentos</h1>
         <p class="text-muted mb-0">Generacion y control de contratos, pagares, recibos, estados de cuenta y cartas de saldo.</p>
@@ -168,9 +178,14 @@
                                 <td>{{ $document->loan?->loan_number ?: 'N/A' }}</td>
                                 <td>{{ $document->createdBy?->name ?: 'Sistema' }}</td>
                                 <td class="text-end">
-                                    <a href="{{ route('documents.download', $document) }}" class="btn btn-sm btn-outline-primary">
-                                        <i class="fa-solid fa-download me-2"></i> Descargar
-                                    </a>
+                                    <div class="d-flex flex-wrap justify-content-end gap-2">
+                                        <a href="{{ route('documents.download', $document) }}" class="btn btn-sm btn-outline-primary">
+                                            <i class="fa-solid fa-download me-2"></i>Descargar
+                                        </a>
+                                        <a href="{{ route('documents.whatsapp', $document) }}" class="btn btn-sm btn-outline-success" target="_blank" rel="noopener">
+                                            <i class="fa-brands fa-whatsapp me-2"></i>Enviar por WS
+                                        </a>
+                                    </div>
                                 </td>
                             </tr>
                         @empty
