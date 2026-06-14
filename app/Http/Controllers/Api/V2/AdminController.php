@@ -612,6 +612,32 @@ class AdminController extends Controller
     }
 
     /**
+     * Historial de pagos de la empresa (back-office). Devuelve los últimos
+     * cobros de toda la cartera para mostrar el "último recibo" en el dashboard.
+     */
+    public function payments(Request $request): JsonResponse
+    {
+        $companyId = (int) $request->user()->company_id;
+
+        $validated = $request->validate([
+            'per_page' => ['nullable', 'integer', 'min:1', 'max:100'],
+        ]);
+
+        $payments = Payment::query()
+            ->forCompany($companyId)
+            ->with(['loan.client', 'collector', 'collectorCommission'])
+            ->where('status', 'valid')
+            ->orderByDesc('payment_date')
+            ->orderByDesc('id')
+            ->paginate((int) ($validated['per_page'] ?? 25));
+
+        return response()->json([
+            'data' => $payments->through(fn (Payment $p): array => $this->paymentPayload($p))->items(),
+            'meta' => $this->paginationMeta($payments),
+        ]);
+    }
+
+    /**
      * Registra un pago desde el back-office (Administrador). A diferencia del
      * endpoint del cobrador, acepta cualquier préstamo activo/atrasado de la
      * empresa; el cobro queda atribuido al cobrador asignado al préstamo.
