@@ -99,6 +99,17 @@ class LoanController extends Controller
             ? min(100, round(($principalCollected / (float) $model->principal_amount) * 100, 2))
             : 0.0;
 
+        // Cuotas vencidas: cuotas cuyo vencimiento ya pasó y no están saldadas.
+        // El monto es lo que aún se debe de cada cuota (cuota programada menos lo pagado).
+        $today = now()->startOfDay();
+        $overdueInstallments = $model->installments->filter(
+            fn ($installment) => ! in_array($installment->status, ['paid', 'cancelled'], true)
+                && $installment->due_date->lt($today),
+        );
+        $overdueTotal = (float) $overdueInstallments->sum(
+            fn ($installment) => max(0, (float) $installment->installment_amount - (float) $installment->paid_principal - (float) $installment->paid_interest),
+        );
+
         return view('loans.show', [
             'loan' => $model,
             'financialSummary' => [
@@ -108,6 +119,8 @@ class LoanController extends Controller
                 'interest_collected' => $interestCollected,
                 'interest_pending' => max(0, (float) $model->total_interest - $interestCollected),
                 'late_fee_collected' => $lateFeeCollected,
+                'overdue_total' => $overdueTotal,
+                'overdue_count' => $overdueInstallments->count(),
             ],
             ...$this->labels(),
         ]);

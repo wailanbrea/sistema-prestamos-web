@@ -117,6 +117,18 @@ trait BuildsApiPayloads
      */
     protected function loanDetailPayload(Loan $loan): array
     {
+        // Cuotas vencidas: vencimiento ya pasado y no saldadas. El monto es lo que
+        // aún se debe de cada cuota (cuota programada menos lo ya pagado).
+        $today = now()->startOfDay();
+        $overdueInstallments = $loan->installments->filter(
+            fn (LoanInstallment $installment) => ! in_array($installment->status, ['paid', 'cancelled'], true)
+                && $installment->due_date !== null
+                && $installment->due_date->lt($today),
+        );
+        $overdueTotal = (float) $overdueInstallments->sum(
+            fn (LoanInstallment $installment) => max(0, (float) $installment->installment_amount - (float) $installment->paid_principal - (float) $installment->paid_interest),
+        );
+
         return [
             ...$this->loanPayload($loan),
             'collector_id' => $loan->collector_id,
@@ -133,6 +145,8 @@ trait BuildsApiPayloads
                 'installments_late' => $loan->installments->where('status', 'late')->count(),
                 'payments_total' => $loan->payments->where('status', 'valid')->count(),
                 'amount_paid' => (float) $loan->payments->where('status', 'valid')->sum('amount'),
+                'overdue_installments_count' => $overdueInstallments->count(),
+                'overdue_installments_total' => $overdueTotal,
             ],
         ];
     }

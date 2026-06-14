@@ -58,6 +58,20 @@
         <div class="col-12 col-md-6 col-xl-2"><article class="card metric-card"><div class="card-body"><div class="text-muted small">Estado</div><div><span class="badge {{ $loanStatusLabels[$loan->status]['class'] ?? 'text-bg-secondary' }}">{{ $loanStatusLabels[$loan->status]['label'] ?? $loan->status }}</span></div></div></article></div>
     </section>
 
+    @if (($financialSummary['overdue_count'] ?? 0) > 0)
+        <section class="mb-4">
+            <article class="card metric-card border-danger" style="border-width: 1px;">
+                <div class="card-body d-flex align-items-center justify-content-between flex-wrap gap-2">
+                    <div>
+                        <div class="text-danger fw-semibold"><i class="fa-solid fa-triangle-exclamation me-2"></i>Cuotas vencidas</div>
+                        <div class="text-muted small">{{ $financialSummary['overdue_count'] }} {{ $financialSummary['overdue_count'] == 1 ? 'cuota vencida sin saldar' : 'cuotas vencidas sin saldar' }}</div>
+                    </div>
+                    <div class="h2 fw-bold mb-0 text-danger">{{ $loanCurrency }} {{ number_format((float) $financialSummary['overdue_total'], 2) }}</div>
+                </div>
+            </article>
+        </section>
+    @endif
+
     <section class="row g-3 mb-4">
         <div class="col-12 col-md-4"><article class="card metric-card"><div class="card-body"><div class="text-muted small">Capital cobrado</div><div class="h4 fw-bold mb-0">{{ $loanCurrency }} {{ number_format((float) $financialSummary['principal_collected'], 2) }}</div></div></article></div>
         <div class="col-12 col-md-4"><article class="card metric-card"><div class="card-body"><div class="text-muted small">Capital pendiente</div><div class="h4 fw-bold mb-0 text-warning">{{ $loanCurrency }} {{ number_format((float) $financialSummary['principal_pending'], 2) }}</div></div></article></div>
