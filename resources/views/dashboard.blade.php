@@ -146,9 +146,10 @@
         <div class="kpi-tile kpi-tile-white">
             <i class="fa-solid fa-wallet" style="color:var(--app-primary); opacity:.7; font-size:1.1rem;"></i>
             <div>
+                @php($capitalNegativo = (float) $metrics['capital_disponible'] < 0)
                 <div class="kpi-label" style="color:var(--app-muted);">Capital disponible</div>
-                <div class="kpi-value" style="color:var(--app-primary);">{{ number_format((float)$metrics['capital_disponible'], 0) }}</div>
-                <div style="font-size:.7rem; color:var(--app-muted); margin-top:2px;">{{ currency() }}</div>
+                <div class="kpi-value" style="color:{{ $capitalNegativo ? 'var(--bs-danger, #dc3545)' : 'var(--app-primary)' }};">{{ number_format((float)$metrics['capital_disponible'], 0) }}</div>
+                <div style="font-size:.7rem; color:{{ $capitalNegativo ? 'var(--bs-danger, #dc3545)' : 'var(--app-muted)' }}; margin-top:2px;">{{ currency() }}@if ($capitalNegativo) · registra una inyección de capital en Caja @endif</div>
             </div>
         </div>
         <div class="kpi-tile kpi-tile-amber">
@@ -387,7 +388,7 @@
                         </span>
                         <span class="text-muted" style="font-size:.88rem;">Capital disponible</span>
                     </div>
-                    <strong style="font-size:.88rem;">{{ currency() }} {{ number_format((float)$metrics['capital_disponible'], 2) }}</strong>
+                    <strong style="font-size:.88rem; color:{{ (float) $metrics['capital_disponible'] < 0 ? 'var(--bs-danger, #dc3545)' : 'inherit' }};">{{ currency() }} {{ number_format((float)$metrics['capital_disponible'], 2) }}</strong>
                 </div>
                 <div class="invest-row">
                     <div class="d-flex align-items-center gap-3">
