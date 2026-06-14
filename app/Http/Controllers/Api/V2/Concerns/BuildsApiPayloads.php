@@ -154,8 +154,11 @@ trait BuildsApiPayloads
             'late_fee' => (float) $installment->late_fee,
             'installment_amount' => (float) $installment->installment_amount,
             'total_paid' => (float) $installment->total_paid,
+            'paid_principal' => (float) $installment->paid_principal,
+            'paid_interest' => (float) $installment->paid_interest,
+            'paid_late_fee' => (float) $installment->paid_late_fee,
             'pending_amount' => max(0.0, (float) $installment->installment_amount + (float) $installment->late_fee - (float) $installment->total_paid),
-            'days_late' => (int) $installment->days_late,
+            'days_late' => in_array($installment->status, ['paid', 'cancelled'], true) ? 0 : (int) $installment->days_late,
             'status' => $installment->status,
         ];
     }

@@ -52,7 +52,7 @@ class StorePaymentRequest extends FormRequest
             ],
             'payment_date' => ['required', 'date'],
             'payment_method' => ['required', Rule::in(array_keys(config('loan_labels.payment_methods')))],
-            'allocation_mode' => ['required', Rule::in(['auto', 'interest_only', 'principal_only', 'custom'])],
+            'allocation_mode' => ['required', Rule::in(['auto', 'principal_and_interest', 'interest_only', 'principal_only', 'custom'])],
             'amount' => [Rule::requiredIf(! $isCustom), 'nullable', 'numeric', 'min:0.01', 'max:999999999.99'],
             'target_installment_id' => ['nullable', 'integer', $installmentExists],
             'excess_action' => ['nullable', Rule::in(['reject', 'prepayment', 'change'])],

@@ -61,6 +61,7 @@ class PaymentService
      */
     private const ALLOCATION_BUCKETS = [
         'auto' => ['late', 'interest', 'principal'],
+        'principal_and_interest' => ['interest', 'principal'],
         'interest_only' => ['interest'],
         'principal_only' => ['principal'],
     ];
@@ -174,8 +175,10 @@ class PaymentService
             }
 
             // Si el negocio no permite pagos parciales, ninguna cuota tocada puede quedar a medias.
+            // Modos que cubren solo parte de la cuota intencionalmente se eximen de esta regla.
             $allowPartial = (bool) (CompanySetting::query()->where('company_id', $loan->company_id)->value('allow_partial_payments') ?? true);
-            if (! $allowPartial) {
+            $explicitPartialMode = in_array($mode, ['interest_only', 'principal_only', 'principal_and_interest'], true);
+            if (! $allowPartial && ! $explicitPartialMode) {
                 $touchedIds = $payment->details()->pluck('installment_id');
                 $hasPartial = LoanInstallment::query()->whereIn('id', $touchedIds)->where('status', 'partial')->exists();
                 if ($hasPartial) {

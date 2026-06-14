@@ -193,10 +193,11 @@
                     <div class="row g-2 mb-4" id="modeOptions">
                         @php
                             $modes = [
-                                'auto'           => ['Automático',    'Mora → interés → capital, en orden.',                           'fa-wand-magic-sparkles'],
-                                'interest_only'  => ['Solo interés',  'Aplica únicamente al interés.',                                 'fa-percent'],
-                                'principal_only' => ['Solo capital',  'Aplica únicamente al capital.',                                 'fa-sack-dollar'],
-                                'custom'         => ['Personalizado', 'Elige cuánto pagar en cada cuota.',                             'fa-sliders'],
+                                'auto'                   => ['Automático',         'Mora → interés → capital, en orden.',     'fa-wand-magic-sparkles'],
+                                'principal_and_interest' => ['Capital + Interés',  'Cubre interés y capital, sin mora.',      'fa-scale-balanced'],
+                                'interest_only'          => ['Solo interés',       'Aplica únicamente al interés.',           'fa-percent'],
+                                'principal_only'         => ['Solo capital',       'Aplica únicamente al capital.',           'fa-sack-dollar'],
+                                'custom'                 => ['Personalizado',      'Elige cuánto pagar en cada cuota.',       'fa-sliders'],
                             ];
                         @endphp
                         @foreach ($modes as $value => $info)
@@ -478,7 +479,7 @@ function selectMethod(val) {
     function suggestAmount() {
         if (modeInput.value === 'custom') return;
         const mode = modeInput.value;
-        const pick = (i) => mode === 'interest_only' ? i.interest_due : (mode === 'principal_only' ? i.principal_due : i.total_due);
+        const pick = (i) => mode === 'interest_only' ? i.interest_due : (mode === 'principal_only' ? i.principal_due : (mode === 'principal_and_interest' ? round2(i.interest_due + i.principal_due) : i.total_due));
         const targetId = targetSelect.value;
         let val = 0;
         if (targetId) {
@@ -592,7 +593,7 @@ function selectMethod(val) {
                 if (r.avail > 0) leftover += r.avail;
             });
         } else {
-            const buckets = mode === 'interest_only' ? ['interest'] : (mode === 'principal_only' ? ['principal'] : ['late','interest','principal']);
+            const buckets = mode === 'interest_only' ? ['interest'] : (mode === 'principal_only' ? ['principal'] : (mode === 'principal_and_interest' ? ['interest','principal'] : ['late','interest','principal']));
             let avail = round2(amountInput.value || 0);
             const targetId = targetSelect.value;
             const queue = targetId ? installments.filter((i) => i.id == targetId) : installments;
@@ -655,6 +656,8 @@ function selectMethod(val) {
             warn = 'Pago a capital: el interés y la mora de esas cuotas quedarán pendientes y la cuota no se marcará como Pagada.';
         } else if (mode === 'interest_only' && interest > 0 && prepay === 0) {
             warn = 'Pago solo a interés: el balance de capital no baja.';
+        } else if (mode === 'principal_and_interest' && (principal + interest) > 0 && late === 0) {
+            warn = 'Capital + Interés: la mora acumulada queda pendiente y no se incluye en este pago.';
         }
         modeWarning.style.display = warn ? '' : 'none';
         modeWarning.textContent = warn;
