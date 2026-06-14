@@ -42,7 +42,9 @@ class Contract extends Model
 
     public function loan(): BelongsTo
     {
-        return $this->belongsTo(Loan::class);
+        // withTrashed: un contrato sigue siendo verificable aunque el préstamo
+        // se haya eliminado (soft delete). Evita loan = null al verificar/firmar.
+        return $this->belongsTo(Loan::class)->withTrashed();
     }
 
     public function client(): BelongsTo

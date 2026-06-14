@@ -23,13 +23,15 @@
                     <div class="alert alert-success">Contrato <strong>auténtico y firmado</strong>. La integridad del contenido coincide.</div>
                 @elseif ($hashMatches)
                     <div class="alert alert-info">Contrato <strong>auténtico</strong>. Integridad verificada. Estado actual: {{ strtoupper($contract->status) }}.</div>
+                @elseif ($expectedHash === null)
+                    <div class="alert alert-warning">Contrato registrado. No fue posible recalcular la integridad en este momento. Estado actual: {{ strtoupper($contract->status) }}.</div>
                 @else
                     <div class="alert alert-danger">No se pudo verificar la integridad del contenido. El documento pudo haber sido alterado.</div>
                 @endif
 
                 <div class="row-v"><span class="text-muted">Contrato</span><strong>{{ $contract->contract_number }}</strong></div>
-                <div class="row-v"><span class="text-muted">Cliente</span><strong>{{ $contract->loan->client->full_name }}</strong></div>
-                <div class="row-v"><span class="text-muted">Préstamo</span><strong>{{ $contract->loan->loan_number }}</strong></div>
+                <div class="row-v"><span class="text-muted">Cliente</span><strong>{{ $contract->loan?->client?->full_name ?? 'N/D' }}</strong></div>
+                <div class="row-v"><span class="text-muted">Préstamo</span><strong>{{ $contract->loan?->loan_number ?? 'N/D' }}</strong></div>
                 <div class="row-v"><span class="text-muted">Estado</span><strong>{{ strtoupper($contract->status) }}</strong></div>
                 @if ($contract->signed_at)
                     <div class="row-v"><span class="text-muted">Firmado el</span><strong>{{ $contract->signed_at->format('d/m/Y H:i') }}</strong></div>

@@ -27,7 +27,10 @@ class Payment extends Model
 
     public function loan(): BelongsTo
     {
-        return $this->belongsTo(Loan::class);
+        // withTrashed: el recibo de un pago debe poder verse/compartirse aunque
+        // el préstamo se haya eliminado (soft delete). Evita loan = null al
+        // generar el PDF del recibo.
+        return $this->belongsTo(Loan::class)->withTrashed();
     }
 
     public function client(): BelongsTo

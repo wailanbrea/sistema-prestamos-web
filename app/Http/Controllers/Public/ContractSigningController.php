@@ -94,8 +94,19 @@ class ContractSigningController extends Controller
     {
         $contract = $this->findOrFail($uuid)->load(['loan.client', 'loan.installments', 'loan.company.settings', 'signatures']);
 
-        $expected = $this->contractService->contentHash($contract->loan, $contract);
-        $matches = hash_equals((string) $contract->hash_sha256, $expected);
+        // Si el préstamo ya no está disponible, mostramos el estado del contrato
+        // sin recalcular el hash (no es posible) en vez de fallar con un 500.
+        $expected = null;
+        $matches = false;
+        if ($contract->loan !== null) {
+            try {
+                $expected = $this->contractService->contentHash($contract->loan, $contract);
+                $matches = hash_equals((string) $contract->hash_sha256, $expected);
+            } catch (\Throwable $e) {
+                $expected = null;
+                $matches = false;
+            }
+        }
 
         return view('contracts.public.verify', [
             'contract' => $contract,
