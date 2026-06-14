@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Services\Dashboard;
 
+use App\Models\CashMovement;
 use App\Models\Client;
 use App\Models\Collector;
 use App\Models\Expense;
@@ -42,10 +43,17 @@ class DashboardService
             ->whereYear('expense_date', now()->year)
             ->sum('amount');
 
+        // Capital disponible = saldo de caja (todo lo que entró menos lo que salió):
+        // inyecciones de capital + cobros recibidos − desembolsos − gastos −
+        // comisiones − retiros. Se calcula automáticamente desde los movimientos.
+        $cashIn = (float) CashMovement::query()->forCompany($companyId)->where('direction', 'in')->sum('amount');
+        $cashOut = (float) CashMovement::query()->forCompany($companyId)->where('direction', 'out')->sum('amount');
+        $capitalDisponible = round($cashIn - $cashOut, 2);
+
         return [
             'capital_invertido' => $capitalPrestado,
             'capital_prestado' => $capitalPrestado,
-            'capital_disponible' => 0.0,
+            'capital_disponible' => $capitalDisponible,
             'cobros_hoy' => $cobrosHoy,
             'intereses_generados' => $interesesGenerados,
             'ganancia_neta' => round($interesesGenerados - $gastosMes, 2),
