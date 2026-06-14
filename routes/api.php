@@ -78,6 +78,7 @@ Route::prefix('v2')->name('api.v2.')->group(function (): void {
             // para que un Cobrador (que también tiene payments.create) no pueda cobrar
             // préstamos fuera de su cartera por esta vía.
             Route::get('/payments', [AdminController::class, 'payments'])->middleware('permission:collectors.manage')->name('payments.index');
+            Route::get('/payments/{payment}', [AdminController::class, 'payment'])->middleware('permission:collectors.manage')->whereNumber('payment')->name('payments.show');
             Route::post('/payments', [AdminController::class, 'storePayment'])->middleware(['permission:collectors.manage', 'permission:payments.create'])->name('payments.store');
             Route::post('/payments/{payment}/cancel', [AdminController::class, 'cancelPayment'])->middleware('permission:payments.cancel')->whereNumber('payment')->name('payments.cancel');
             Route::post('/cash/movements', [AdminController::class, 'storeMovement'])->middleware('permission:cash.view')->name('cash.movements.store');

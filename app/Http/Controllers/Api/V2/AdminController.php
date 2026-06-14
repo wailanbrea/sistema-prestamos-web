@@ -708,6 +708,28 @@ class AdminController extends Controller
     }
 
     /**
+     * Detalle de un pago de la empresa (back-office), con datos para compartir.
+     * A diferencia del endpoint del cobrador, no se limita a la cartera de un
+     * cobrador, por lo que el Administrador puede ver cualquier recibo.
+     */
+    public function payment(Request $request, int $payment): JsonResponse
+    {
+        $companyId = (int) $request->user()->company_id;
+
+        $paymentModel = Payment::query()
+            ->forCompany($companyId)
+            ->with(['loan.client', 'collector', 'collectorCommission', 'details.installment'])
+            ->whereKey($payment)
+            ->firstOrFail();
+
+        return response()->json([
+            'data' => $paymentModel->status === 'valid'
+                ? $this->paymentWithShareData($paymentModel)
+                : $this->paymentPayload($paymentModel),
+        ]);
+    }
+
+    /**
      * Registra un pago desde el back-office (Administrador). A diferencia del
      * endpoint del cobrador, acepta cualquier préstamo activo/atrasado de la
      * empresa; el cobro queda atribuido al cobrador asignado al préstamo.
