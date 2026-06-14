@@ -64,7 +64,7 @@ class AuthController extends Controller
             'data' => [
                 'token_type' => 'Bearer',
                 'access_token' => $token->plainTextToken,
-                'user' => $this->userPayload($user->fresh('company') ?? $user),
+                'user' => $this->userPayload($user->fresh('company.settings') ?? $user),
             ],
         ]);
     }
@@ -134,7 +134,7 @@ class AuthController extends Controller
     public function me(Request $request): JsonResponse
     {
         /** @var User $user */
-        $user = $request->user()->load('company');
+        $user = $request->user()->load('company.settings');
 
         return response()->json([
             'data' => $this->userPayload($user),
@@ -168,6 +168,8 @@ class AuthController extends Controller
                 'phone' => $user->company?->phone,
                 'email' => $user->company?->email,
                 'status' => $user->company?->status,
+                // Moneda por defecto de la empresa (RD$/US$) para formatear en la app.
+                'default_currency' => $user->company?->settings?->default_loan_currency ?: 'RD$',
             ],
         ];
     }

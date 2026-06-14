@@ -240,6 +240,7 @@ trait BuildsApiPayloads
             'receipt_number' => $payment->receipt_number,
             'loan_id' => $payment->loan_id,
             'loan_number' => $payment->loan?->loan_number,
+            'currency' => $payment->loan?->currency ?: 'RD$',
             'client' => $payment->client ? $this->clientPayload($payment->client) : null,
             'collector' => $payment->collector ? $this->collectorPayload($payment->collector) : null,
             'payment_date' => $payment->payment_date?->toDateString(),
