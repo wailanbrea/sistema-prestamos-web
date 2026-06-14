@@ -70,6 +70,10 @@ Route::prefix('v2')->name('api.v2.')->group(function (): void {
             Route::get('/loans/{loan}/documents', [AdminController::class, 'loanDocuments'])->middleware('permission:collectors.manage')->whereNumber('loan')->name('loans.documents');
             Route::post('/loans/{loan}/documents', [AdminController::class, 'generateLoanDocument'])->middleware('permission:documents.generate')->whereNumber('loan')->name('loans.documents.generate');
 
+            // Contratos digitales: generar y consultar el contrato de un préstamo desde la app.
+            Route::get('/loans/{loan}/contract', [AdminController::class, 'loanContract'])->middleware('permission:legal.manage')->whereNumber('loan')->name('loans.contract');
+            Route::post('/loans/{loan}/contract', [AdminController::class, 'generateLoanContract'])->middleware('permission:legal.manage')->whereNumber('loan')->name('loans.contract.generate');
+
             // Cobro desde back-office: exige cartera global ADEMÁS de payments.create,
             // para que un Cobrador (que también tiene payments.create) no pueda cobrar
             // préstamos fuera de su cartera por esta vía.

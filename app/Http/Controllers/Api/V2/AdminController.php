@@ -28,8 +28,11 @@ use App\Services\Clients\ClientRegistrationLinkService;
 use App\Services\Clients\ClientService;
 use App\Services\Collectors\CollectorCommissionService;
 use App\Services\Collectors\CollectorService;
+use App\Services\Contracts\ContractService;
+use App\Services\Contracts\ContractShareService;
 use App\Services\Documents\DocumentGenerationService;
 use App\Services\Documents\DocumentShareService;
+use App\Models\Contract;
 use App\Services\Loans\LoanQuoteService;
 use App\Services\Loans\LoanService;
 use App\Services\Notifications\EventNotifier;
@@ -52,6 +55,8 @@ class AdminController extends Controller
         private readonly PaymentReceiptShareService $receiptShareService,
         private readonly DocumentGenerationService $documentGenerationService,
         private readonly DocumentShareService $documentShareService,
+        private readonly ContractService $contractService,
+        private readonly ContractShareService $contractShareService,
         private readonly ClientService $clientService,
         private readonly ClientRegistrationLinkService $registrationLinkService,
         private readonly CollectorService $collectorService,
@@ -557,6 +562,71 @@ class AdminController extends Controller
         return response()->json([
             'data' => $this->documentPayload($document, true),
         ], 201);
+    }
+
+    /**
+     * Devuelve el contrato digital más reciente de un préstamo (o null), con los
+     * enlaces para firmar/compartir. Requiere permiso legal.manage (en la ruta).
+     */
+    public function loanContract(Request $request, int $loan): JsonResponse
+    {
+        $companyId = (int) $request->user()->company_id;
+        $loanModel = Loan::query()->forCompany($companyId)->whereKey($loan)->firstOrFail();
+
+        $contract = Contract::query()
+            ->forCompany($companyId)
+            ->where('loan_id', $loanModel->id)
+            ->latest('id')
+            ->first();
+
+        return response()->json([
+            'data' => $contract ? $this->contractPayload($contract) : null,
+        ]);
+    }
+
+    /**
+     * Genera un contrato digital para el préstamo y devuelve los enlaces de firma.
+     */
+    public function generateLoanContract(Request $request, int $loan): JsonResponse
+    {
+        $companyId = (int) $request->user()->company_id;
+        $loanModel = Loan::query()->forCompany($companyId)->whereKey($loan)->firstOrFail();
+
+        $validated = $request->validate([
+            'contract_type' => ['nullable', Rule::in(['loan_contract', 'promissory_note', 'disbursement_receipt', 'settlement_letter'])],
+        ]);
+
+        try {
+            $contract = $this->contractService->generate(
+                $companyId,
+                $loanModel,
+                $validated['contract_type'] ?? 'loan_contract',
+                (int) $request->user()->id,
+            );
+        } catch (InvalidArgumentException $exception) {
+            return response()->json(['message' => $exception->getMessage()], 422);
+        }
+
+        return response()->json([
+            'data' => $this->contractPayload($contract),
+        ], 201);
+    }
+
+    /**
+     * @return array<string, mixed>
+     */
+    private function contractPayload(Contract $contract): array
+    {
+        return [
+            'uuid' => $contract->uuid,
+            'contract_number' => $contract->contract_number,
+            'status' => $contract->status,
+            'version' => $contract->version,
+            'signed_at' => $contract->signed_at?->toIso8601String(),
+            'signing_url' => $contract->isFinalized() ? null : $this->contractShareService->signingUrl($contract),
+            'whatsapp_url' => $contract->isFinalized() ? null : $this->contractShareService->whatsappUrl($contract),
+            'verify_url' => route('contracts.verify', ['uuid' => $contract->uuid]),
+        ];
     }
 
     public function approvals(Request $request): JsonResponse
