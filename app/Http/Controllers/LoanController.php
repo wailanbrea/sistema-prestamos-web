@@ -109,6 +109,10 @@ class LoanController extends Controller
         $overdueTotal = (float) $overdueInstallments->sum(
             fn ($installment) => max(0, (float) $installment->installment_amount - (float) $installment->paid_principal - (float) $installment->paid_interest),
         );
+        // Mora pendiente acumulada en las cuotas vencidas.
+        $overdueLateFee = (float) $overdueInstallments->sum(
+            fn ($installment) => max(0, (float) $installment->late_fee - (float) $installment->paid_late_fee),
+        );
 
         return view('loans.show', [
             'loan' => $model,
@@ -121,6 +125,8 @@ class LoanController extends Controller
                 'late_fee_collected' => $lateFeeCollected,
                 'overdue_total' => $overdueTotal,
                 'overdue_count' => $overdueInstallments->count(),
+                'overdue_late_fee' => $overdueLateFee,
+                'total_due_today' => $overdueTotal + $overdueLateFee,
             ],
             ...$this->labels(),
         ]);

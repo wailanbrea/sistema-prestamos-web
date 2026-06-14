@@ -59,16 +59,34 @@
     </section>
 
     @if (($financialSummary['overdue_count'] ?? 0) > 0)
-        <section class="mb-4">
-            <article class="card metric-card border-danger" style="border-width: 1px;">
-                <div class="card-body d-flex align-items-center justify-content-between flex-wrap gap-2">
-                    <div>
-                        <div class="text-danger fw-semibold"><i class="fa-solid fa-triangle-exclamation me-2"></i>Cuotas vencidas</div>
-                        <div class="text-muted small">{{ $financialSummary['overdue_count'] }} {{ $financialSummary['overdue_count'] == 1 ? 'cuota vencida sin saldar' : 'cuotas vencidas sin saldar' }}</div>
+        <section class="row g-3 mb-4">
+            <div class="col-12 col-md-4">
+                <article class="card metric-card border-danger" style="border-width: 1px;">
+                    <div class="card-body">
+                        <div class="text-danger small fw-semibold"><i class="fa-solid fa-triangle-exclamation me-2"></i>Cuotas vencidas</div>
+                        <div class="h3 fw-bold mb-0 text-danger">{{ $loanCurrency }} {{ number_format((float) $financialSummary['overdue_total'], 2) }}</div>
+                        <div class="text-muted small">{{ $financialSummary['overdue_count'] }} {{ $financialSummary['overdue_count'] == 1 ? 'cuota sin saldar' : 'cuotas sin saldar' }}</div>
                     </div>
-                    <div class="h2 fw-bold mb-0 text-danger">{{ $loanCurrency }} {{ number_format((float) $financialSummary['overdue_total'], 2) }}</div>
-                </div>
-            </article>
+                </article>
+            </div>
+            <div class="col-12 col-md-4">
+                <article class="card metric-card border-warning" style="border-width: 1px;">
+                    <div class="card-body">
+                        <div class="text-warning small fw-semibold"><i class="fa-solid fa-clock me-2"></i>Mora</div>
+                        <div class="h3 fw-bold mb-0 text-warning">{{ $loanCurrency }} {{ number_format((float) $financialSummary['overdue_late_fee'], 2) }}</div>
+                        <div class="text-muted small">Mora pendiente acumulada</div>
+                    </div>
+                </article>
+            </div>
+            <div class="col-12 col-md-4">
+                <article class="card metric-card text-bg-danger">
+                    <div class="card-body">
+                        <div class="small fw-semibold"><i class="fa-solid fa-hand-holding-dollar me-2"></i>Total a pagar hoy</div>
+                        <div class="h3 fw-bold mb-0">{{ $loanCurrency }} {{ number_format((float) $financialSummary['total_due_today'], 2) }}</div>
+                        <div class="small opacity-75">Cuotas vencidas + mora</div>
+                    </div>
+                </article>
+            </div>
         </section>
     @endif
 

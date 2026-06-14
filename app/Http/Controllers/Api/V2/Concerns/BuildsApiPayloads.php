@@ -128,6 +128,10 @@ trait BuildsApiPayloads
         $overdueTotal = (float) $overdueInstallments->sum(
             fn (LoanInstallment $installment) => max(0, (float) $installment->installment_amount - (float) $installment->paid_principal - (float) $installment->paid_interest),
         );
+        // Mora pendiente acumulada en las cuotas vencidas.
+        $overdueLateFee = (float) $overdueInstallments->sum(
+            fn (LoanInstallment $installment) => max(0, (float) $installment->late_fee - (float) $installment->paid_late_fee),
+        );
 
         return [
             ...$this->loanPayload($loan),
@@ -147,6 +151,8 @@ trait BuildsApiPayloads
                 'amount_paid' => (float) $loan->payments->where('status', 'valid')->sum('amount'),
                 'overdue_installments_count' => $overdueInstallments->count(),
                 'overdue_installments_total' => $overdueTotal,
+                'overdue_late_fee_total' => $overdueLateFee,
+                'total_due_today' => $overdueTotal + $overdueLateFee,
             ],
         ];
     }
