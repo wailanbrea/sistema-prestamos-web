@@ -6,6 +6,7 @@ namespace App\Http\Controllers;
 
 use App\Http\Requests\Clients\StoreClientRequest;
 use App\Http\Requests\Clients\UpdateClientRequest;
+use App\Models\Route;
 use App\Services\Clients\ClientDocumentService;
 use App\Services\Clients\ClientService;
 use Illuminate\Http\RedirectResponse;
@@ -33,14 +34,24 @@ class ClientController extends Controller
         ]);
     }
 
-    public function create(): View
+    public function create(Request $request): View
     {
-        return view('clients.create');
+        return view('clients.create', [
+            'routes' => Route::query()->where('company_id', $request->user()->company_id)->where('status', 'active')->orderBy('name')->get(['id', 'name']),
+        ]);
     }
 
     public function store(StoreClientRequest $request): RedirectResponse
     {
-        $client = $this->clientService->create((int) $request->user()->company_id, $request->validated());
+        $data = $request->validated();
+        $routeId = $data['route_id'] ?? null;
+        unset($data['route_id']);
+
+        $client = $this->clientService->create((int) $request->user()->company_id, $data);
+
+        if ($routeId) {
+            $client->routes()->sync([$routeId]);
+        }
 
         return redirect()
             ->route('clients.show', $client)
@@ -58,15 +69,27 @@ class ClientController extends Controller
 
     public function edit(Request $request, int $client): View
     {
+        $model = $this->clientService->findForCompany((int) $request->user()->company_id, $client);
+
         return view('clients.edit', [
-            'client' => $this->clientService->findForCompany((int) $request->user()->company_id, $client),
+            'client' => $model,
+            'routes' => Route::query()->where('company_id', $request->user()->company_id)->where('status', 'active')->orderBy('name')->get(['id', 'name']),
+            'currentRouteId' => $model->routes()->first()?->id,
         ]);
     }
 
     public function update(UpdateClientRequest $request, int $client): RedirectResponse
     {
         $model = $this->clientService->findForCompany((int) $request->user()->company_id, $client);
-        $this->clientService->update($model, $request->validated());
+        $data = $request->validated();
+        $routeId = $data['route_id'] ?? null;
+        unset($data['route_id']);
+
+        $this->clientService->update($model, $data);
+
+        if ($routeId !== null) {
+            $model->routes()->sync($routeId ? [$routeId] : []);
+        }
 
         return redirect()
             ->route('clients.show', $model)

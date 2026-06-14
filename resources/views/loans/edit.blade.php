@@ -25,7 +25,7 @@
 
     @if ($hasPayments)
         <div class="alert alert-warning" style="max-width: 920px;">
-            <i class="fa-solid fa-lock me-2"></i>Este préstamo ya tiene pagos registrados: solo puedes editar el cobrador, la garantía y las notas. Las condiciones financieras están bloqueadas.
+            <i class="fa-solid fa-lock me-2"></i>Este préstamo ya tiene pagos registrados. Las condiciones financieras (monto, tasa, plazo) están bloqueadas, pero puedes modificar el tipo y valor de mora.
         </div>
     @endif
 
@@ -128,7 +128,7 @@
                     </div>
                     <div class="col-6 col-md-3">
                         <label for="late_fee_type" class="form-label">Tipo de mora</label>
-                        <select id="late_fee_type" name="late_fee_type" class="form-select @error('late_fee_type') is-invalid @enderror" {{ $disabled }}>
+                        <select id="late_fee_type" name="late_fee_type" class="form-select @error('late_fee_type') is-invalid @enderror">
                             <option value="none" @selected(old('late_fee_type', $loan->late_fee_type) === 'none')>Sin mora</option>
                             <option value="fixed" @selected(old('late_fee_type', $loan->late_fee_type) === 'fixed')>Fija</option>
                             <option value="daily_percentage" @selected(old('late_fee_type', $loan->late_fee_type) === 'daily_percentage')>Porcentaje diario</option>
@@ -137,7 +137,7 @@
                     </div>
                     <div class="col-6 col-md-3">
                         <label for="late_fee_value" class="form-label">Valor de mora</label>
-                        <input id="late_fee_value" name="late_fee_value" type="number" step="0.01" min="0" value="{{ old('late_fee_value', $fmtRate($loan->late_fee_value)) }}" class="form-control @error('late_fee_value') is-invalid @enderror" {{ $disabled }}>
+                        <input id="late_fee_value" name="late_fee_value" type="number" step="0.01" min="0" value="{{ old('late_fee_value', $fmtRate($loan->late_fee_value)) }}" class="form-control @error('late_fee_value') is-invalid @enderror">
                         @error('late_fee_value') <div class="invalid-feedback">{{ $message }}</div> @enderror
                     </div>
 

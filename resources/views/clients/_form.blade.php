@@ -78,6 +78,19 @@
         @error('risk_level') <div class="invalid-feedback">{{ $message }}</div> @enderror
     </div>
 
+    @if (!empty($routes) && $routes->isNotEmpty())
+    <div class="col-12 col-md-6">
+        <label for="route_id" class="{{ $labelClass }}">Ruta / Zona</label>
+        <select id="route_id" name="route_id" class="{{ $selectClass }} @error('route_id') is-invalid @enderror">
+            <option value="">— Sin asignar —</option>
+            @foreach ($routes as $route)
+                <option value="{{ $route->id }}" @selected(old('route_id', $currentRouteId ?? '') == $route->id)>{{ $route->name }}</option>
+            @endforeach
+        </select>
+        @error('route_id') <div class="invalid-feedback">{{ $message }}</div> @enderror
+    </div>
+    @endif
+
     <div class="col-12"><div class="text-muted small text-uppercase fw-semibold">Ubicacion residencial</div></div>
 
     <div class="col-12">

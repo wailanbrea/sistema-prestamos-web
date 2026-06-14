@@ -641,6 +641,7 @@ class AdminController extends Controller
             }
         }
 
+        $loanId = $request->input('loan_id');
         $validated = $request->validate([
             'loan_id' => [
                 'required',
@@ -653,12 +654,21 @@ class AdminController extends Controller
             'amount' => ['required', 'numeric', 'min:0.01', 'max:999999999.99'],
             'payment_method' => ['required', Rule::in(['cash', 'transfer', 'card', 'check', 'other'])],
             'mobile_uuid' => ['nullable', 'uuid'],
+            'allocation_mode' => ['nullable', Rule::in(['auto', 'principal_and_interest', 'interest_only', 'principal_only'])],
+            'target_installment_id' => [
+                'nullable',
+                'integer',
+                Rule::exists('loan_installments', 'id')
+                    ->where('loan_id', $loanId)
+                    ->whereNotIn('status', ['paid', 'cancelled']),
+            ],
         ]);
 
         try {
             // collector_id se omite a propósito: PaymentService lo toma del préstamo.
             $payment = $this->paymentService->register([
                 ...$validated,
+                'allocation_mode' => $validated['allocation_mode'] ?? 'auto',
                 'created_by' => $request->user()->id,
             ]);
         } catch (InvalidArgumentException $exception) {

@@ -36,7 +36,7 @@ class UpdateLoanRequest extends FormRequest
             'payment_frequency' => ['nullable', Rule::in(['daily', 'weekly', 'biweekly', 'monthly']), 'required_with:principal_amount'],
             'calculation_method' => ['nullable', Rule::in(['flat_interest', 'fixed_installment', 'capital_plus_interest', 'interest_only', 'french_amortization']), 'required_with:principal_amount'],
             'term_quantity' => ['nullable', 'integer', 'min:1', 'max:1000', 'required_with:principal_amount'],
-            'late_fee_type' => ['nullable', Rule::in(['none', 'fixed', 'daily_percentage', 'daily_fixed']), 'required_with:principal_amount'],
+            'late_fee_type' => ['nullable', Rule::in(['none', 'fixed', 'daily_percentage', 'daily_fixed'])],
             'late_fee_value' => ['nullable', 'numeric', 'min:0', 'max:9999999999.99'],
             'start_date' => ['nullable', 'date', 'required_with:principal_amount'],
             'first_payment_date' => ['nullable', 'date', 'after_or_equal:start_date', 'required_with:principal_amount'],

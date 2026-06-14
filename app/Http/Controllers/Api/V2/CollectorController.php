@@ -456,6 +456,7 @@ class CollectorController extends Controller
             }
         }
 
+        $loanId = $request->input('loan_id');
         $validated = $request->validate([
             'loan_id' => [
                 'required',
@@ -469,11 +470,20 @@ class CollectorController extends Controller
             'amount' => ['required', 'numeric', 'min:0.01', 'max:999999999.99'],
             'payment_method' => ['required', Rule::in(['cash', 'transfer', 'card', 'check', 'other'])],
             'mobile_uuid' => ['nullable', 'uuid'],
+            'allocation_mode' => ['nullable', Rule::in(['auto', 'principal_and_interest', 'interest_only', 'principal_only'])],
+            'target_installment_id' => [
+                'nullable',
+                'integer',
+                Rule::exists('loan_installments', 'id')
+                    ->where('loan_id', $loanId)
+                    ->whereNotIn('status', ['paid', 'cancelled']),
+            ],
         ]);
 
         try {
             $payment = $this->paymentService->register([
                 ...$validated,
+                'allocation_mode' => $validated['allocation_mode'] ?? 'auto',
                 'collector_id' => $collector->id,
                 'created_by' => $request->user()->id,
             ]);

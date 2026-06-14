@@ -237,6 +237,12 @@ class LoanService
 
             $hasPayments = $loan->payments()->where('status', 'valid')->exists();
 
+            // Mora siempre editable: no recalcula cuotas, solo afecta cobros futuros.
+            if (array_key_exists('late_fee_type', $data) && $data['late_fee_type'] !== null) {
+                $loan->late_fee_type = $data['late_fee_type'];
+                $loan->late_fee_value = $data['late_fee_value'] ?? 0;
+            }
+
             if (! $hasPayments && array_key_exists('principal_amount', $data) && $data['principal_amount'] !== null) {
                 $calculation = $this->calculator->calculate(
                     principal: (float) $data['principal_amount'],

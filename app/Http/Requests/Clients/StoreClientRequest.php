@@ -22,6 +22,7 @@ class StoreClientRequest extends FormRequest
         $companyId = (int) $this->user()->company_id;
 
         return [
+            'route_id' => ['nullable', 'integer', Rule::exists('routes', 'id')->where('company_id', $companyId)],
             'code' => ['nullable', 'string', 'max:50', Rule::unique('clients', 'code')->where('company_id', $companyId)],
             'full_name' => ['required', 'string', 'max:180'],
             'identification' => ['nullable', 'string', 'max:50'],
