@@ -35,6 +35,7 @@ class StoreLoanRequest extends FormRequest
             'late_fee_type' => ['required', Rule::in(['none', 'fixed', 'daily_percentage', 'daily_fixed'])],
             'late_fee_value' => ['nullable', 'numeric', 'min:0', 'max:9999999999.99'],
             'allows_capital_prepayment' => ['nullable', 'boolean'],
+            'contract_required' => ['nullable', 'boolean'],
             'start_date' => ['required', 'date'],
             'first_payment_date' => ['required', 'date', 'after_or_equal:start_date'],
             'guarantee_description' => ['nullable', 'string', 'max:3000'],

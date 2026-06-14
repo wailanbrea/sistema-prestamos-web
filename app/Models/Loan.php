@@ -22,6 +22,9 @@ class Loan extends Model
             'first_payment_date' => 'date',
             'end_date' => 'date',
             'allows_capital_prepayment' => 'boolean',
+            'contract_required' => 'boolean',
+            'contract_signed' => 'boolean',
+            'contract_signed_at' => 'datetime',
         ];
     }
 
@@ -53,5 +56,10 @@ class Loan extends Model
     public function documents(): HasMany
     {
         return $this->hasMany(Document::class);
+    }
+
+    public function contracts(): HasMany
+    {
+        return $this->hasMany(Contract::class);
     }
 }

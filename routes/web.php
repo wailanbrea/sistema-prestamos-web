@@ -6,6 +6,7 @@ use App\Http\Controllers\CashMovementController;
 use App\Http\Controllers\ClientController;
 use App\Http\Controllers\ClientRegistrationLinkController;
 use App\Http\Controllers\CollectorController;
+use App\Http\Controllers\ContractController;
 use App\Http\Controllers\CreditorController;
 use App\Http\Controllers\DashboardController;
 use App\Http\Controllers\DocumentController;
@@ -34,6 +35,16 @@ Route::middleware('guest')->group(function (): void {
 Route::get('/recibos-publicos/{document}/descargar', [DocumentController::class, 'publicDownload'])
     ->middleware('signed')
     ->name('documents.public-download');
+
+// Firma pública de contratos (sin auth). El enlace de firma es una URL firmada
+// con expiración; la verificación por QR es abierta (solo lectura del estado/hash).
+Route::controller(\App\Http\Controllers\Public\ContractSigningController::class)->group(function (): void {
+    Route::get('/contratos/firmar/{uuid}', 'show')->middleware('signed')->name('contracts.sign');
+    Route::post('/contratos/firmar/{uuid}', 'sign')->name('contracts.public.sign');
+    Route::get('/contratos/firmar/{uuid}/completado', 'success')->name('contracts.public.success');
+    Route::get('/contratos/descargar/{uuid}', 'download')->middleware('signed')->name('contracts.public.download');
+    Route::get('/contratos/verificar/{uuid}', 'verify')->name('contracts.verify');
+});
 
 Route::post('/logout', [AuthenticatedSessionController::class, 'destroy'])
     ->middleware('auth')
@@ -155,6 +166,15 @@ Route::middleware(['auth', 'user.active', 'company.active', 'permission.company'
         Route::post('/prestamo', 'generateLoanDocument')->name('loan.generate');
         Route::post('/recibo-pago', 'generatePaymentReceipt')->name('payment-receipt.generate');
         Route::get('/{document}/descargar', 'download')->whereNumber('document')->name('download');
+    });
+    Route::prefix('contratos')->name('contracts.')->controller(ContractController::class)->middleware('permission:legal.manage')->group(function (): void {
+        Route::get('/', 'index')->name('index');
+        Route::post('/prestamo/{loan}/generar', 'generate')->whereNumber('loan')->name('generate');
+        Route::get('/{contract}', 'show')->name('show');
+        Route::post('/{contract}/enviar', 'send')->name('send');
+        Route::post('/{contract}/regenerar', 'regenerate')->name('regenerate');
+        Route::post('/{contract}/anular', 'cancel')->name('cancel');
+        Route::get('/{contract}/descargar', 'download')->name('download');
     });
     Route::prefix('reportes')->name('reports.')->controller(ReportController::class)->middleware('permission:reports.view')->group(function (): void {
         Route::get('/', 'index')->name('index');

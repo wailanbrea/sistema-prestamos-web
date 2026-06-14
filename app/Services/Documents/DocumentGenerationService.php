@@ -124,6 +124,34 @@ class DocumentGenerationService
     }
 
     /**
+     * Renderiza y almacena el PDF de un contrato digital. A diferencia de
+     * generateForLoan, recibe la data ya preparada (incluye contrato, hash de
+     * contenido, QR y, si aplica, la firma del cliente) y permite regenerar el
+     * documento tras la firma. El document_type debe ser uno de los soportados.
+     *
+     * @param array<string, mixed> $data
+     */
+    public function renderContractDocument(
+        int $companyId,
+        ?int $clientId,
+        int $loanId,
+        string $documentType,
+        string $title,
+        string $filenameKey,
+        string $view,
+        array $data,
+        int $createdBy,
+    ): Document {
+        if (! in_array($documentType, self::LOAN_DOCUMENT_TYPES, true)) {
+            throw new InvalidArgumentException('Tipo de documento de contrato no soportado.');
+        }
+
+        $path = $this->renderAndStore($view, $data, $companyId, $documentType, $filenameKey);
+
+        return $this->storeDocument($companyId, $clientId, $loanId, $documentType, $title, $path, $createdBy);
+    }
+
+    /**
      * @param array<string, mixed> $data
      */
     private function renderAndStore(string $view, array $data, int $companyId, string $documentType, string $filenameKey): string

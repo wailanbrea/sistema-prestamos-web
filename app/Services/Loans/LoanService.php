@@ -68,7 +68,11 @@ class LoanService
             );
 
             $settings = CompanySetting::query()->where('company_id', $companyId)->first();
-            $requiresApproval = (bool) ($settings?->require_approval_for_loans ?? false);
+
+            // Si se exige contrato firmado, el préstamo pasa por aprobación para que
+            // el desembolso solo ocurra tras la firma (se valida en approve()).
+            $contractRequired = (bool) ($data['contract_required'] ?? ($settings?->require_signed_contract_for_disbursement ?? false));
+            $requiresApproval = (bool) ($settings?->require_approval_for_loans ?? false) || $contractRequired;
 
             $loan = Loan::query()->create([
                 'company_id' => $companyId,
@@ -93,6 +97,7 @@ class LoanService
                 'start_date' => $data['start_date'],
                 'first_payment_date' => $data['first_payment_date'],
                 'status' => $requiresApproval ? 'pending' : 'active',
+                'contract_required' => $contractRequired,
                 'guarantee_description' => $data['guarantee_description'] ?? null,
                 'notes' => $data['notes'] ?? null,
                 'approved_by' => $requiresApproval ? null : $userId,
@@ -151,6 +156,12 @@ class LoanService
 
             if ($loan->status !== 'pending') {
                 throw new InvalidArgumentException('Solo se pueden aprobar préstamos pendientes.');
+            }
+
+            // Bloqueo de desembolso: si el préstamo exige contrato firmado y aún no
+            // lo está, no se aprueba ni se registra el desembolso en caja.
+            if ($loan->contract_required && ! $loan->contract_signed) {
+                throw new InvalidArgumentException('No se puede desembolsar: el contrato no ha sido firmado por el cliente.');
             }
 
             $loan->forceFill([

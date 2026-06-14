@@ -123,6 +123,13 @@ return [
                     'match' => ['documents.'],
                 ],
                 [
+                    'label' => 'Contratos',
+                    'route' => 'contracts.index',
+                    'icon' => 'fa-file-contract',
+                    'permission' => 'legal.manage',
+                    'match' => ['contracts.'],
+                ],
+                [
                     'label' => 'Reportes',
                     'route' => 'reports.index',
                     'icon' => 'fa-file-pdf',

@@ -25,6 +25,7 @@ return [
             'loans.index',
             'payments.index',
             'accounts-payable.index',
+            'contracts.index',
             'reports.index',
             'settings.index',
             'roles.index',

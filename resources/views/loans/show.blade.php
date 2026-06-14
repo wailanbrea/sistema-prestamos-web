@@ -113,6 +113,39 @@
         </div>
     </section>
 
+    @can('legal.manage')
+        @php($latestContract = $loan->contracts()->latest('id')->first())
+        <section class="row g-3 mb-3">
+            <div class="col-12">
+                <article class="card content-card">
+                    <div class="card-header bg-white border-0">
+                        <h2 class="h5 fw-bold mb-1"><i class="fa-solid fa-file-contract me-2"></i>Contrato digital</h2>
+                        <p class="text-muted small mb-0">Genera el contrato, envíalo por WhatsApp y permite la firma electrónica del cliente desde su celular.</p>
+                    </div>
+                    <div class="card-body d-flex flex-wrap gap-2 align-items-center">
+                        @if ($loan->contract_required && ! $loan->contract_signed)
+                            <span class="badge bg-warning text-dark">Requiere contrato firmado para desembolsar</span>
+                        @elseif ($loan->contract_signed)
+                            <span class="badge bg-success">Contrato firmado</span>
+                        @endif
+
+                        @if ($latestContract)
+                            <a href="{{ route('contracts.show', $latestContract->uuid) }}" class="btn btn-primary">
+                                Ver contrato {{ $latestContract->contract_number }}
+                            </a>
+                        @else
+                            <form action="{{ route('contracts.generate', $loan) }}" method="POST" class="d-inline">
+                                @csrf
+                                <input type="hidden" name="contract_type" value="loan_contract">
+                                <button type="submit" class="btn btn-outline-primary">Generar contrato digital</button>
+                            </form>
+                        @endif
+                    </div>
+                </article>
+            </div>
+        </section>
+    @endcan
+
     <section class="row g-3">
         <div class="col-12 col-xl-8">
             <article class="card content-card">
