@@ -79,21 +79,32 @@ class ClientRegistrationLinkService
      */
     public function registerClientFromLink(ClientRegistrationLink $link, array $data): Client
     {
-        if (! $link->isAvailable()) {
-            throw new InvalidArgumentException('Este enlace ya fue utilizado o ya no esta disponible.');
-        }
-
-        if (! empty($data['code']) && Client::query()->where('company_id', $link->company_id)->where('code', $data['code'])->exists()) {
-            throw new InvalidArgumentException('El codigo ya existe en esta empresa.');
-        }
-
         return DB::transaction(function () use ($link, $data): Client {
+            $lockedLink = ClientRegistrationLink::query()
+                ->lockForUpdate()
+                ->findOrFail($link->id);
+
+            if ($lockedLink->used_at !== null && $lockedLink->used_client_id !== null) {
+                return Client::query()->findOrFail($lockedLink->used_client_id);
+            }
+
+            if (! $lockedLink->isAvailable()) {
+                throw new InvalidArgumentException('Este enlace ya fue utilizado o ya no esta disponible.');
+            }
+
+            if (! empty($data['code']) && Client::query()
+                ->where('company_id', $lockedLink->company_id)
+                ->where('code', $data['code'])
+                ->exists()) {
+                throw new InvalidArgumentException('El codigo ya existe en esta empresa.');
+            }
+
             $clientData = $data;
             unset($clientData['id_front'], $clientData['id_back']);
 
-            $client = $this->clientService->create($link->company_id, [
+            $client = $this->clientService->create($lockedLink->company_id, [
                 ...$clientData,
-                'phone' => $clientData['phone'] ?? $link->recipient_phone,
+                'phone' => $clientData['phone'] ?? $lockedLink->recipient_phone,
                 'status' => 'active',
                 'risk_level' => 'low',
             ]);
@@ -103,7 +114,7 @@ class ClientRegistrationLinkService
                 'back' => $data['id_back'],
             ]);
 
-            $link->forceFill([
+            $lockedLink->forceFill([
                 'used_at' => now(),
                 'used_client_id' => $client->id,
             ])->save();

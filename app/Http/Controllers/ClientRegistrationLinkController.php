@@ -6,8 +6,9 @@ namespace App\Http\Controllers;
 
 use App\Http\Requests\Clients\StoreClientRegistrationLinkRequest;
 use App\Http\Requests\Clients\SubmitClientRegistrationRequest;
-use App\Services\Clients\ClientRegistrationLinkService;
+use App\Models\ClientRegistrationLink;
 use App\Models\CompanySetting;
+use App\Services\Clients\ClientRegistrationLinkService;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\View\View;
@@ -50,11 +51,15 @@ class ClientRegistrationLinkController extends Controller
             ->with('generatedWhatsappUrl', $whatsAppUrl);
     }
 
-    public function showPublic(string $token): View
+    public function showPublic(string $token): View|RedirectResponse
     {
         try {
             $link = $this->linkService->findAvailableByToken($token);
         } catch (InvalidArgumentException) {
+            if ($this->linkWasCompleted($token)) {
+                return redirect()->route('client-registration.success', $token);
+            }
+
             abort(410, 'Este enlace ya no esta disponible.');
         }
 
@@ -78,6 +83,10 @@ class ClientRegistrationLinkController extends Controller
                 return back()->withInput()->withErrors(['code' => $exception->getMessage()]);
             }
 
+            if ($this->linkWasCompleted($token)) {
+                return redirect()->route('client-registration.success', $token);
+            }
+
             abort(410, 'Este enlace ya no esta disponible.');
         }
 
@@ -92,5 +101,14 @@ class ClientRegistrationLinkController extends Controller
     private function normalizePhone(string $phone): string
     {
         return preg_replace('/\D+/', '', $phone) ?? '';
+    }
+
+    private function linkWasCompleted(string $token): bool
+    {
+        return ClientRegistrationLink::query()
+            ->where('token', $token)
+            ->whereNotNull('used_at')
+            ->whereNotNull('used_client_id')
+            ->exists();
     }
 }

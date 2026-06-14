@@ -13,13 +13,19 @@ use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\RateLimiter;
 use Illuminate\Support\Str;
 use Illuminate\Validation\ValidationException;
-use Illuminate\View\View;
+use Symfony\Component\HttpFoundation\Response;
 
 class AuthenticatedSessionController extends Controller
 {
-    public function create(): View
+    public function create(Request $request): Response
     {
-        return view('auth.login');
+        $request->session()->regenerateToken();
+
+        return response()
+            ->view('auth.login')
+            ->header('Cache-Control', 'no-store, no-cache, must-revalidate, max-age=0')
+            ->header('Pragma', 'no-cache')
+            ->header('Expires', 'Fri, 01 Jan 1990 00:00:00 GMT');
     }
 
     public function store(LoginRequest $request): RedirectResponse
@@ -32,7 +38,7 @@ class AuthenticatedSessionController extends Controller
             RateLimiter::hit($this->throttleKey($request));
 
             throw ValidationException::withMessages([
-                'email' => 'Las credenciales no son válidas.',
+                'email' => 'Las credenciales no son validas.',
             ]);
         }
 
@@ -44,7 +50,7 @@ class AuthenticatedSessionController extends Controller
             RateLimiter::hit($this->throttleKey($request));
 
             throw ValidationException::withMessages([
-                'email' => 'Este usuario no está activo.',
+                'email' => 'Este usuario no esta activo.',
             ]);
         }
 
@@ -53,7 +59,7 @@ class AuthenticatedSessionController extends Controller
             RateLimiter::hit($this->throttleKey($request));
 
             throw ValidationException::withMessages([
-                'email' => 'La empresa asociada no está activa.',
+                'email' => 'La empresa asociada no esta activa.',
             ]);
         }
 

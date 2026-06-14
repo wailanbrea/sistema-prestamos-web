@@ -16,6 +16,25 @@ class AuthenticationTest extends TestCase
 {
     use RefreshDatabase;
 
+    public function test_login_page_uses_local_assets_and_is_not_cached(): void
+    {
+        $response = $this->get(route('login'));
+
+        $response
+            ->assertOk()
+            ->assertHeader('Pragma', 'no-cache')
+            ->assertHeader('Expires', 'Fri, 01 Jan 1990 00:00:00 GMT')
+            ->assertDontSee('cdn.tailwindcss.com', false)
+            ->assertDontSee('togglePwd(', false)
+            ->assertDontSee('eval(', false)
+            ->assertSee('build/assets/', false);
+
+        $this->assertStringContainsString(
+            'no-store',
+            (string) $response->headers->get('Cache-Control')
+        );
+    }
+
     public function test_guest_is_redirected_to_login(): void
     {
         $this->get('/dashboard')->assertRedirect('/login');

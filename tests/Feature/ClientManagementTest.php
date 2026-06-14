@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Tests\Feature;
 
 use App\Models\Client;
+use App\Models\ClientRegistrationLink;
 use App\Models\Company;
 use App\Models\User;
 use Database\Seeders\RolePermissionSeeder;
@@ -99,6 +100,32 @@ class ClientManagementTest extends TestCase
         $this->actingAs($user)
             ->get(route('clients.show', $foreignClient))
             ->assertNotFound();
+    }
+
+    public function test_completed_registration_link_redirects_to_success_instead_of_returning_gone(): void
+    {
+        $company = Company::query()->create([
+            'name' => 'Empresa Registro',
+            'status' => 'active',
+        ]);
+
+        $client = Client::query()->create([
+            'company_id' => $company->id,
+            'full_name' => 'Cliente Registrado',
+            'address' => 'Direccion registrada',
+            'status' => 'active',
+            'risk_level' => 'low',
+        ]);
+
+        $link = ClientRegistrationLink::query()->create([
+            'company_id' => $company->id,
+            'token' => str_repeat('a', 64),
+            'used_at' => now(),
+            'used_client_id' => $client->id,
+        ]);
+
+        $this->get(route('client-registration.show', $link->token))
+            ->assertRedirect(route('client-registration.success', $link->token));
     }
 
     private function adminUser(): User

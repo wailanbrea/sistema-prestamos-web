@@ -6,6 +6,34 @@
 @source '../**/*.js';
 
 @theme {
-    --font-sans: 'Instrument Sans', ui-sans-serif, system-ui, sans-serif, 'Apple Color Emoji', 'Segoe UI Emoji',
+    --font-sans: 'Inter', ui-sans-serif, system-ui, sans-serif, 'Apple Color Emoji', 'Segoe UI Emoji',
         'Segoe UI Symbol', 'Noto Color Emoji';
+    --color-primary: #002653;
+    --color-on-primary: #ffffff;
+    --color-primary-container: #1a3c6e;
+    --color-on-primary-container: #8aa8e0;
+    --color-primary-fixed: #d7e3ff;
+    --color-on-primary-fixed: #001b3f;
+    --color-on-primary-fixed-variant: #264679;
+    --color-secondary-container: #feae2c;
+    --color-on-secondary-container: #6b4500;
+    --color-surface-container-lowest: #ffffff;
+    --color-surface-container-low: #f2f4f7;
+    --color-surface-container: #eceef1;
+    --color-surface-container-high: #e6e8eb;
+    --color-on-surface: #191c1e;
+    --color-on-surface-variant: #43474f;
+    --color-outline: #747780;
+    --color-outline-variant: #c4c6d0;
+    --color-error: #ba1a1a;
+    --color-error-container: #ffdad6;
+    --color-on-error-container: #93000a;
+    --color-background: #f7f9fc;
+}
+
+@layer base {
+    body {
+        font-family: 'Inter', sans-serif;
+        -webkit-tap-highlight-color: transparent;
+    }
 }

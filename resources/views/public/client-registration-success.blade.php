@@ -12,9 +12,11 @@
             <div class="col-12 col-lg-7">
                 <div class="card border-0 shadow-sm">
                     <div class="card-body p-5 text-center">
-                        <div class="display-6 mb-3 text-success"><i class="fa-solid fa-circle-check"></i></div>
+                        <div class="display-6 mb-3 text-success">
+                            <i class="fa-solid fa-circle-check"></i>
+                        </div>
                         <h1 class="h3 fw-bold mb-2">Registro recibido</h1>
-                        <p class="text-muted mb-0">Tus datos fueron enviados correctamente. Este enlace ya quedó utilizado y no puede volver a usarse.</p>
+                        <p class="text-muted mb-0">Tus datos fueron enviados correctamente. Este enlace ya fue utilizado y no puede volver a usarse.</p>
                     </div>
                 </div>
             </div>

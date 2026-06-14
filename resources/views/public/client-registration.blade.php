@@ -21,7 +21,7 @@
                     <p class="text-muted mb-0">Este enlace es de uso unico. Completa tus datos para quedar registrado como cliente.</p>
                 </div>
 
-                <form method="POST" action="{{ route('client-registration.submit', $link->token) }}" enctype="multipart/form-data" novalidate>
+                <form id="client-registration-form" method="POST" action="{{ route('client-registration.submit', $link->token) }}" enctype="multipart/form-data" novalidate>
                     @csrf
                     <div class="row g-3">
                         <div class="col-12 col-md-4">
@@ -136,7 +136,7 @@
                     </div>
 
                     <div class="d-flex justify-content-end mt-4">
-                        <button type="submit" class="btn btn-primary btn-lg">
+                        <button id="client-registration-submit" type="submit" class="btn btn-primary btn-lg">
                             Enviar registro
                         </button>
                     </div>
@@ -234,6 +234,17 @@
 
         document.getElementById('latitude')?.addEventListener('change', syncManualCoordinates);
         document.getElementById('longitude')?.addEventListener('change', syncManualCoordinates);
+
+        document.getElementById('client-registration-form')?.addEventListener('submit', () => {
+            const submitButton = document.getElementById('client-registration-submit');
+
+            if (!submitButton || submitButton.disabled) {
+                return;
+            }
+
+            submitButton.disabled = true;
+            submitButton.textContent = 'Enviando...';
+        });
 
         function initClientRegistrationMap() {
             const latInput = document.getElementById('latitude');
