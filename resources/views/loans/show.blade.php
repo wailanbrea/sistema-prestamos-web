@@ -200,13 +200,20 @@
                             </thead>
                             <tbody>
                                 @foreach ($loan->installments as $installment)
+                                    @php
+                                        // Estado efectivo: si ya venció y no está saldada, se muestra "Vencida"
+                                        // aunque la BD aún tenga "pending" (la mora la marca un proceso aparte).
+                                        $effectiveStatus = (! in_array($installment->status, ['paid', 'cancelled'], true) && $installment->due_date->lt(now()->startOfDay()))
+                                            ? 'late'
+                                            : $installment->status;
+                                    @endphp
                                     <tr>
                                         <td>{{ $installment->installment_number }}</td>
                                         <td>{{ $installment->due_date->format('d/m/Y') }}</td>
                                         <td class="text-end">{{ $loanCurrency }} {{ number_format((float) $installment->principal_amount, 2) }}</td>
                                         <td class="text-end">{{ $loanCurrency }} {{ number_format((float) $installment->interest_amount, 2) }}</td>
                                         <td class="text-end fw-semibold">{{ $loanCurrency }} {{ number_format((float) $installment->installment_amount, 2) }}</td>
-                                        <td>@include('partials.status-badge', ['map' => 'installment_statuses', 'value' => $installment->status])</td>
+                                        <td>@include('partials.status-badge', ['map' => 'installment_statuses', 'value' => $effectiveStatus])</td>
                                     </tr>
                                 @endforeach
                             </tbody>

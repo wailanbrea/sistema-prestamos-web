@@ -42,7 +42,7 @@ return [
         'pending' => ['label' => 'Pendiente', 'class' => 'text-bg-secondary'],
         'partial' => ['label' => 'Parcial', 'class' => 'text-bg-info'],
         'paid' => ['label' => 'Pagada', 'class' => 'text-bg-success'],
-        'late' => ['label' => 'Atrasada', 'class' => 'text-bg-warning'],
+        'late' => ['label' => 'Vencida', 'class' => 'text-bg-danger'],
         'cancelled' => ['label' => 'Cancelada', 'class' => 'text-bg-dark'],
     ],
     'payment_methods' => [

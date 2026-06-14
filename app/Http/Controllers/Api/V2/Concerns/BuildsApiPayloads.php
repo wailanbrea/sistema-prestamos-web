@@ -115,6 +115,29 @@ trait BuildsApiPayloads
     /**
      * @return array<string, mixed>
      */
+    /**
+     * Días de atraso reales: si la cuota no está saldada y su vencimiento ya pasó,
+     * se calcula desde la fecha (aunque el proceso de mora aún no la haya marcado).
+     */
+    protected function effectiveDaysLate(LoanInstallment $installment): int
+    {
+        if (in_array($installment->status, ['paid', 'cancelled'], true)) {
+            return 0;
+        }
+
+        $stored = (int) $installment->days_late;
+
+        if ($installment->due_date === null) {
+            return $stored;
+        }
+
+        $today = now()->startOfDay();
+        $dueDate = $installment->due_date->copy()->startOfDay();
+        $computed = $dueDate->lt($today) ? (int) $dueDate->diffInDays($today) : 0;
+
+        return max($stored, $computed);
+    }
+
     protected function loanDetailPayload(Loan $loan): array
     {
         // Cuotas vencidas: vencimiento ya pasado y no saldadas. El monto es lo que
@@ -178,7 +201,7 @@ trait BuildsApiPayloads
             'paid_interest' => (float) $installment->paid_interest,
             'paid_late_fee' => (float) $installment->paid_late_fee,
             'pending_amount' => max(0.0, (float) $installment->installment_amount + (float) $installment->late_fee - (float) $installment->total_paid),
-            'days_late' => in_array($installment->status, ['paid', 'cancelled'], true) ? 0 : (int) $installment->days_late,
+            'days_late' => $this->effectiveDaysLate($installment),
             'status' => $installment->status,
         ];
     }
