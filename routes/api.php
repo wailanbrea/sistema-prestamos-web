@@ -91,6 +91,7 @@ Route::prefix('v2')->name('api.v2.')->group(function (): void {
 
             Route::get('/reports/summary', [AdminReportController::class, 'summary'])->middleware('permission:reports.view')->name('reports.summary');
             Route::get('/reports/collectors', [AdminReportController::class, 'collectors'])->middleware('permission:reports.view')->name('reports.collectors');
+            Route::get('/reports/catalog', [AdminReportController::class, 'catalog'])->middleware('permission:reports.view')->name('reports.catalog');
         });
 
         // Caja / Contabilidad: gastos (expenses.manage) y caja (cash.view).

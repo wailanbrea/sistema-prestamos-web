@@ -36,6 +36,11 @@ Route::get('/recibos-publicos/{document}/descargar', [DocumentController::class,
     ->middleware('signed')
     ->name('documents.public-download');
 
+// PDF de reportes para la app móvil (enlace firmado, sin sesión web).
+Route::get('/reportes-publicos/{type}.pdf', [\App\Http\Controllers\Public\PublicReportController::class, 'pdf'])
+    ->middleware('signed')
+    ->name('reports.public-pdf');
+
 // Firma pública de contratos (sin auth). El enlace de firma es una URL firmada
 // con expiración; la verificación por QR es abierta (solo lectura del estado/hash).
 Route::controller(\App\Http\Controllers\Public\ContractSigningController::class)->group(function (): void {

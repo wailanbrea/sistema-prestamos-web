@@ -90,6 +90,17 @@ class ReportController extends Controller
     ) {
     }
 
+    /**
+     * Catálogo de reportes (tipo => metadatos), expuesto para reusarse desde la
+     * API móvil y la generación pública de PDF.
+     *
+     * @return array<string, array{method:string,route:string,title:string,icon:string,description:string}>
+     */
+    public static function reportsCatalog(): array
+    {
+        return self::REPORTS;
+    }
+
     /** Pantalla principal de Informes con tarjetas. */
     public function index(): View
     {
