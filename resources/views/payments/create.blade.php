@@ -209,6 +209,13 @@
                                 </button>
                             </div>
                         @endforeach
+                        <div class="col-6 col-lg-3">
+                            <button type="button" class="mode-btn" data-mode="current_plus_capital">
+                                <i class="fa-solid fa-arrow-trend-down"></i>
+                                <span class="mode-title">Cuota + capital</span>
+                                <span class="mode-desc">Paga una cuota y abona sobrante a capital.</span>
+                            </button>
+                        </div>
                     </div>
 
                     {{-- Amount + target --}}
@@ -250,13 +257,27 @@
                                 <span class="fw-semibold" style="font-size:.88rem;">Excedente sobre lo adeudado</span>
                                 <strong id="excessAmount" style="color:var(--app-primary);">{{ $selectedLoan->currency ?? currency() }} 0.00</strong>
                             </div>
+                            <div id="capitalPrepaymentAmountWrap" class="mb-2" style="display:none;">
+                                <label for="capital_prepayment_amount" class="form-label mb-1" style="font-size:.75rem; font-weight:700; color:var(--app-muted); text-transform:uppercase; letter-spacing:.05em;">
+                                    Cuanto se abonara al capital
+                                </label>
+                                <div class="amount-input-wrap" style="max-width:280px;">
+                                    <span class="amount-prefix js-payment-currency-symbol">{{ $selectedLoan->currency ?? currency() }}</span>
+                                    <input id="capital_prepayment_amount" name="capital_prepayment_amount" type="number" step="0.01" min="0"
+                                           value="{{ old('capital_prepayment_amount') }}"
+                                           placeholder="0.00"
+                                           class="@error('capital_prepayment_amount') is-invalid @enderror">
+                                </div>
+                                <div class="small text-muted mt-1">No puede exceder el sobrante disponible del pago.</div>
+                                @error('capital_prepayment_amount') <div class="invalid-feedback d-block mt-1">{{ $message }}</div> @enderror
+                            </div>
                             <div class="form-check" id="prepaymentOption">
                                 <input class="form-check-input" type="radio" name="excess_action" id="excessPrepay" value="prepayment">
                                 <label class="form-check-label" for="excessPrepay" style="font-size:.85rem;">
                                     Abonar a capital <span class="text-muted">(recalcula las cuotas restantes)</span>
                                 </label>
                             </div>
-                            <div class="form-check">
+                            <div class="form-check" id="changeOption">
                                 <input class="form-check-input" type="radio" name="excess_action" id="excessChange" value="change">
                                 <label class="form-check-label" for="excessChange" style="font-size:.85rem;">
                                     Entregar como vuelto al cliente
@@ -446,7 +467,10 @@ function selectMethod(val) {
     const excessPrepay = document.getElementById('excessPrepay');
     const excessChange = document.getElementById('excessChange');
     const prepaymentOption = document.getElementById('prepaymentOption');
+    const changeOption = document.getElementById('changeOption');
     const prepayDisabledNote = document.getElementById('prepayDisabledNote');
+    const capitalPrepaymentAmountWrap = document.getElementById('capitalPrepaymentAmountWrap');
+    const capitalPrepaymentInput = document.getElementById('capital_prepayment_amount');
 
     let installments = [];
     let balance = 0;
@@ -484,6 +508,9 @@ function selectMethod(val) {
         let val = 0;
         if (targetId) {
             const inst = installments.find((x) => x.id == targetId);
+            if (inst) val = pick(inst);
+        } else if (mode === 'current_plus_capital') {
+            const inst = installments[0];
             if (inst) val = pick(inst);
         } else {
             val = installments.reduce((s, i) => s + pick(i), 0);
@@ -568,6 +595,7 @@ function selectMethod(val) {
 
     function recompute() {
         const mode = modeInput.value;
+        const isCurrentPlusCapital = mode === 'current_plus_capital';
         let principal = 0, interest = 0, late = 0, leftover = 0;
 
         const applyBuckets = (inst, buckets, avail) => {
@@ -596,7 +624,9 @@ function selectMethod(val) {
             const buckets = mode === 'interest_only' ? ['interest'] : (mode === 'principal_only' ? ['principal'] : (mode === 'principal_and_interest' ? ['interest','principal'] : ['late','interest','principal']));
             let avail = round2(amountInput.value || 0);
             const targetId = targetSelect.value;
-            const queue = targetId ? installments.filter((i) => i.id == targetId) : installments;
+            const queue = targetId
+                ? installments.filter((i) => i.id == targetId)
+                : (mode === 'current_plus_capital' ? installments.slice(0, 1) : installments);
             for (const inst of queue) {
                 if (avail <= 0) break;
                 const r = applyBuckets(inst, buckets, avail);
@@ -609,25 +639,71 @@ function selectMethod(val) {
         principal = round2(principal); interest = round2(interest); late = round2(late);
         leftover = round2(leftover);
 
-        let prepay = 0, change = 0;
+        let prepay = 0, change = 0, currentPlusCapitalError = '';
+        capitalPrepaymentAmountWrap.style.display = isCurrentPlusCapital ? '' : 'none';
+        capitalPrepaymentInput.required = isCurrentPlusCapital;
+        capitalPrepaymentInput.max = '';
+        if (!isCurrentPlusCapital) {
+            capitalPrepaymentInput.value = '';
+        }
+
         if (leftover > 0.001) {
             excessPanel.style.display = '';
             excessAmount.textContent = money(leftover);
-            prepaymentOption.style.display = allowsPrepayment ? '' : 'none';
-            prepayDisabledNote.style.display = allowsPrepayment ? 'none' : '';
-            if (!allowsPrepayment && excessPrepay.checked) { excessPrepay.checked = false; excessChange.checked = true; }
-            if (!excessPrepay.checked && !excessChange.checked) {
-                if (allowsPrepayment) excessPrepay.checked = true; else excessChange.checked = true;
-            }
-            if (excessPrepay.checked) {
+
+            if (isCurrentPlusCapital) {
+                capitalPrepaymentInput.max = leftover.toFixed(2);
+                prepaymentOption.style.display = 'none';
+                changeOption.style.display = 'none';
+                prepayDisabledNote.style.display = allowsPrepayment ? 'none' : '';
+                excessPrepay.checked = true;
+                excessChange.checked = false;
+
                 const outstandingAfter = Math.max(0, round2(balance - principal));
-                prepay = round2(Math.min(leftover, outstandingAfter));
+                const hasCapitalInput = capitalPrepaymentInput.value !== '';
+                const requestedPrepay = round2(capitalPrepaymentInput.value || 0);
+
+                if (!allowsPrepayment) {
+                    currentPlusCapitalError = 'Este prestamo no permite abono a capital.';
+                } else if (!hasCapitalInput || requestedPrepay <= 0) {
+                    currentPlusCapitalError = 'Indica cuanto se abonara al capital.';
+                } else if (requestedPrepay - leftover > 0.01) {
+                    currentPlusCapitalError = 'El abono a capital no puede ser mayor que el sobrante disponible.';
+                } else if (requestedPrepay - outstandingAfter > 0.01) {
+                    currentPlusCapitalError = 'El abono a capital no puede ser mayor que el capital pendiente.';
+                } else if (Math.abs(requestedPrepay - leftover) > 0.01) {
+                    currentPlusCapitalError = 'El monto a cobrar debe ser la cuota mas el abono a capital indicado.';
+                }
+
+                prepay = round2(Math.min(Math.max(requestedPrepay, 0), leftover, outstandingAfter));
                 change = round2(leftover - prepay);
-            } else { change = leftover; }
+            } else {
+                prepaymentOption.style.display = allowsPrepayment ? '' : 'none';
+                changeOption.style.display = '';
+                prepayDisabledNote.style.display = allowsPrepayment ? 'none' : '';
+                if (!allowsPrepayment && excessPrepay.checked) { excessPrepay.checked = false; excessChange.checked = true; }
+                if (!excessPrepay.checked && !excessChange.checked) {
+                    if (allowsPrepayment) excessPrepay.checked = true; else excessChange.checked = true;
+                }
+                if (excessPrepay.checked) {
+                    const outstandingAfter = Math.max(0, round2(balance - principal));
+                    prepay = round2(Math.min(leftover, outstandingAfter));
+                    change = round2(leftover - prepay);
+                } else { change = leftover; }
+            }
         } else {
-            excessPanel.style.display = 'none';
+            excessPanel.style.display = isCurrentPlusCapital ? '' : 'none';
+            excessAmount.textContent = money(0);
+            prepaymentOption.style.display = isCurrentPlusCapital ? 'none' : (allowsPrepayment ? '' : 'none');
+            changeOption.style.display = isCurrentPlusCapital ? 'none' : '';
+            prepayDisabledNote.style.display = isCurrentPlusCapital && !allowsPrepayment ? '' : 'none';
             excessPrepay.checked = false;
             excessChange.checked = false;
+            if (isCurrentPlusCapital) {
+                currentPlusCapitalError = amountInput.value
+                    ? 'El monto a cobrar debe incluir una cuota mas el abono a capital.'
+                    : 'Indica el monto a cobrar y cuanto se abonara al capital.';
+            }
         }
 
         const charged = round2(principal + interest + late + prepay);
@@ -652,7 +728,11 @@ function selectMethod(val) {
         document.getElementById('pvLeftover').style.display = 'none';
 
         let warn = '';
-        if (mode === 'principal_only' && (principal + prepay) > 0) {
+        if (currentPlusCapitalError) {
+            warn = currentPlusCapitalError;
+        } else if (mode === 'current_plus_capital' && prepay > 0) {
+            warn = 'Cuota + capital: solo se cubre una cuota; el abono indicado baja directamente el balance de capital.';
+        } else if (mode === 'principal_only' && (principal + prepay) > 0) {
             warn = 'Pago a capital: el interés y la mora de esas cuotas quedarán pendientes y la cuota no se marcará como Pagada.';
         } else if (mode === 'interest_only' && interest > 0 && prepay === 0) {
             warn = 'Pago solo a interés: el balance de capital no baja.';
@@ -662,7 +742,7 @@ function selectMethod(val) {
         modeWarning.style.display = warn ? '' : 'none';
         modeWarning.textContent = warn;
 
-        submitBtn.disabled = applied <= 0;
+        submitBtn.disabled = applied <= 0 || !!currentPlusCapitalError;
     }
 
     document.querySelectorAll('.mode-btn').forEach((b) => b.addEventListener('click', () => {
@@ -673,6 +753,7 @@ function selectMethod(val) {
     }));
     loanSelect.addEventListener('change', () => loadInstallments(loanSelect.value));
     amountInput.addEventListener('input', recompute);
+    capitalPrepaymentInput.addEventListener('input', recompute);
     targetSelect.addEventListener('change', () => { suggestAmount(); recompute(); });
     excessPrepay.addEventListener('change', recompute);
     excessChange.addEventListener('change', recompute);

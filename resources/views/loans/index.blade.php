@@ -10,6 +10,8 @@
     .loans-table tbody tr:hover td { background: rgba(0,38,83,.04); }
     .loans-table tbody tr:hover td:first-child { border-left-color: var(--app-primary); padding-left: 13px; }
     .loans-table tbody td:first-child { border-left: 3px solid transparent; }
+    .due-summary { min-width: 150px; }
+    .due-summary .amount { font-weight: 700; }
 </style>
 @endpush
 
@@ -76,23 +78,37 @@
                             <th>Frecuencia</th>
                             <th class="text-end">Monto</th>
                             <th class="text-end">Balance</th>
+                            <th class="text-end">Vencidas / hoy</th>
                             <th>Estado</th>
                             <th class="text-end">Acciones</th>
                         </tr>
                     </thead>
                     <tbody>
                         @forelse ($loans as $loan)
-                            @php($loanCurrency = $loan->currency ?? currency())
                             <tr onclick="location.href='{{ route('loans.show', $loan) }}'"  >
                                 <td>
                                     <a href="{{ route('loans.show', $loan) }}" class="fw-semibold text-decoration-none">{{ $loan->loan_number }}</a>
                                     <div class="text-muted small">{{ $loan->start_date->format('d/m/Y') }}</div>
-                                    <div class="small text-success">Ganancia esperada: {{ $loanCurrency }} {{ number_format((float) $loan->total_interest, 2) }}</div>
+                                    <div class="small text-success">Ganancia esperada: {{ $loan->currency ?? currency() }} {{ number_format((float) $loan->total_interest, 2) }}</div>
                                 </td>
                                 <td>{{ $loan->client->full_name }}</td>
                                 <td>{{ $frequencyLabels[$loan->payment_frequency] ?? $loan->payment_frequency }}</td>
-                                <td class="text-end">{{ $loanCurrency }} {{ number_format((float) $loan->principal_amount, 2) }}</td>
-                                <td class="text-end">{{ $loanCurrency }} {{ number_format((float) $loan->remaining_balance, 2) }}</td>
+                                <td class="text-end">{{ $loan->currency ?? currency() }} {{ number_format((float) $loan->principal_amount, 2) }}</td>
+                                <td class="text-end">{{ $loan->currency ?? currency() }} {{ number_format((float) $loan->remaining_balance, 2) }}</td>
+                                <td class="text-end due-summary">
+                                    <div class="{{ (int) ($loan->overdue_installments_count ?? 0) > 0 ? 'text-danger' : 'text-muted' }}">
+                                        <span class="fw-semibold">{{ (int) ($loan->overdue_installments_count ?? 0) }}</span> vencida{{ (int) ($loan->overdue_installments_count ?? 0) === 1 ? '' : 's' }}
+                                        @if ((float) ($loan->overdue_amount_due ?? 0) > 0)
+                                            <span class="d-block small">{{ $loan->currency ?? currency() }} {{ number_format((float) ($loan->overdue_amount_due ?? 0), 2) }}</span>
+                                        @endif
+                                    </div>
+                                    <div class="small mt-1">
+                                        <span class="text-muted">Pagar hoy:</span>
+                                        <span class="amount {{ (float) ($loan->amount_due_today ?? 0) > 0 ? 'text-primary' : 'text-muted' }}">
+                                            {{ $loan->currency ?? currency() }} {{ number_format((float) ($loan->amount_due_today ?? 0), 2) }}
+                                        </span>
+                                    </div>
+                                </td>
                                 <td><span class="badge {{ $loanStatusLabels[$loan->status]['class'] ?? 'text-bg-secondary' }}">{{ $loanStatusLabels[$loan->status]['label'] ?? $loan->status }}</span></td>
                                 <td class="text-end text-nowrap" onclick="event.stopPropagation()">
                                     <a href="{{ route('loans.show', $loan) }}" class="btn btn-sm btn-link text-decoration-none" title="Ver"><i class="fa-solid fa-eye"></i></a>
@@ -110,7 +126,7 @@
                             </tr>
                         @empty
                             <tr>
-                                <td colspan="7" class="text-center text-muted py-5">No hay préstamos registrados.</td>
+                                <td colspan="8" class="text-center text-muted py-5">No hay préstamos registrados.</td>
                             </tr>
                         @endforelse
                     </tbody>

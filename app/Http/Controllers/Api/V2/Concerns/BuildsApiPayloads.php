@@ -185,6 +185,10 @@ trait BuildsApiPayloads
      */
     protected function installmentPayload(LoanInstallment $installment): array
     {
+        $pendingPrincipal = max(0.0, (float) $installment->principal_amount - (float) $installment->paid_principal);
+        $pendingInterest = max(0.0, (float) $installment->interest_amount - (float) $installment->paid_interest);
+        $pendingLateFee = max(0.0, (float) $installment->late_fee - (float) $installment->paid_late_fee);
+
         return [
             'id' => $installment->id,
             'loan_id' => $installment->loan_id,
@@ -200,7 +204,10 @@ trait BuildsApiPayloads
             'paid_principal' => (float) $installment->paid_principal,
             'paid_interest' => (float) $installment->paid_interest,
             'paid_late_fee' => (float) $installment->paid_late_fee,
-            'pending_amount' => max(0.0, (float) $installment->installment_amount + (float) $installment->late_fee - (float) $installment->total_paid),
+            'pending_principal' => $pendingPrincipal,
+            'pending_interest' => $pendingInterest,
+            'pending_late_fee' => $pendingLateFee,
+            'pending_amount' => $pendingPrincipal + $pendingInterest + $pendingLateFee,
             'days_late' => $this->effectiveDaysLate($installment),
             'status' => $installment->status,
         ];

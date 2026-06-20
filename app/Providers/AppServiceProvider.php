@@ -62,7 +62,8 @@ class AppServiceProvider extends ServiceProvider
                     })
                     ->count(),
                 'late_installments' => LoanInstallment::query()
-                    ->where('status', 'late')
+                    ->whereIn('status', ['pending', 'partial', 'late'])
+                    ->whereDate('due_date', '<', now()->toDateString())
                     ->whereHas('loan', fn ($query) => $query->forCompany($companyId))
                     ->count(),
             ] : [

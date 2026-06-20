@@ -213,6 +213,36 @@ class LoanController extends Controller
             ->with('status', 'Préstamo actualizado correctamente.');
     }
 
+    public function updateLateFee(Request $request, int $loan): RedirectResponse
+    {
+        $companyId = (int) $request->user()->company_id;
+        $model = $this->loanService->findForCompany($companyId, $loan);
+
+        $data = $request->validate([
+            'late_fee_type' => ['required', Rule::in(['none', 'fixed', 'daily_percentage', 'daily_fixed'])],
+            'late_fee_value' => ['required', 'numeric', 'min:0', 'max:9999999999.99'],
+        ], attributes: [
+            'late_fee_type' => 'tipo de mora',
+            'late_fee_value' => 'valor de mora',
+        ]);
+
+        $this->loanService->updateLateFee(
+            companyId: $companyId,
+            userId: $request->user()?->id,
+            loan: $model,
+            type: (string) $data['late_fee_type'],
+            value: (float) $data['late_fee_value'],
+        );
+
+        $message = $data['late_fee_type'] === 'none'
+            ? 'Mora quitada correctamente. Las cuotas pendientes quedaron sin mora.'
+            : 'Mora actualizada y recalculada correctamente.';
+
+        return redirect()
+            ->route('loans.show', $model)
+            ->with('status', $message);
+    }
+
     public function destroy(Request $request, int $loan): RedirectResponse
     {
         $companyId = (int) $request->user()->company_id;

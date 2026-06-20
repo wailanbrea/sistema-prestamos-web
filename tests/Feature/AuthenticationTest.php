@@ -91,6 +91,7 @@ class AuthenticationTest extends TestCase
         $this->get('/dashboard')
             ->assertOk()
             ->assertSee('Dashboard financiero')
+            ->assertSee('No hay pr')
             ->assertSee('Empresa Test');
     }
 

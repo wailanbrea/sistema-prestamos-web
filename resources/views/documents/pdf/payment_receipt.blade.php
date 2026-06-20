@@ -32,6 +32,7 @@
                 <th>Cuota</th>
                 <th class="right">Capital</th>
                 <th class="right">Interés</th>
+                <th class="right">Interes pendiente</th>
                 <th class="right">Mora</th>
                 <th class="right">Total</th>
             </tr>
@@ -42,6 +43,7 @@
                     <td>#{{ $detail->installment->installment_number }}</td>
                     <td class="right">{{ $currencyCode }} {{ number_format((float) $detail->principal_paid, 2) }}</td>
                     <td class="right">{{ $currencyCode }} {{ number_format((float) $detail->interest_paid, 2) }}</td>
+                    <td class="right">{{ $currencyCode }} {{ number_format($detail->installment ? max(0, (float) $detail->installment->interest_amount - (float) $detail->installment->paid_interest) : 0, 2) }}</td>
                     <td class="right">{{ $currencyCode }} {{ number_format((float) $detail->late_fee_paid, 2) }}</td>
                     <td class="right">{{ $currencyCode }} {{ number_format((float) $detail->amount_paid, 2) }}</td>
                 </tr>

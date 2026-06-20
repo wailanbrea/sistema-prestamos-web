@@ -113,6 +113,7 @@
                             <th>Vencimiento</th>
                             <th class="text-end">Capital</th>
                             <th class="text-end">Interés</th>
+                            <th class="text-end">Interes pendiente</th>
                             <th class="text-end">Mora</th>
                             <th class="text-end">Total</th>
                         </tr>
@@ -120,10 +121,11 @@
                     <tbody>
                         @foreach ($payment->details as $detail)
                             <tr>
-                                <td>#{{ $detail->installment->installment_number }}</td>
-                                <td>{{ $detail->installment->due_date->format('d/m/Y') }}</td>
+                                <td>#{{ $detail->installment?->installment_number ?? 'N/D' }}</td>
+                                <td>{{ $detail->installment?->due_date?->format('d/m/Y') ?? 'N/D' }}</td>
                                 <td class="text-end">{{ $paymentCurrency }} {{ number_format((float) $detail->principal_paid, 2) }}</td>
                                 <td class="text-end">{{ $paymentCurrency }} {{ number_format((float) $detail->interest_paid, 2) }}</td>
+                                <td class="text-end">{{ $paymentCurrency }} {{ number_format($detail->installment ? max(0, (float) $detail->installment->interest_amount - (float) $detail->installment->paid_interest) : 0, 2) }}</td>
                                 <td class="text-end">{{ $paymentCurrency }} {{ number_format((float) $detail->late_fee_paid, 2) }}</td>
                                 <td class="text-end">{{ $paymentCurrency }} {{ number_format((float) $detail->amount_paid, 2) }}</td>
                             </tr>

@@ -206,9 +206,10 @@
                                 <tr>
                                     <th>#</th>
                                     <th>Vencimiento</th>
-                                    <th class="text-end">Capital</th>
-                                    <th class="text-end">Interes</th>
-                                    <th class="text-end">Cuota</th>
+                                    <th class="text-end">Capital pendiente</th>
+                                    <th class="text-end">Interes pendiente</th>
+                                    <th class="text-end">Mora</th>
+                                    <th class="text-end">Pendiente</th>
                                     <th>Estado</th>
                                 </tr>
                             </thead>
@@ -220,13 +221,18 @@
                                         $effectiveStatus = (! in_array($installment->status, ['paid', 'cancelled'], true) && $installment->due_date->lt(now()->startOfDay()))
                                             ? 'late'
                                             : $installment->status;
+                                        $pendingPrincipal = max(0, (float) $installment->principal_amount - (float) $installment->paid_principal);
+                                        $pendingInterest = max(0, (float) $installment->interest_amount - (float) $installment->paid_interest);
+                                        $pendingLateFee = max(0, (float) $installment->late_fee - (float) $installment->paid_late_fee);
+                                        $pendingInstallmentTotal = $pendingPrincipal + $pendingInterest + $pendingLateFee;
                                     @endphp
                                     <tr>
                                         <td>{{ $installment->installment_number }}</td>
                                         <td>{{ $installment->due_date->format('d/m/Y') }}</td>
-                                        <td class="text-end">{{ $loanCurrency }} {{ number_format((float) $installment->principal_amount, 2) }}</td>
-                                        <td class="text-end">{{ $loanCurrency }} {{ number_format((float) $installment->interest_amount, 2) }}</td>
-                                        <td class="text-end fw-semibold">{{ $loanCurrency }} {{ number_format((float) $installment->installment_amount, 2) }}</td>
+                                        <td class="text-end">{{ $loanCurrency }} {{ number_format($pendingPrincipal, 2) }}</td>
+                                        <td class="text-end">{{ $loanCurrency }} {{ number_format($pendingInterest, 2) }}</td>
+                                        <td class="text-end">{{ $loanCurrency }} {{ number_format($pendingLateFee, 2) }}</td>
+                                        <td class="text-end fw-semibold">{{ $loanCurrency }} {{ number_format($pendingInstallmentTotal, 2) }}</td>
                                         <td>@include('partials.status-badge', ['map' => 'installment_statuses', 'value' => $effectiveStatus])</td>
                                     </tr>
                                 @endforeach
@@ -237,6 +243,56 @@
             </article>
         </div>
         <div class="col-12 col-xl-4">
+            @can('loans.update')
+                <article class="card content-card mb-3">
+                    <div class="card-header bg-white border-0 pb-0">
+                        <h2 class="h6 fw-bold mb-1">Gestionar mora</h2>
+                        <p class="text-muted small mb-0">Modifica la mora del prestamo y recalcula las cuotas pendientes.</p>
+                    </div>
+                    <div class="card-body">
+                        <div class="d-flex justify-content-between border-bottom pb-3 mb-3">
+                            <span class="text-muted">Mora pendiente</span>
+                            <strong class="text-warning">{{ $loanCurrency }} {{ number_format((float) $financialSummary['overdue_late_fee'], 2) }}</strong>
+                        </div>
+
+                        <form method="POST" action="{{ route('loans.late-fee.update', $loan) }}" class="row g-2">
+                            @csrf
+                            @method('PATCH')
+                            <div class="col-12">
+                                <label for="late_fee_type" class="form-label small text-muted mb-1">Tipo de mora</label>
+                                <select id="late_fee_type" name="late_fee_type" class="form-select @error('late_fee_type') is-invalid @enderror">
+                                    <option value="none" @selected(old('late_fee_type', $loan->late_fee_type) === 'none')>Sin mora</option>
+                                    <option value="fixed" @selected(old('late_fee_type', $loan->late_fee_type) === 'fixed')>Fija</option>
+                                    <option value="daily_percentage" @selected(old('late_fee_type', $loan->late_fee_type) === 'daily_percentage')>Porcentaje diario</option>
+                                    <option value="daily_fixed" @selected(old('late_fee_type', $loan->late_fee_type) === 'daily_fixed')>Monto diario</option>
+                                </select>
+                                @error('late_fee_type') <div class="invalid-feedback">{{ $message }}</div> @enderror
+                            </div>
+                            <div class="col-12">
+                                <label for="late_fee_value" class="form-label small text-muted mb-1">Valor de mora</label>
+                                <input id="late_fee_value" name="late_fee_value" type="number" step="0.01" min="0" value="{{ old('late_fee_value', rtrim(rtrim(number_format((float) $loan->late_fee_value, 2, '.', ''), '0'), '.')) }}" class="form-control @error('late_fee_value') is-invalid @enderror">
+                                @error('late_fee_value') <div class="invalid-feedback">{{ $message }}</div> @enderror
+                            </div>
+                            <div class="col-12 d-grid">
+                                <button type="submit" class="btn btn-outline-primary">
+                                    <i class="fa-solid fa-rotate me-2"></i>Actualizar mora
+                                </button>
+                            </div>
+                        </form>
+
+                        <form method="POST" action="{{ route('loans.late-fee.update', $loan) }}" class="d-grid mt-2" onsubmit="return confirm('Quitar la mora de este prestamo? La mora pendiente quedara en cero y no se generara mora futura.');">
+                            @csrf
+                            @method('PATCH')
+                            <input type="hidden" name="late_fee_type" value="none">
+                            <input type="hidden" name="late_fee_value" value="0">
+                            <button type="submit" class="btn btn-outline-danger">
+                                <i class="fa-solid fa-ban me-2"></i>Quitar mora
+                            </button>
+                        </form>
+                    </div>
+                </article>
+            @endcan
+
             <article class="card content-card">
                 <div class="card-header bg-white border-0 pb-0">
                     <h2 class="h6 fw-bold mb-1">Condiciones</h2>

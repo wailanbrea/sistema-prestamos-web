@@ -52,10 +52,11 @@ class StorePaymentRequest extends FormRequest
             ],
             'payment_date' => ['required', 'date'],
             'payment_method' => ['required', Rule::in(array_keys(config('loan_labels.payment_methods')))],
-            'allocation_mode' => ['required', Rule::in(['auto', 'principal_and_interest', 'interest_only', 'principal_only', 'custom'])],
+            'allocation_mode' => ['required', Rule::in(['auto', 'principal_and_interest', 'interest_only', 'principal_only', 'current_plus_capital', 'custom'])],
             'amount' => [Rule::requiredIf(! $isCustom), 'nullable', 'numeric', 'min:0.01', 'max:999999999.99'],
             'target_installment_id' => ['nullable', 'integer', $installmentExists],
             'excess_action' => ['nullable', Rule::in(['reject', 'prepayment', 'change'])],
+            'capital_prepayment_amount' => ['nullable', 'numeric', 'min:0', 'max:999999999.99'],
             'allocations' => [Rule::requiredIf($isCustom), 'array'],
             'allocations.*.installment_id' => ['required_with:allocations', 'integer', $installmentExists],
             'allocations.*.amount' => ['required_with:allocations', 'numeric', 'min:0.01', 'max:999999999.99'],
@@ -71,6 +72,7 @@ class StorePaymentRequest extends FormRequest
             'allocation_mode' => 'modo de reparto',
             'target_installment_id' => 'cuota destino',
             'amount' => 'monto',
+            'capital_prepayment_amount' => 'abono a capital',
         ];
     }
 }

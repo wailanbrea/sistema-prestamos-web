@@ -64,10 +64,11 @@ class PaymentService
         'principal_and_interest' => ['interest', 'principal'],
         'interest_only' => ['interest'],
         'principal_only' => ['principal'],
+        'current_plus_capital' => ['late', 'interest', 'principal'],
     ];
 
     /**
-     * @param  array{loan_id:int, amount?:float, payment_date:string, payment_method:string, allocation_mode?:string, target_installment_id?:int|null, allocations?:array<int,array{installment_id:int, amount:float}>, mobile_uuid?:string|null, collector_id?:int|null, created_by?:int|null}  $data
+     * @param  array{loan_id:int, amount?:float, payment_date:string, payment_method:string, allocation_mode?:string, target_installment_id?:int|null, excess_action?:string|null, capital_prepayment_amount?:float|null, allocations?:array<int,array{installment_id:int, amount:float}>, mobile_uuid?:string|null, collector_id?:int|null, created_by?:int|null}  $data
      */
     public function register(array $data): Payment
     {
@@ -140,29 +141,66 @@ class PaymentService
                 'created_by' => $data['created_by'] ?? null,
             ]);
 
+            $targetInstallmentId = $data['target_installment_id'] ?? null;
+            if ($mode === 'current_plus_capital' && $targetInstallmentId === null) {
+                $targetInstallmentId = $installments->keys()->first();
+            }
+
             $totals = $mode === 'custom'
                 ? $this->allocateCustom($payment, $installments, $data['allocations'] ?? [])
-                : $this->allocatePooled($payment, $installments, self::ALLOCATION_BUCKETS[$mode], (float) ($data['amount'] ?? 0), $data['target_installment_id'] ?? null);
+                : $this->allocatePooled($payment, $installments, self::ALLOCATION_BUCKETS[$mode], (float) ($data['amount'] ?? 0), $targetInstallmentId);
 
             $leftover = round($totals['leftover'] ?? 0, 2);
             $capitalPrepaid = 0.0;
             $changeGiven = 0.0;
+            $hasExplicitCapitalPrepayment = array_key_exists('capital_prepayment_amount', $data);
+            $explicitCapitalPrepayment = $hasExplicitCapitalPrepayment
+                ? round((float) ($data['capital_prepayment_amount'] ?? 0), 2)
+                : null;
+
+            if ($mode === 'current_plus_capital' && $hasExplicitCapitalPrepayment && $explicitCapitalPrepayment <= 0) {
+                throw new InvalidArgumentException('Indica cuanto se abonara al capital.');
+            }
 
             // Manejo del excedente: abono a capital (recalcula cuotas) o vuelto al cliente.
             if ($leftover > 0) {
-                $excessAction = $data['excess_action'] ?? 'reject';
+                $excessAction = $mode === 'current_plus_capital'
+                    ? 'prepayment'
+                    : ($data['excess_action'] ?? 'reject');
 
                 if ($excessAction === 'prepayment') {
                     if (! $loan->allows_capital_prepayment) {
                         throw new InvalidArgumentException('Este préstamo no permite abono a capital.');
                     }
-                    $capitalPrepaid = $this->applyCapitalPrepayment($loan, $leftover, $paymentDate);
-                    $changeGiven = round($leftover - $capitalPrepaid, 2);
+                    $requestedCapitalPrepayment = $explicitCapitalPrepayment ?? $leftover;
+
+                    if ($requestedCapitalPrepayment < 0) {
+                        throw new InvalidArgumentException('El abono a capital no puede ser negativo.');
+                    }
+
+                    if ($requestedCapitalPrepayment - $leftover > 0.01) {
+                        throw new InvalidArgumentException('El abono a capital no puede exceder el sobrante del pago.');
+                    }
+
+                    if ($requestedCapitalPrepayment > 0) {
+                        $capitalPrepaid = $this->applyCapitalPrepayment($loan, $requestedCapitalPrepayment, $paymentDate);
+                    }
+
+                    $remainingLeftover = round($leftover - $capitalPrepaid, 2);
+                    if ($remainingLeftover > 0) {
+                        if (($data['excess_action'] ?? 'reject') === 'change') {
+                            $changeGiven = $remainingLeftover;
+                        } else {
+                            throw new InvalidArgumentException('El monto excede la cuota mas el abono a capital indicado. Ajusta el abono o marca vuelto al cliente.');
+                        }
+                    }
                 } elseif ($excessAction === 'change') {
                     $changeGiven = $leftover;
                 } else {
                     throw new InvalidArgumentException('El monto excede lo que se puede aplicar. Indica si el excedente es abono a capital o vuelto al cliente.');
                 }
+            } elseif ($mode === 'current_plus_capital' && $hasExplicitCapitalPrepayment) {
+                throw new InvalidArgumentException('El monto a cobrar debe incluir una cuota mas el abono a capital indicado.');
             }
 
             $principalPaid = round($totals['principal'] + $capitalPrepaid, 2);
@@ -231,7 +269,13 @@ class PaymentService
                 userId: $data['created_by'] ?? null,
                 auditable: $payment,
                 description: "Pago registrado al préstamo {$loan->loan_number}.",
-                newValues: $payment->fresh()?->toArray(),
+                newValues: [
+                    ...($payment->fresh()?->toArray() ?? []),
+                    'allocation_mode' => $mode,
+                    'target_installment_id' => $targetInstallmentId,
+                    'excess_action' => $leftover > 0 ? $excessAction : null,
+                    'capital_prepayment_amount' => $capitalPrepaid > 0 ? $capitalPrepaid : null,
+                ],
             );
 
             return $payment->fresh(['details']) ?? $payment;
@@ -243,10 +287,10 @@ class PaymentService
         return Payment::query()
             ->with([
                 'client:id,full_name,identification,phone',
-                'loan:id,loan_number,principal_amount,total_amount,remaining_balance,status',
+                'loan:id,loan_number,principal_amount,total_amount,remaining_balance,status,currency',
                 'collector:id,name',
                 'cancelledBy:id,name',
-                'details.installment:id,installment_number,due_date',
+                'details.installment:id,installment_number,due_date,interest_amount,paid_interest',
             ])
             ->forCompany($companyId)
             ->whereKey($paymentId)

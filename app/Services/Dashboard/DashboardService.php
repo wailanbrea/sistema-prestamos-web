@@ -65,9 +65,9 @@ class DashboardService
                     $query->whereNull('latitude')->orWhereNull('longitude');
                 })
                 ->count(),
-            'prestamos_activos' => Loan::query()->forCompany($companyId)->where('status', 'active')->count(),
+            'prestamos_activos' => Loan::query()->forCompany($companyId)->whereIn('status', ['active', 'late'])->count(),
             'prestamos_saldados' => Loan::query()->forCompany($companyId)->where('status', 'paid')->count(),
-            'prestamos_mora' => Loan::query()->forCompany($companyId)->where('status', 'late')->count(),
+            'prestamos_mora' => $this->overdueLoanQuery($companyId)->count(),
             'cobradores_activos' => Collector::query()->forCompany($companyId)->where('status', 'active')->count(),
         ];
     }
@@ -109,17 +109,23 @@ class DashboardService
      */
     public function loanStatusDistribution(int $companyId): array
     {
-        /** @var Collection<string, int> $counts */
-        $counts = Loan::query()
+        $paid = (int) Loan::query()
             ->forCompany($companyId)
-            ->selectRaw('status, count(*) as total')
-            ->groupBy('status')
-            ->pluck('total', 'status');
+            ->where('status', 'paid')
+            ->count();
+
+        $late = (int) $this->overdueLoanQuery($companyId)->count();
+
+        $active = (int) Loan::query()
+            ->forCompany($companyId)
+            ->whereIn('status', ['active', 'late'])
+            ->whereDoesntHave('installments', fn ($query) => $this->scopeOverdueInstallments($query))
+            ->count();
 
         return [
-            'active' => (int) ($counts['active'] ?? 0),
-            'late' => (int) ($counts['late'] ?? 0),
-            'paid' => (int) ($counts['paid'] ?? 0),
+            'active' => $active,
+            'late' => $late,
+            'paid' => $paid,
         ];
     }
 
@@ -154,5 +160,20 @@ class DashboardService
             ->orderByDesc('id')
             ->limit($limit)
             ->get();
+    }
+
+    private function overdueLoanQuery(int $companyId)
+    {
+        return Loan::query()
+            ->forCompany($companyId)
+            ->whereIn('status', ['active', 'late'])
+            ->whereHas('installments', fn ($query) => $this->scopeOverdueInstallments($query));
+    }
+
+    private function scopeOverdueInstallments($query)
+    {
+        return $query
+            ->whereIn('status', ['pending', 'partial', 'late'])
+            ->whereDate('due_date', '<', now()->toDateString());
     }
 }

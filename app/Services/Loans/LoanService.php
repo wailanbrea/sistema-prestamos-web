@@ -21,6 +21,7 @@ class LoanService
         private readonly InstallmentGeneratorService $installmentGenerator,
         private readonly CashMovementService $cashMovementService,
         private readonly AuditService $auditService,
+        private readonly LateFeeService $lateFeeService,
     ) {}
 
     /**
@@ -28,9 +29,39 @@ class LoanService
      */
     public function paginateForCompany(int $companyId, array $filters = []): LengthAwarePaginator
     {
+        $today = now()->toDateString();
+        $pendingBalanceSql = 'GREATEST(installment_amount - paid_principal - paid_interest, 0)';
+        $pendingLateFeeSql = 'GREATEST(late_fee - paid_late_fee, 0)';
+        $hasPendingAmountSql = "({$pendingBalanceSql} + {$pendingLateFeeSql}) > 0";
+
         return Loan::query()
             ->with(['client', 'collector'])
             ->forCompany($companyId)
+            ->select('loans.*')
+            ->selectSub(function ($query) use ($today, $hasPendingAmountSql): void {
+                $query->from('loan_installments')
+                    ->selectRaw('count(*)')
+                    ->whereColumn('loan_installments.loan_id', 'loans.id')
+                    ->whereNotIn('status', ['paid', 'cancelled'])
+                    ->whereDate('due_date', '<', $today)
+                    ->whereRaw($hasPendingAmountSql);
+            }, 'overdue_installments_count')
+            ->selectSub(function ($query) use ($today, $pendingBalanceSql, $pendingLateFeeSql, $hasPendingAmountSql): void {
+                $query->from('loan_installments')
+                    ->selectRaw("coalesce(sum({$pendingBalanceSql} + {$pendingLateFeeSql}), 0)")
+                    ->whereColumn('loan_installments.loan_id', 'loans.id')
+                    ->whereNotIn('status', ['paid', 'cancelled'])
+                    ->whereDate('due_date', '<', $today)
+                    ->whereRaw($hasPendingAmountSql);
+            }, 'overdue_amount_due')
+            ->selectSub(function ($query) use ($today, $pendingBalanceSql, $pendingLateFeeSql, $hasPendingAmountSql): void {
+                $query->from('loan_installments')
+                    ->selectRaw("coalesce(sum({$pendingBalanceSql} + {$pendingLateFeeSql}), 0)")
+                    ->whereColumn('loan_installments.loan_id', 'loans.id')
+                    ->whereNotIn('status', ['paid', 'cancelled'])
+                    ->whereDate('due_date', '<=', $today)
+                    ->whereRaw($hasPendingAmountSql);
+            }, 'amount_due_today')
             ->when($filters['status'] ?? null, fn (Builder $query, string $status) => $query->where('status', $status))
             ->when($filters['client_id'] ?? null, fn (Builder $query, string $clientId) => $query->where('client_id', $clientId))
             ->latest('id')
@@ -297,6 +328,75 @@ class LoanService
                 description: "Préstamo {$loan->loan_number} actualizado.",
                 oldValues: $original,
                 newValues: $loan->fresh()?->toArray(),
+            );
+
+            return $loan->fresh(['client', 'collector', 'installments']) ?? $loan;
+        });
+    }
+
+    public function updateLateFee(int $companyId, ?int $userId, Loan $loan, string $type, float $value): Loan
+    {
+        return DB::transaction(function () use ($companyId, $userId, $loan, $type, $value): Loan {
+            $loan = Loan::query()
+                ->forCompany($companyId)
+                ->whereKey($loan->id)
+                ->lockForUpdate()
+                ->firstOrFail();
+
+            $oldValues = [
+                'late_fee_type' => $loan->late_fee_type,
+                'late_fee_value' => (float) $loan->late_fee_value,
+                'pending_late_fee' => (float) $loan->installments()
+                    ->whereNotIn('status', ['paid', 'cancelled'])
+                    ->get(['late_fee', 'paid_late_fee'])
+                    ->sum(fn ($installment): float => max(0, (float) $installment->late_fee - (float) $installment->paid_late_fee)),
+            ];
+
+            $loan->forceFill([
+                'late_fee_type' => $type,
+                'late_fee_value' => $type === 'none' ? 0 : $value,
+            ])->save();
+
+            $installments = $loan->installments()
+                ->whereNotIn('status', ['paid', 'cancelled'])
+                ->orderBy('installment_number')
+                ->lockForUpdate()
+                ->get();
+
+            foreach ($installments as $installment) {
+                $this->lateFeeService->refreshInstallment($loan, $installment);
+            }
+
+            $hasLateInstallments = $loan->installments()->where('status', 'late')->exists();
+
+            if ($hasLateInstallments && $loan->status === 'active') {
+                $loan->forceFill(['status' => 'late'])->save();
+            }
+
+            if (! $hasLateInstallments && $loan->status === 'late') {
+                $loan->forceFill(['status' => 'active'])->save();
+            }
+
+            $loan->refresh();
+
+            $newValues = [
+                'late_fee_type' => $loan->late_fee_type,
+                'late_fee_value' => (float) $loan->late_fee_value,
+                'pending_late_fee' => (float) $loan->installments()
+                    ->whereNotIn('status', ['paid', 'cancelled'])
+                    ->get(['late_fee', 'paid_late_fee'])
+                    ->sum(fn ($installment): float => max(0, (float) $installment->late_fee - (float) $installment->paid_late_fee)),
+            ];
+
+            $this->auditService->record(
+                action: 'loan_late_fee_updated',
+                module: 'loans',
+                companyId: $companyId,
+                userId: $userId,
+                auditable: $loan,
+                description: "Mora del prestamo {$loan->loan_number} actualizada.",
+                oldValues: $oldValues,
+                newValues: $newValues,
             );
 
             return $loan->fresh(['client', 'collector', 'installments']) ?? $loan;

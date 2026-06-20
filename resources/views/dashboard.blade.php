@@ -146,7 +146,9 @@
         <div class="kpi-tile kpi-tile-white">
             <i class="fa-solid fa-wallet" style="color:var(--app-primary); opacity:.7; font-size:1.1rem;"></i>
             <div>
-                @php($capitalNegativo = (float) $metrics['capital_disponible'] < 0)
+                @php
+                    $capitalNegativo = (float) $metrics['capital_disponible'] < 0;
+                @endphp
                 <div class="kpi-label" style="color:var(--app-muted);">Capital disponible</div>
                 <div class="kpi-value" style="color:{{ $capitalNegativo ? 'var(--bs-danger, #dc3545)' : 'var(--app-primary)' }};">{{ number_format((float)$metrics['capital_disponible'], 0) }}</div>
                 <div style="font-size:.7rem; color:{{ $capitalNegativo ? 'var(--bs-danger, #dc3545)' : 'var(--app-muted)' }}; margin-top:2px;">{{ currency() }}@if ($capitalNegativo) · registra una inyección de capital en Caja @endif</div>
@@ -217,8 +219,7 @@
                 <p class="text-muted small mb-0">Distribución por estado.</p>
             </div>
             <div class="card-body d-flex flex-column">
-                @php $hasLoans = array_sum($loanDistribution) > 0; @endphp
-                @if ($hasLoans)
+                @if (array_sum($loanDistribution) > 0)
                     <div style="position:relative; height:200px;">
                         <canvas id="loanDistributionChart"></canvas>
                     </div>
