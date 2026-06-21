@@ -7,6 +7,7 @@ use App\Models\LoanInstallment;
 use App\Models\User;
 use App\Support\MenuAccess;
 use Illuminate\Support\Facades\Gate;
+use Illuminate\Support\Facades\URL;
 use Illuminate\Support\Facades\View;
 use Illuminate\Support\ServiceProvider;
 
@@ -25,6 +26,14 @@ class AppServiceProvider extends ServiceProvider
      */
     public function boot(): void
     {
+        // Detrás de Cloudflare/proxy el TLS se termina en el borde y la app
+        // recibe HTTP, por lo que route()/url() y las URLs firmadas salen con
+        // esquema http y el navegador las bloquea por mixed content. Fuera de
+        // local forzamos https para que coincida con cómo se sirve el sitio.
+        if (! $this->app->environment('local')) {
+            URL::forceScheme('https');
+        }
+
         // El dueño del sistema (super-admin) supera toda verificación de
         // permisos. Devolver null deja que el chequeo normal continúe.
         Gate::before(static fn (User $user): ?bool => $user->isSystemOwner() ? true : null);

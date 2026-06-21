@@ -680,6 +680,7 @@ class CollectorController extends Controller
             'document_id' => $document?->id,
             'title' => $document?->title,
             'download_url' => $document ? $this->documentShareService->publicDownloadUrl($document) : null,
+            'whatsapp_url' => $document ? $this->documentShareService->whatsAppUrl($document) : null,
             'created_at' => $document?->created_at?->toDateTimeString(),
             'just_generated' => $generated,
         ];

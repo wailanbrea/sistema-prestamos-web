@@ -22,17 +22,22 @@
     .mode-btn.active i { color: #fff !important; }
 
     /* ── Payment method chips ── */
+    .method-chips { display: flex; flex-wrap: wrap; gap: 8px; }
     .method-chip {
-        flex: 1; display: flex; align-items: center; justify-content: center; gap: 8px;
+        flex: 1 1 calc(33.333% - 8px); min-width: 96px;
+        display: flex; align-items: center; justify-content: center; gap: 8px;
         padding: 14px 12px; border-radius: 12px;
         border: 2px solid var(--app-border); background: var(--app-surface);
         color: var(--app-muted); font-size: .88rem; font-weight: 600; cursor: pointer;
-        transition: all .15s ease;
+        transition: all .15s ease; white-space: nowrap;
     }
     .method-chip.selected {
         border-color: var(--app-primary); background: var(--app-secondary); color: var(--app-on-secondary);
     }
     .method-chip:hover:not(.selected) { border-color: var(--app-primary-tint); }
+    @media (max-width: 575.98px) {
+        .method-chip { flex: 1 1 calc(50% - 8px); padding: 11px 8px; font-size: .82rem; }
+    }
 
     /* ── Amount input ── */
     .amount-input-wrap {
@@ -56,6 +61,10 @@
     #amount::placeholder { color: var(--app-surface-high); }
     #amount::-webkit-inner-spin-button,
     #amount::-webkit-outer-spin-button { -webkit-appearance: none; margin: 0; }
+    @media (max-width: 575.98px) {
+        .amount-prefix { left: 12px; font-size: 1.15rem; }
+        #amount { font-size: 1.7rem; padding: 16px 12px 16px 62px; }
+    }
 
     /* ── Quick amount buttons ── */
     .quick-amt {
@@ -118,7 +127,7 @@
 </section>
 
 <form method="POST" action="{{ route('payments.store') }}" id="paymentForm" data-no-loading
-      data-installments-url="{{ route('payments.loan-installments', ['loan' => '__LOAN__']) }}">
+      data-installments-url="{{ route('payments.loan-installments', ['loan' => '__LOAN__'], false) }}">
     @csrf
 
     <div class="row g-3">
@@ -363,12 +372,21 @@
 
                         <div class="col-12 col-md-6">
                             <label class="form-label d-block" style="font-size:.8rem; font-weight:600; color:var(--app-muted); text-transform:uppercase; letter-spacing:.05em;">Método de pago</label>
-                            <div class="d-flex gap-2">
+                            @php
+                                $methodIcons = [
+                                    'cash'     => 'fa-money-bill-wave',
+                                    'transfer' => 'fa-building-columns',
+                                    'card'     => 'fa-credit-card',
+                                    'check'    => 'fa-money-check-dollar',
+                                    'other'    => 'fa-ellipsis',
+                                ];
+                            @endphp
+                            <div class="method-chips">
                                 @foreach (config('loan_labels.payment_methods') as $value => $label)
                                     <button type="button" onclick="selectMethod('{{ $value }}')"
                                             class="method-chip {{ old('payment_method', 'cash') === $value ? 'selected' : '' }}"
                                             id="chip_{{ $value }}">
-                                        <i class="fa-solid {{ $value === 'cash' ? 'fa-money-bill-wave' : 'fa-building-columns' }}"></i>
+                                        <i class="fa-solid {{ $methodIcons[$value] ?? 'fa-building-columns' }}"></i>
                                         {{ $label }}
                                     </button>
                                 @endforeach
@@ -475,6 +493,7 @@ function selectMethod(val) {
     let installments = [];
     let balance = 0;
     let allowsPrepayment = false;
+    let loadError = '';
 
     const currencySpans = document.querySelectorAll('.js-payment-currency-symbol');
     const currentCurrency = () => loanSelect.selectedOptions[0]?.dataset.currency || @json($selectedLoan->currency ?? currency());
@@ -484,16 +503,23 @@ function selectMethod(val) {
 
     async function loadInstallments(loanId) {
         installments = [];
+        loadError = '';
         syncCurrencySymbol();
         if (!loanId) { render(); return; }
         try {
-            const res = await fetch(urlTpl.replace('__LOAN__', loanId), { headers: { 'Accept': 'application/json' } });
-            if (!res.ok) throw new Error('fetch');
+            const res = await fetch(urlTpl.replace('__LOAN__', loanId), {
+                headers: { 'Accept': 'application/json', 'X-Requested-With': 'XMLHttpRequest' },
+                credentials: 'same-origin',
+            });
+            if (!res.ok) throw new Error('HTTP ' + res.status);
             const data = await res.json();
             balance = Number(data.remaining_balance || 0);
             allowsPrepayment = !!data.allows_capital_prepayment;
             installments = data.installments || [];
-        } catch (e) { installments = []; }
+        } catch (e) {
+            installments = [];
+            loadError = 'No se pudieron cargar las cuotas (' + (e && e.message ? e.message : 'error de conexión') + ').';
+        }
         buildTargetOptions();
         render();
         suggestAmount();
@@ -542,7 +568,16 @@ function selectMethod(val) {
         installmentsCard.style.display = loanSelect.value ? '' : 'none';
         modeCard.style.display = (loanSelect.value && hasInstallments) ? '' : 'none';
         previewCard.style.display = (loanSelect.value && hasInstallments) ? '' : 'none';
-        noInstallments.style.display = (loanSelect.value && !hasInstallments) ? '' : 'none';
+        if (loadError) {
+            noInstallments.style.display = loanSelect.value ? '' : 'none';
+            noInstallments.innerHTML = `<span class="text-danger">${loadError}</span>
+                <button type="button" id="retryInstallments" class="btn btn-sm btn-link p-0 ms-1">Reintentar</button>`;
+            const retry = document.getElementById('retryInstallments');
+            if (retry) retry.addEventListener('click', () => loadInstallments(loanSelect.value));
+        } else {
+            noInstallments.style.display = (loanSelect.value && !hasInstallments) ? '' : 'none';
+            noInstallments.textContent = 'Este préstamo no tiene cuotas pendientes.';
+        }
         customCols.forEach((c) => c.style.display = isCustom ? '' : 'none');
 
         const totalPending = installments.reduce((s, i) => s + Number(i.total_due || 0), 0);
