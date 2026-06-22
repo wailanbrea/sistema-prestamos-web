@@ -14,6 +14,18 @@ return Application::configure(basePath: dirname(__DIR__))
         health: '/up',
     )
     ->withMiddleware(function (Middleware $middleware): void {
+        // Detrás de Cloudflare/proxy el TLS se termina en el borde y la app
+        // recibe HTTP. Sin confiar en X-Forwarded-Proto, $request->url() se
+        // reconstruye como http:// al validar las URLs firmadas (que se generan
+        // como https://), la firma no coincide y el enlace de descarga del
+        // estado de cuenta/recibos devuelve 403. Confiamos en el proxy para que
+        // isSecure() y la validación de la firma usen https.
+        $middleware->trustProxies(at: '*', headers: Request::HEADER_X_FORWARDED_FOR
+            | Request::HEADER_X_FORWARDED_HOST
+            | Request::HEADER_X_FORWARDED_PORT
+            | Request::HEADER_X_FORWARDED_PROTO
+            | Request::HEADER_X_FORWARDED_AWS_ELB);
+
         $middleware->alias([
             'company.active' => \App\Http\Middleware\EnsureCompanyIsActive::class,
             'menu.visible' => \App\Http\Middleware\EnsureMenuIsVisible::class,
