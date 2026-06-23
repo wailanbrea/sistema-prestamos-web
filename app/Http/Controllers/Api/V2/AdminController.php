@@ -86,7 +86,9 @@ class AdminController extends Controller
         $clientModel = $this->clientService->findForCompany($companyId, $client);
         $updated = $this->clientService->update($clientModel, $request->validated());
 
-        return response()->json(['data' => $this->clientDetailPayload($updated->load(['references', 'routes']))]);
+        return response()->json([
+            'data' => $this->clientDetailData($companyId, $updated->load(['references', 'routes'])),
+        ]);
     }
 
     public function deleteClient(Request $request, int $client): JsonResponse
@@ -433,6 +435,18 @@ class AdminController extends Controller
             ->whereKey($client)
             ->firstOrFail();
 
+        return response()->json(['data' => $this->clientDetailData($companyId, $clientModel)]);
+    }
+
+    /**
+     * Estructura completa del detalle de cliente (datos + resumen financiero + préstamos
+     * + cuotas + pagos recientes). Compartida por el GET de detalle y por updateClient
+     * para que ambos devuelvan exactamente la misma forma (la app espera `summary`).
+     *
+     * @return array<string, mixed>
+     */
+    private function clientDetailData(int $companyId, Client $clientModel): array
+    {
         $loans = Loan::query()
             ->forCompany($companyId)
             ->with('client:id,code,full_name,identification,phone,address,status,risk_level')
@@ -458,15 +472,13 @@ class AdminController extends Controller
             ->limit(10)
             ->get();
 
-        return response()->json([
-            'data' => [
-                ...$this->clientDetailPayload($clientModel),
-                'summary' => $this->clientFinancialSummary($companyId, (int) $clientModel->id),
-                'loans' => $loans->map(fn (Loan $loan): array => $this->loanPayload($loan))->values(),
-                'pending_installments' => $installments->map(fn (LoanInstallment $installment): array => $this->installmentPayload($installment))->values(),
-                'recent_payments' => $payments->map(fn (Payment $payment): array => $this->paymentPayload($payment))->values(),
-            ],
-        ]);
+        return [
+            ...$this->clientDetailPayload($clientModel),
+            'summary' => $this->clientFinancialSummary($companyId, (int) $clientModel->id),
+            'loans' => $loans->map(fn (Loan $loan): array => $this->loanPayload($loan))->values(),
+            'pending_installments' => $installments->map(fn (LoanInstallment $installment): array => $this->installmentPayload($installment))->values(),
+            'recent_payments' => $payments->map(fn (Payment $payment): array => $this->paymentPayload($payment))->values(),
+        ];
     }
 
     public function loans(Request $request): JsonResponse
