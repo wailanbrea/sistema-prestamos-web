@@ -33,10 +33,13 @@ class LoanController extends Controller
     {
         $companyId = (int) $request->user()->company_id;
 
+        $filters = $request->only(['status', 'client_id']);
+
         return view('loans.index', [
-            'loans' => $this->loanService->paginateForCompany($companyId, $request->only(['status', 'client_id'])),
+            'loans' => $this->loanService->paginateForCompany($companyId, $filters),
+            'summary' => $this->loanService->summaryForCompany($companyId, $filters),
             'clients' => Client::query()->forCompany($companyId)->orderBy('full_name')->get(['id', 'full_name']),
-            'filters' => $request->only(['status', 'client_id']),
+            'filters' => $filters,
             ...$this->labels(),
         ]);
     }

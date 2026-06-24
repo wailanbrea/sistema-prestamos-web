@@ -6,6 +6,7 @@ namespace App\Services\Loans;
 
 use App\Models\CompanySetting;
 use App\Models\Loan;
+use App\Models\LoanInstallment;
 use App\Models\LoanQuote;
 use App\Services\Audit\AuditService;
 use App\Services\Cash\CashMovementService;
@@ -67,6 +68,59 @@ class LoanService
             ->latest('id')
             ->paginate(15)
             ->withQueryString();
+    }
+
+    /**
+     * Resumen de cartera para las tarjetas de la pantalla de préstamos.
+     * Respeta los mismos filtros (estado/cliente) que el listado.
+     *
+     * @param  array<string, mixed>  $filters
+     * @return array<string, float|int>
+     */
+    public function summaryForCompany(int $companyId, array $filters = []): array
+    {
+        $row = Loan::query()
+            ->forCompany($companyId)
+            ->when($filters['status'] ?? null, fn (Builder $query, string $status) => $query->where('status', $status))
+            ->when($filters['client_id'] ?? null, fn (Builder $query, string $clientId) => $query->where('client_id', $clientId))
+            ->selectRaw('count(*) as total')
+            ->selectRaw("coalesce(sum(case when status in ('active', 'late') then 1 else 0 end), 0) as outstanding")
+            ->selectRaw("coalesce(sum(case when status = 'late' then 1 else 0 end), 0) as late")
+            ->selectRaw("coalesce(sum(case when status = 'pending' then 1 else 0 end), 0) as pending")
+            ->selectRaw("coalesce(sum(case when status = 'paid' then 1 else 0 end), 0) as paid")
+            ->selectRaw('coalesce(sum(principal_amount), 0) as principal_total')
+            ->selectRaw('coalesce(sum(remaining_balance), 0) as balance_total')
+            ->first();
+
+        // Cuotas vencidas y mora pendiente sobre los mismos préstamos filtrados.
+        $today = now()->toDateString();
+        $pendingBalanceSql = 'GREATEST(installment_amount - paid_principal - paid_interest, 0)';
+        $pendingLateFeeSql = 'GREATEST(late_fee - paid_late_fee, 0)';
+
+        $installments = LoanInstallment::query()
+            ->whereHas('loan', function (Builder $query) use ($companyId, $filters): void {
+                $query->forCompany($companyId)
+                    ->when($filters['status'] ?? null, fn (Builder $q, string $status) => $q->where('status', $status))
+                    ->when($filters['client_id'] ?? null, fn (Builder $q, string $clientId) => $q->where('client_id', $clientId));
+            })
+            ->whereNotIn('status', ['paid', 'cancelled'])
+            ->whereDate('due_date', '<', $today)
+            ->whereRaw("({$pendingBalanceSql} + {$pendingLateFeeSql}) > 0")
+            ->selectRaw('count(*) as overdue_count')
+            ->selectRaw("coalesce(sum({$pendingLateFeeSql}), 0) as late_fee_pending")
+            ->first();
+
+        return [
+            'total' => (int) ($row->total ?? 0),
+            'outstanding' => (int) ($row->outstanding ?? 0),
+            'late' => (int) ($row->late ?? 0),
+            'pending' => (int) ($row->pending ?? 0),
+            'paid' => (int) ($row->paid ?? 0),
+            'principal_total' => (float) ($row->principal_total ?? 0),
+            'balance_total' => (float) ($row->balance_total ?? 0),
+            'overdue_installments' => (int) ($installments->overdue_count ?? 0),
+            'late_fee_pending' => (float) ($installments->late_fee_pending ?? 0),
+        ];
     }
 
     /**

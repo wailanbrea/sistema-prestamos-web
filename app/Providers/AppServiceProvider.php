@@ -6,6 +6,7 @@ use App\Models\Client;
 use App\Models\LoanInstallment;
 use App\Models\User;
 use App\Support\MenuAccess;
+use Illuminate\Pagination\Paginator;
 use Illuminate\Support\Facades\Gate;
 use Illuminate\Support\Facades\URL;
 use Illuminate\Support\Facades\View;
@@ -26,6 +27,11 @@ class AppServiceProvider extends ServiceProvider
      */
     public function boot(): void
     {
+        // El sitio usa Bootstrap 5. Sin esto, la paginación de Laravel se
+        // renderiza con la plantilla Tailwind por defecto (flechas SVG enormes
+        // y sin estilo) en todas las vistas con ->links().
+        Paginator::useBootstrapFive();
+
         // Detrás de Cloudflare/proxy el TLS se termina en el borde y la app
         // recibe HTTP, por lo que route()/url() y las URLs firmadas salen con
         // esquema http y el navegador las bloquea por mixed content. Fuera de

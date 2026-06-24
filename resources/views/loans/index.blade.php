@@ -32,6 +32,73 @@
         </div>
     </section>
 
+    <section class="row g-3 mb-4">
+        <div class="col-6 col-md-4 col-xl-3">
+            <div class="card content-card h-100">
+                <div class="card-body py-3">
+                    <div class="text-muted small text-uppercase">Préstamos</div>
+                    <div class="fs-4 fw-bold text-dark">{{ number_format((int) ($summary['total'] ?? 0)) }}</div>
+                </div>
+            </div>
+        </div>
+        <div class="col-6 col-md-4 col-xl-3">
+            <div class="card content-card h-100">
+                <div class="card-body py-3">
+                    <div class="text-muted small text-uppercase">Vigentes</div>
+                    <div class="fs-4 fw-bold text-success">{{ number_format((int) ($summary['outstanding'] ?? 0)) }}</div>
+                </div>
+            </div>
+        </div>
+        <div class="col-6 col-md-4 col-xl-3">
+            <div class="card content-card h-100">
+                <div class="card-body py-3">
+                    <div class="text-muted small text-uppercase">Atrasados</div>
+                    <div class="fs-4 fw-bold {{ (int) ($summary['late'] ?? 0) > 0 ? 'text-danger' : 'text-dark' }}">{{ number_format((int) ($summary['late'] ?? 0)) }}</div>
+                </div>
+            </div>
+        </div>
+        <div class="col-6 col-md-4 col-xl-3">
+            <div class="card content-card h-100">
+                <div class="card-body py-3">
+                    <div class="text-muted small text-uppercase">Saldados</div>
+                    <div class="fs-4 fw-bold text-dark">{{ number_format((int) ($summary['paid'] ?? 0)) }}</div>
+                </div>
+            </div>
+        </div>
+        <div class="col-6 col-md-4 col-xl-3">
+            <div class="card content-card h-100">
+                <div class="card-body py-3">
+                    <div class="text-muted small text-uppercase">Cuotas vencidas</div>
+                    <div class="fs-4 fw-bold {{ (int) ($summary['overdue_installments'] ?? 0) > 0 ? 'text-danger' : 'text-dark' }}">{{ number_format((int) ($summary['overdue_installments'] ?? 0)) }}</div>
+                </div>
+            </div>
+        </div>
+        <div class="col-6 col-md-4 col-xl-3">
+            <div class="card content-card h-100">
+                <div class="card-body py-3">
+                    <div class="text-muted small text-uppercase">Capital prestado</div>
+                    <div class="fs-5 fw-bold text-dark">{{ currency() }} {{ number_format((float) ($summary['principal_total'] ?? 0), 2) }}</div>
+                </div>
+            </div>
+        </div>
+        <div class="col-6 col-md-4 col-xl-3">
+            <div class="card content-card h-100">
+                <div class="card-body py-3">
+                    <div class="text-muted small text-uppercase">Balance pendiente</div>
+                    <div class="fs-5 fw-bold text-primary">{{ currency() }} {{ number_format((float) ($summary['balance_total'] ?? 0), 2) }}</div>
+                </div>
+            </div>
+        </div>
+        <div class="col-6 col-md-4 col-xl-3">
+            <div class="card content-card h-100">
+                <div class="card-body py-3">
+                    <div class="text-muted small text-uppercase">Mora pendiente</div>
+                    <div class="fs-5 fw-bold {{ (float) ($summary['late_fee_pending'] ?? 0) > 0 ? 'text-danger' : 'text-dark' }}">{{ currency() }} {{ number_format((float) ($summary['late_fee_pending'] ?? 0), 2) }}</div>
+                </div>
+            </div>
+        </div>
+    </section>
+
     @if ($errors->has('loan'))
         <div class="alert alert-danger alert-dismissible fade show" role="alert">
             {{ $errors->first('loan') }}
