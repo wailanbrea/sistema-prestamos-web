@@ -7,6 +7,7 @@ namespace App\Http\Controllers\Api\V2;
 use App\Http\Controllers\Controller;
 use App\Models\Collector;
 use App\Models\User;
+use App\Support\MenuAccess;
 use Illuminate\Auth\Events\PasswordReset;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
@@ -154,6 +155,10 @@ class AuthController extends Controller
             'status' => $user->status,
             'roles' => $user->getRoleNames()->values(),
             'permissions' => $user->getAllPermissions()->pluck('name')->values(),
+            'features' => [
+                'accounts_payable' => $user->can('accounts-payable.manage')
+                    && MenuAccess::canAccessMenu($user, 'accounts-payable.index'),
+            ],
             // Cobrador de campo "real": vinculado a un Collector activo. Distingue al
             // cobrador (usa /collector) del admin que también tiene payments.create.
             'is_collector' => Collector::query()

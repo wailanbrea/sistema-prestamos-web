@@ -2,6 +2,7 @@
 
 declare(strict_types=1);
 
+use App\Http\Controllers\Api\V2\AccountsPayableController;
 use App\Http\Controllers\Api\V2\AdminController;
 use App\Http\Controllers\Api\V2\AdminReportController;
 use App\Http\Controllers\Api\V2\AuthController;
@@ -92,6 +93,19 @@ Route::prefix('v2')->name('api.v2.')->group(function (): void {
             Route::get('/reports/summary', [AdminReportController::class, 'summary'])->middleware('permission:reports.view')->name('reports.summary');
             Route::get('/reports/collectors', [AdminReportController::class, 'collectors'])->middleware('permission:reports.view')->name('reports.collectors');
             Route::get('/reports/catalog', [AdminReportController::class, 'catalog'])->middleware('permission:reports.view')->name('reports.catalog');
+
+            Route::prefix('accounts-payable')->name('accounts-payable.')->middleware('permission:accounts-payable.manage')->group(function (): void {
+                Route::get('/', [AccountsPayableController::class, 'index'])->name('index');
+                Route::post('/', [AccountsPayableController::class, 'store'])->name('store');
+                Route::get('/creditors', [AccountsPayableController::class, 'creditors'])->name('creditors');
+                Route::post('/creditors', [AccountsPayableController::class, 'storeCreditor'])->name('creditors.store');
+                Route::put('/creditors/{creditor}', [AccountsPayableController::class, 'updateCreditor'])->whereNumber('creditor')->name('creditors.update');
+                Route::delete('/creditors/{creditor}', [AccountsPayableController::class, 'destroyCreditor'])->whereNumber('creditor')->name('creditors.destroy');
+                Route::get('/{accountPayable}', [AccountsPayableController::class, 'show'])->whereNumber('accountPayable')->name('show');
+                Route::put('/{accountPayable}', [AccountsPayableController::class, 'update'])->whereNumber('accountPayable')->name('update');
+                Route::post('/{accountPayable}/payments', [AccountsPayableController::class, 'storePayment'])->whereNumber('accountPayable')->name('payments.store');
+                Route::delete('/{accountPayable}', [AccountsPayableController::class, 'destroy'])->whereNumber('accountPayable')->name('destroy');
+            });
         });
 
         // Caja / Contabilidad: gastos (expenses.manage) y caja (cash.view).

@@ -85,6 +85,18 @@ class MenuAccess
     }
 
     /**
+     * Verifica una característica por su ruta de menú, combinando licencia y
+     * visibilidad personalizada. Se usa también en la API móvil para que el
+     * cliente no pueda saltarse restricciones propias de la interfaz web.
+     */
+    public static function canAccessMenu(User $user, string $route): bool
+    {
+        $allowed = self::allowedRouteKeys($user);
+
+        return $allowed === null || in_array($route, $allowed, true);
+    }
+
+    /**
      * ¿El plan/licencia de la empresa incluye el menú/característica indicada?
      */
     public static function planAllowsMenu(User $user, string $route): bool
