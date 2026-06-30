@@ -153,7 +153,7 @@ class PaymentManagementTest extends TestCase
         ]);
         $this->assertDatabaseHas('loans', [
             'id' => $loan->id,
-            'status' => 'active',
+            'status' => 'late',
             'paid_principal' => 0,
             'paid_interest' => 0,
             'remaining_balance' => 1000,

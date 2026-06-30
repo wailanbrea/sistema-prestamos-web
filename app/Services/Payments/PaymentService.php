@@ -85,7 +85,16 @@ class PaymentService
                 ->lockForUpdate()
                 ->firstOrFail();
 
-            if (! in_array($loan->status, ['active', 'late'], true)) {
+            $hasPendingInstallmentDebt = $loan->installments()
+                ->whereNotIn('status', ['paid', 'cancelled'])
+                ->where(function (Builder $query): void {
+                    $query->whereRaw('(principal_amount - paid_principal) > 0')
+                        ->orWhereRaw('(interest_amount - paid_interest) > 0')
+                        ->orWhereRaw('(late_fee - paid_late_fee) > 0');
+                })
+                ->exists();
+
+            if (! in_array($loan->status, ['active', 'late'], true) && ! $hasPendingInstallmentDebt) {
                 throw new InvalidArgumentException('Solo se pueden registrar pagos a préstamos activos o atrasados.');
             }
 

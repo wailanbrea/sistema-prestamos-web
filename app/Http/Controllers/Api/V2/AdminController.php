@@ -11,13 +11,14 @@ use App\Http\Requests\Clients\StoreClientRequest;
 use App\Http\Requests\Clients\UpdateClientRequest;
 use App\Http\Requests\Collectors\StoreCollectorRequest;
 use App\Http\Requests\Collectors\UpdateCollectorRequest;
+use App\Http\Requests\LoanQuotes\StoreLoanQuoteRequest;
 use App\Http\Requests\Loans\StoreLoanRequest;
 use App\Http\Requests\Loans\UpdateLoanRequest;
-use App\Http\Requests\LoanQuotes\StoreLoanQuoteRequest;
 use App\Http\Requests\Payments\CancelPaymentRequest;
 use App\Models\Client;
 use App\Models\Collector;
 use App\Models\CollectorCommission;
+use App\Models\Contract;
 use App\Models\Document;
 use App\Models\Loan;
 use App\Models\LoanInstallment;
@@ -32,7 +33,6 @@ use App\Services\Contracts\ContractService;
 use App\Services\Contracts\ContractShareService;
 use App\Services\Documents\DocumentGenerationService;
 use App\Services\Documents\DocumentShareService;
-use App\Models\Contract;
 use App\Services\Loans\LoanQuoteService;
 use App\Services\Loans\LoanService;
 use App\Services\Notifications\EventNotifier;
@@ -64,8 +64,7 @@ class AdminController extends Controller
         private readonly ManualCashMovementService $cashMovementService,
         private readonly LoanQuoteService $loanQuoteService,
         private readonly EventNotifier $notifier,
-    ) {
-    }
+    ) {}
 
     /**
      * Alta de cliente desde la app móvil: mismo FormRequest que la web
@@ -298,9 +297,9 @@ class AdminController extends Controller
         $phone = $link->recipient_phone ? preg_replace('/\D+/', '', (string) $link->recipient_phone) : null;
         if ($phone) {
             $message = ($link->recipient_name ? "Hola {$link->recipient_name}, " : 'Hola, ')
-                . 'completa tu formulario de registro aquí: '
-                . $formUrl;
-            $whatsappUrl = 'https://wa.me/' . $phone . '?text=' . rawurlencode($message);
+                .'completa tu formulario de registro aquí: '
+                .$formUrl;
+            $whatsappUrl = 'https://wa.me/'.$phone.'?text='.rawurlencode($message);
         }
 
         return response()->json([
@@ -777,8 +776,7 @@ class AdminController extends Controller
                 'required',
                 'integer',
                 Rule::exists('loans', 'id')
-                    ->where('company_id', $companyId)
-                    ->whereIn('status', ['active', 'late']),
+                    ->where('company_id', $companyId),
             ],
             'payment_date' => ['required', 'date'],
             'amount' => ['required', 'numeric', 'min:0.01', 'max:999999999.99'],

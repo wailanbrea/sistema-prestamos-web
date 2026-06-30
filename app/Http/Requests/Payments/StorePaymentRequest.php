@@ -40,8 +40,7 @@ class StorePaymentRequest extends FormRequest
                 'required',
                 'integer',
                 Rule::exists('loans', 'id')
-                    ->where('company_id', $companyId)
-                    ->whereIn('status', ['active', 'late']),
+                    ->where('company_id', $companyId),
             ],
             'collector_id' => [
                 'nullable',

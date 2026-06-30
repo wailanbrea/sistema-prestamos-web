@@ -277,7 +277,6 @@ class ApiV2CollectorTest extends TestCase
         ]);
     }
 
-
     public function test_collector_can_read_installment_detail(): void
     {
         [$user, , $loan] = $this->collectorWithLoan();
@@ -291,6 +290,59 @@ class ApiV2CollectorTest extends TestCase
             ->assertJsonPath('data.loan_id', $loan->id)
             ->assertJsonPath('data.client.id', $loan->client_id)
             ->assertJsonPath('data.payments', []);
+    }
+
+    public function test_collector_can_collect_pending_interest_when_loan_capital_is_zero(): void
+    {
+        [$user, , $loan] = $this->collectorWithLoan();
+        $token = $this->loginToken($user);
+        $installment = $loan->installments()->firstOrFail();
+
+        $loan->forceFill([
+            'status' => 'paid',
+            'remaining_balance' => 0,
+            'paid_principal' => 1000,
+            'paid_interest' => 60,
+        ])->save();
+
+        $installment->forceFill([
+            'paid_principal' => 1000,
+            'paid_interest' => 60,
+            'total_paid' => 1060,
+            'status' => 'partial',
+        ])->save();
+
+        $this->withToken($token)
+            ->getJson('/api/v2/collector/installments?per_page=100')
+            ->assertOk()
+            ->assertJsonFragment([
+                'id' => $installment->id,
+                'pending_principal' => 0,
+                'pending_interest' => 40,
+                'pending_late_fee' => 0,
+                'pending_amount' => 40,
+                'status' => 'partial',
+            ]);
+
+        $this->withToken($token)
+            ->postJson('/api/v2/collector/payments', [
+                'loan_id' => $loan->id,
+                'payment_date' => '2026-06-15',
+                'amount' => 40,
+                'payment_method' => 'cash',
+                'target_installment_id' => $installment->id,
+            ])
+            ->assertCreated()
+            ->assertJsonPath('data.loan_id', $loan->id)
+            ->assertJsonPath('data.new_balance', 0)
+            ->assertJsonPath('data.interest_paid', 40);
+
+        $this->assertDatabaseHas('loan_installments', [
+            'id' => $installment->id,
+            'status' => 'paid',
+            'paid_principal' => 1000,
+            'paid_interest' => 100,
+        ]);
     }
 
     public function test_collector_can_register_payment_for_assigned_loan(): void

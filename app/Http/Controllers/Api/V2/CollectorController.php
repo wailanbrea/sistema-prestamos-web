@@ -40,8 +40,7 @@ class CollectorController extends Controller
         private readonly PaymentReceiptShareService $receiptShareService,
         private readonly DocumentGenerationService $documentGenerationService,
         private readonly DocumentShareService $documentShareService,
-    ) {
-    }
+    ) {}
 
     public function summary(Request $request): JsonResponse
     {
@@ -285,7 +284,11 @@ class CollectorController extends Controller
 
         $loans = $this->assignedLoanQuery($collector)
             ->with('client:id,full_name,identification,phone,address')
-            ->whereIn('status', ['active', 'late'])
+            ->where(function (Builder $query): void {
+                $query->whereIn('status', ['active', 'late'])
+                    ->orWhereHas('installments', fn (Builder $installmentQuery): Builder => $installmentQuery
+                        ->whereIn('status', ['pending', 'partial', 'late']));
+            })
             ->orderBy('loan_number')
             ->paginate((int) $request->integer('per_page', 25));
 
@@ -463,8 +466,7 @@ class CollectorController extends Controller
                 'integer',
                 Rule::exists('loans', 'id')
                     ->where('company_id', $collector->company_id)
-                    ->where('collector_id', $collector->id)
-                    ->whereIn('status', ['active', 'late']),
+                    ->where('collector_id', $collector->id),
             ],
             'payment_date' => ['required', 'date'],
             'amount' => ['required', 'numeric', 'min:0.01', 'max:999999999.99'],
@@ -545,8 +547,7 @@ class CollectorController extends Controller
             ->whereIn('status', ['pending', 'partial', 'late'])
             ->whereHas('loan', function (Builder $query) use ($collector): void {
                 $query->forCompany((int) $collector->company_id)
-                    ->where('collector_id', $collector->id)
-                    ->whereIn('status', ['active', 'late']);
+                    ->where('collector_id', $collector->id);
             });
     }
 
