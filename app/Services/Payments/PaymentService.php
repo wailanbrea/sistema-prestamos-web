@@ -228,6 +228,7 @@ class PaymentService
             $loan->refresh();
             $newBalance = max(0, round((float) $loan->principal_amount - ((float) $loan->paid_principal + $totals['principal'] + $capitalPrepaid), 2));
             $scheduleInterest = round((float) $loan->installments()->where('status', '!=', 'cancelled')->sum('interest_amount'), 2);
+            $resolvedLoanStatus = $this->resolveLoanStatus($loan, $paymentDate);
 
             $loan->forceFill([
                 'paid_principal' => round((float) $loan->paid_principal + $totals['principal'] + $capitalPrepaid, 2),
@@ -236,8 +237,8 @@ class PaymentService
                 'remaining_balance' => $newBalance,
                 'total_interest' => $scheduleInterest,
                 'total_amount' => round((float) $loan->principal_amount + $scheduleInterest, 2),
-                'status' => $newBalance <= 0 ? 'paid' : $loan->status,
-                'end_date' => $newBalance <= 0 ? now()->toDateString() : $loan->end_date,
+                'status' => $resolvedLoanStatus,
+                'end_date' => $resolvedLoanStatus === 'paid' ? now()->toDateString() : null,
             ])->save();
 
             $payment->forceFill([
@@ -351,14 +352,15 @@ class PaymentService
             }
 
             $newBalance = round((float) $loan->remaining_balance + (float) $payment->principal_paid, 2);
+            $resolvedLoanStatus = $this->resolveLoanStatus($loan, CarbonImmutable::today());
 
             $loan->forceFill([
                 'paid_principal' => max(0, round((float) $loan->paid_principal - (float) $payment->principal_paid, 2)),
                 'paid_interest' => max(0, round((float) $loan->paid_interest - (float) $payment->interest_paid, 2)),
                 'paid_late_fee' => max(0, round((float) $loan->paid_late_fee - (float) $payment->late_fee_paid, 2)),
                 'remaining_balance' => $newBalance,
-                'status' => $loan->status === 'paid' ? 'active' : $loan->status,
-                'end_date' => $loan->status === 'paid' ? null : $loan->end_date,
+                'status' => $resolvedLoanStatus,
+                'end_date' => $resolvedLoanStatus === 'paid' ? $loan->end_date : null,
             ])->save();
 
             $payment->forceFill([
@@ -657,6 +659,42 @@ class PaymentService
         }
 
         return (float) $installment->total_paid > 0 ? 'partial' : ((int) $installment->days_late > 0 ? 'late' : 'pending');
+    }
+
+    private function resolveLoanStatus(Loan $loan, CarbonImmutable $date): string
+    {
+        $installments = $loan->installments()
+            ->where('status', '!=', 'cancelled')
+            ->get(['due_date', 'principal_amount', 'paid_principal', 'interest_amount', 'paid_interest', 'late_fee', 'paid_late_fee']);
+
+        $hasPendingDebt = false;
+        $hasOverdueDebt = false;
+
+        foreach ($installments as $installment) {
+            $pending = round(
+                max(0, (float) $installment->principal_amount - (float) $installment->paid_principal)
+                + max(0, (float) $installment->interest_amount - (float) $installment->paid_interest)
+                + max(0, (float) $installment->late_fee - (float) $installment->paid_late_fee),
+                2,
+            );
+
+            if ($pending <= 0) {
+                continue;
+            }
+
+            $hasPendingDebt = true;
+
+            if (CarbonImmutable::parse($installment->due_date)->lessThan($date)) {
+                $hasOverdueDebt = true;
+                break;
+            }
+        }
+
+        if (! $hasPendingDebt) {
+            return 'paid';
+        }
+
+        return $hasOverdueDebt ? 'late' : 'active';
     }
 
     private function receiptNumber(int $companyId): string
