@@ -538,6 +538,48 @@ class AdminController extends Controller
         ]);
     }
 
+    public function waiveInstallmentLateFee(Request $request, int $loan, int $installment): JsonResponse
+    {
+        $companyId = (int) $request->user()->company_id;
+
+        $loanModel = Loan::query()
+            ->forCompany($companyId)
+            ->whereKey($loan)
+            ->firstOrFail();
+
+        $installmentModel = LoanInstallment::query()
+            ->where('loan_id', $loanModel->id)
+            ->whereKey($installment)
+            ->firstOrFail();
+
+        $validated = $request->validate([
+            'reason' => ['nullable', 'string', 'max:500'],
+        ]);
+
+        try {
+            $updated = $this->loanService->waiveInstallmentLateFee(
+                companyId: $companyId,
+                userId: $request->user()?->id,
+                loan: $loanModel,
+                installment: $installmentModel,
+                reason: $validated['reason'] ?? 'Eliminada desde Android',
+            );
+        } catch (InvalidArgumentException $exception) {
+            return response()->json([
+                'message' => $exception->getMessage(),
+                'errors' => [
+                    'late_fee' => [$exception->getMessage()],
+                ],
+            ], 422);
+        }
+
+        $updated->loadMissing('loan.client:id,full_name,identification,phone,address');
+
+        return response()->json([
+            'data' => $this->installmentPayload($updated),
+        ]);
+    }
+
     public function loanDocuments(Request $request, int $loan): JsonResponse
     {
         $companyId = (int) $request->user()->company_id;

@@ -561,6 +561,98 @@ class LoanService
         });
     }
 
+    public function waiveInstallmentLateFee(int $companyId, ?int $userId, Loan $loan, LoanInstallment $installment, ?string $reason = null): LoanInstallment
+    {
+        return DB::transaction(function () use ($companyId, $userId, $loan, $installment, $reason): LoanInstallment {
+            $loan = Loan::query()
+                ->forCompany($companyId)
+                ->whereKey($loan->id)
+                ->lockForUpdate()
+                ->firstOrFail();
+
+            $installment = LoanInstallment::query()
+                ->where('loan_id', $loan->id)
+                ->whereKey($installment->id)
+                ->lockForUpdate()
+                ->firstOrFail();
+
+            if (in_array($installment->status, ['paid', 'cancelled'], true)) {
+                throw new InvalidArgumentException('No se puede quitar mora de una cuota saldada o cancelada.');
+            }
+
+            $pendingLateFee = max(0, round((float) $installment->late_fee - (float) $installment->paid_late_fee, 2));
+            if ($pendingLateFee <= 0) {
+                throw new InvalidArgumentException('Esta cuota no tiene mora pendiente.');
+            }
+
+            $oldValues = [
+                'installment_id' => $installment->id,
+                'installment_number' => (int) $installment->installment_number,
+                'late_fee' => (float) $installment->late_fee,
+                'paid_late_fee' => (float) $installment->paid_late_fee,
+                'pending_late_fee' => $pendingLateFee,
+                'status' => $installment->status,
+            ];
+
+            $installment->forceFill([
+                'late_fee' => round((float) $installment->paid_late_fee, 2),
+                'late_fee_waived_at' => now(),
+                'late_fee_waived_by' => $userId,
+                'late_fee_waived_reason' => $reason,
+            ])->save();
+
+            $installment->forceFill([
+                'status' => $this->resolveInstallmentStatus($installment->fresh() ?? $installment),
+            ])->save();
+
+            $loan->forceFill(['status' => $this->resolveStatusFromInstallments($loan)])->save();
+
+            $freshInstallment = $installment->fresh(['loan.client']) ?? $installment;
+
+            $this->auditService->record(
+                action: 'loan_installment_late_fee_waived',
+                module: 'loans',
+                companyId: $companyId,
+                userId: $userId,
+                auditable: $freshInstallment,
+                description: "Mora de la cuota #{$freshInstallment->installment_number} del prestamo {$loan->loan_number} eliminada.",
+                oldValues: $oldValues,
+                newValues: [
+                    'installment_id' => $freshInstallment->id,
+                    'installment_number' => (int) $freshInstallment->installment_number,
+                    'late_fee' => (float) $freshInstallment->late_fee,
+                    'paid_late_fee' => (float) $freshInstallment->paid_late_fee,
+                    'pending_late_fee' => 0,
+                    'status' => $freshInstallment->status,
+                    'reason' => $reason,
+                ],
+            );
+
+            return $freshInstallment;
+        });
+    }
+
+    private function resolveInstallmentStatus(LoanInstallment $installment): string
+    {
+        if ($installment->status === 'cancelled') {
+            return 'cancelled';
+        }
+
+        $pendingPrincipal = max(0, round((float) $installment->principal_amount - (float) $installment->paid_principal, 2));
+        $pendingInterest = max(0, round((float) $installment->interest_amount - (float) $installment->paid_interest, 2));
+        $pendingLateFee = max(0, round((float) $installment->late_fee - (float) $installment->paid_late_fee, 2));
+
+        if (($pendingPrincipal + $pendingInterest + $pendingLateFee) <= 0) {
+            return 'paid';
+        }
+
+        if ($installment->due_date !== null && $installment->due_date->startOfDay()->lt(now()->startOfDay())) {
+            return 'late';
+        }
+
+        return (float) $installment->total_paid > 0 ? 'partial' : 'pending';
+    }
+
     /**
      * Anula (soft delete) un préstamo sin pagos válidos, revirtiendo el desembolso en caja.
      */

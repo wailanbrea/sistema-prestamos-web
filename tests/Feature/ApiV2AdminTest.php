@@ -273,6 +273,35 @@ class ApiV2AdminTest extends TestCase
         $this->withToken($token)->getJson("/api/v2/admin/loans/{$foreignLoan->id}")->assertNotFound();
     }
 
+    public function test_admin_can_waive_installment_late_fee(): void
+    {
+        [$admin, $company] = $this->adminUser();
+        [, $loan] = $this->seedPortfolio($company->id);
+        $installment = $loan->installments()->orderBy('installment_number')->firstOrFail();
+        $installment->forceFill([
+            'late_fee' => 75,
+            'status' => 'late',
+            'due_date' => now()->subDays(3)->toDateString(),
+        ])->save();
+        $loan->forceFill(['status' => 'late'])->save();
+        $token = $this->loginToken($admin);
+
+        $this->withToken($token)
+            ->deleteJson("/api/v2/admin/loans/{$loan->id}/installments/{$installment->id}/late-fee", [
+                'reason' => 'Prueba de condonacion',
+            ])
+            ->assertOk()
+            ->assertJsonPath('data.id', $installment->id)
+            ->assertJsonPath('data.pending_late_fee', 0)
+            ->assertJsonPath('data.late_fee', 0);
+
+        $this->assertDatabaseHas('loan_installments', [
+            'id' => $installment->id,
+            'late_fee' => 0,
+            'late_fee_waived_reason' => 'Prueba de condonacion',
+        ]);
+    }
+
     /**
      * @return array{0: User, 1: Company}
      */

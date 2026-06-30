@@ -66,6 +66,7 @@ Route::prefix('v2')->name('api.v2.')->group(function (): void {
             Route::get('/loans', [AdminController::class, 'loans'])->middleware('permission:collectors.manage')->name('loans');
             Route::post('/loans', [AdminController::class, 'storeLoan'])->middleware('permission:loans.create')->name('loans.store');
             Route::put('/loans/{loan}', [AdminController::class, 'updateLoan'])->middleware('permission:loans.update')->whereNumber('loan')->name('loans.update');
+            Route::delete('/loans/{loan}/installments/{installment}/late-fee', [AdminController::class, 'waiveInstallmentLateFee'])->middleware('permission:loans.update')->whereNumber('loan')->whereNumber('installment')->name('loans.installments.late-fee.destroy');
             Route::delete('/loans/{loan}', [AdminController::class, 'deleteLoan'])->middleware('permission:collectors.manage')->whereNumber('loan')->name('loans.destroy');
             Route::get('/loans/{loan}', [AdminController::class, 'loan'])->middleware('permission:collectors.manage')->whereNumber('loan')->name('loans.show');
             Route::get('/loans/{loan}/documents', [AdminController::class, 'loanDocuments'])->middleware('permission:collectors.manage')->whereNumber('loan')->name('loans.documents');

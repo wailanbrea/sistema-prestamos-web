@@ -90,6 +90,7 @@ Route::middleware(['auth', 'user.active', 'company.active', 'permission.company'
         Route::get('/{loan}/editar', 'edit')->whereNumber('loan')->middleware('permission:loans.update')->name('edit');
         Route::put('/{loan}', 'update')->whereNumber('loan')->middleware('permission:loans.update')->name('update');
         Route::patch('/{loan}/mora', 'updateLateFee')->whereNumber('loan')->middleware('permission:loans.update')->name('late-fee.update');
+        Route::delete('/{loan}/cuotas/{installment}/mora', 'waiveInstallmentLateFee')->whereNumber('loan')->whereNumber('installment')->middleware('permission:loans.update')->name('installments.late-fee.destroy');
         Route::post('/{loan}/aprobar', 'approve')->whereNumber('loan')->middleware('permission:loans.approve')->name('approve');
         Route::delete('/{loan}', 'destroy')->whereNumber('loan')->middleware('permission:loans.delete')->name('destroy');
     });

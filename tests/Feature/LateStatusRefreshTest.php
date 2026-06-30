@@ -83,6 +83,39 @@ class LateStatusRefreshTest extends TestCase
         ]);
     }
 
+    public function test_late_fee_waiver_prevents_regeneration_on_refresh(): void
+    {
+        $company = Company::query()->create(['name' => 'Empresa Test', 'status' => 'active']);
+        $client = $this->clientForCompany((int) $company->id, 'active');
+        $loan = $this->loanForClient($client, [
+            'late_fee_type' => 'daily_fixed',
+            'late_fee_value' => 25,
+            'status' => 'late',
+        ]);
+
+        LoanInstallment::query()->create([
+            'loan_id' => $loan->id,
+            'installment_number' => 1,
+            'due_date' => now()->subDays(4)->toDateString(),
+            'principal_amount' => 1000,
+            'interest_amount' => 100,
+            'installment_amount' => 1100,
+            'late_fee' => 100,
+            'late_fee_waived_at' => now(),
+            'status' => 'late',
+        ]);
+
+        $this->artisan('loans:refresh-late-status', ['--company_id' => $company->id])
+            ->assertSuccessful();
+
+        $this->assertDatabaseHas('loan_installments', [
+            'loan_id' => $loan->id,
+            'days_late' => 4,
+            'late_fee' => 0,
+            'status' => 'late',
+        ]);
+    }
+
     private function clientForCompany(int $companyId, string $status): Client
     {
         return Client::query()->create([
@@ -94,7 +127,7 @@ class LateStatusRefreshTest extends TestCase
     }
 
     /**
-     * @param array<string, mixed> $overrides
+     * @param  array<string, mixed>  $overrides
      */
     private function loanForClient(Client $client, array $overrides = []): Loan
     {

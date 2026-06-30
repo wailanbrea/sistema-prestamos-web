@@ -211,6 +211,9 @@
                                     <th class="text-end">Mora</th>
                                     <th class="text-end">Pendiente</th>
                                     <th>Estado</th>
+                                    @can('loans.update')
+                                        <th class="text-end">Acciones</th>
+                                    @endcan
                                 </tr>
                             </thead>
                             <tbody>
@@ -234,6 +237,21 @@
                                         <td class="text-end">{{ $loanCurrency }} {{ number_format($pendingLateFee, 2) }}</td>
                                         <td class="text-end fw-semibold">{{ $loanCurrency }} {{ number_format($pendingInstallmentTotal, 2) }}</td>
                                         <td>@include('partials.status-badge', ['map' => 'installment_statuses', 'value' => $effectiveStatus])</td>
+                                        @can('loans.update')
+                                            <td class="text-end">
+                                                @if ($pendingLateFee > 0 && ! in_array($installment->status, ['paid', 'cancelled'], true))
+                                                    <form method="POST" action="{{ route('loans.installments.late-fee.destroy', [$loan, $installment]) }}" onsubmit="return confirm('Eliminar la mora pendiente de la cuota #{{ $installment->installment_number }}?');">
+                                                        @csrf
+                                                        @method('DELETE')
+                                                        <button type="submit" class="btn btn-sm btn-outline-danger">
+                                                            <i class="fa-solid fa-ban me-1"></i>Quitar mora
+                                                        </button>
+                                                    </form>
+                                                @else
+                                                    <span class="text-muted small">-</span>
+                                                @endif
+                                            </td>
+                                        @endcan
                                     </tr>
                                 @endforeach
                             </tbody>

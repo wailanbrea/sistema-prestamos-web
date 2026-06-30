@@ -18,6 +18,16 @@ class LateFeeService
             ? (int) max(0, $dueDate->diffInDays($today))
             : 0;
 
+        if ($installment->late_fee_waived_at !== null) {
+            $installment->forceFill([
+                'days_late' => $daysLate,
+                'late_fee' => (float) $installment->paid_late_fee,
+                'status' => $this->resolveStatus($installment, $daysLate),
+            ])->save();
+
+            return $installment;
+        }
+
         $lateFee = match ($loan->late_fee_type) {
             'fixed' => $daysLate > 0 ? (float) $loan->late_fee_value : 0.0,
             'daily_percentage' => round(((float) $installment->installment_amount * ((float) $loan->late_fee_value / 100)) * $daysLate, 2),

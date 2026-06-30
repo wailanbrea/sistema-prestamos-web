@@ -9,6 +9,7 @@ use App\Http\Requests\Loans\UpdateLoanRequest;
 use App\Models\Client;
 use App\Models\Collector;
 use App\Models\CompanySetting;
+use App\Models\LoanInstallment;
 use App\Models\LoanQuote;
 use App\Services\Loans\InstallmentGeneratorService;
 use App\Services\Loans\LoanCalculatorService;
@@ -244,6 +245,32 @@ class LoanController extends Controller
         return redirect()
             ->route('loans.show', $model)
             ->with('status', $message);
+    }
+
+    public function waiveInstallmentLateFee(Request $request, int $loan, int $installment): RedirectResponse
+    {
+        $companyId = (int) $request->user()->company_id;
+        $model = $this->loanService->findForCompany($companyId, $loan);
+        $installmentModel = LoanInstallment::query()
+            ->where('loan_id', $model->id)
+            ->whereKey($installment)
+            ->firstOrFail();
+
+        try {
+            $this->loanService->waiveInstallmentLateFee(
+                companyId: $companyId,
+                userId: $request->user()?->id,
+                loan: $model,
+                installment: $installmentModel,
+                reason: 'Eliminada desde la web',
+            );
+        } catch (InvalidArgumentException $exception) {
+            return back()->withErrors(['late_fee' => $exception->getMessage()]);
+        }
+
+        return redirect()
+            ->route('loans.show', $model)
+            ->with('status', 'Mora de la cuota eliminada correctamente.');
     }
 
     public function destroy(Request $request, int $loan): RedirectResponse

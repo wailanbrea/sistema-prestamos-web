@@ -18,6 +18,7 @@ class LoanInstallment extends Model
         return [
             'due_date' => 'date',
             'paid_at' => 'datetime',
+            'late_fee_waived_at' => 'datetime',
         ];
     }
 

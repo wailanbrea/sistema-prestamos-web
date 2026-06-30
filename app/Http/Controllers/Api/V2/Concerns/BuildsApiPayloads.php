@@ -9,6 +9,7 @@ use App\Models\Collector;
 use App\Models\Loan;
 use App\Models\LoanInstallment;
 use App\Models\Payment;
+use Illuminate\Contracts\Pagination\LengthAwarePaginator;
 
 /**
  * Constructores de payload JSON compartidos por los controladores de la API v2
@@ -208,6 +209,8 @@ trait BuildsApiPayloads
             'pending_interest' => $pendingInterest,
             'pending_late_fee' => $pendingLateFee,
             'pending_amount' => $pendingPrincipal + $pendingInterest + $pendingLateFee,
+            'late_fee_waived_at' => $installment->late_fee_waived_at?->toIso8601String(),
+            'late_fee_waived_reason' => $installment->late_fee_waived_reason,
             'days_late' => $this->effectiveDaysLate($installment),
             'status' => $installment->status,
         ];
@@ -275,7 +278,7 @@ trait BuildsApiPayloads
     }
 
     /**
-     * @param  \Illuminate\Contracts\Pagination\LengthAwarePaginator<int, mixed>  $paginator
+     * @param  LengthAwarePaginator<int, mixed>  $paginator
      * @return array<string, int|null>
      */
     protected function paginationMeta($paginator): array
