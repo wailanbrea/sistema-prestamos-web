@@ -329,6 +329,113 @@ class PaymentManagementTest extends TestCase
         ]);
     }
 
+    public function test_interest_only_current_plus_capital_pays_current_interest_and_settles_principal(): void
+    {
+        $user = $this->adminUser();
+        $loan = $this->interestOnlyLoan((int) $user->company_id);
+        $currentInstallment = $loan->installments()->orderBy('installment_number')->firstOrFail();
+
+        $this->actingAs($user)
+            ->post('/cobros', [
+                'loan_id' => $loan->id,
+                'payment_date' => '2026-06-15',
+                'allocation_mode' => 'current_plus_capital',
+                'target_installment_id' => $currentInstallment->id,
+                'amount' => 5100,
+                'capital_prepayment_amount' => 5000,
+                'excess_action' => 'prepayment',
+                'payment_method' => 'cash',
+            ])
+            ->assertRedirect();
+
+        $this->assertDatabaseHas('payments', [
+            'loan_id' => $loan->id,
+            'amount' => 5100,
+            'principal_paid' => 5000,
+            'interest_paid' => 100,
+            'capital_prepaid' => 5000,
+            'new_balance' => 0,
+        ]);
+        $this->assertDatabaseHas('loans', [
+            'id' => $loan->id,
+            'remaining_balance' => 0,
+            'status' => 'paid',
+        ]);
+        $this->assertDatabaseHas('loan_installments', [
+            'id' => $currentInstallment->id,
+            'paid_interest' => 100,
+            'paid_principal' => 0,
+            'status' => 'paid',
+        ]);
+        $this->assertSame(
+            0.0,
+            (float) $loan->fresh()->installments()
+                ->whereNotIn('status', ['paid', 'cancelled'])
+                ->sum('installment_amount')
+        );
+    }
+
+    public function test_admin_can_update_financial_terms_after_payments_and_recalculate_future_installments(): void
+    {
+        $user = $this->adminUser();
+        $loan = $this->multiInstallmentLoan((int) $user->company_id);
+        $first = $loan->installments()->orderBy('installment_number')->firstOrFail();
+
+        $this->actingAs($user)
+            ->post('/cobros', [
+                'loan_id' => $loan->id,
+                'payment_date' => '2026-06-01',
+                'allocation_mode' => 'auto',
+                'target_installment_id' => $first->id,
+                'amount' => 1100,
+                'payment_method' => 'cash',
+            ])
+            ->assertRedirect();
+
+        $this->actingAs($user)
+            ->put(route('loans.update', $loan), [
+                'collector_id' => null,
+                'currency' => 'RD$',
+                'principal_amount' => 9000,
+                'interest_rate' => 10,
+                'interest_type' => 'fixed',
+                'payment_frequency' => 'monthly',
+                'calculation_method' => 'flat_interest',
+                'term_quantity' => 5,
+                'late_fee_type' => 'none',
+                'late_fee_value' => 0,
+                'start_date' => '2026-05-01',
+                'first_payment_date' => '2026-06-01',
+                'allows_capital_prepayment' => 1,
+            ])
+            ->assertRedirect(route('loans.show', $loan));
+
+        $this->assertDatabaseHas('loan_installments', [
+            'id' => $first->id,
+            'installment_number' => 1,
+            'principal_amount' => 1000,
+            'interest_amount' => 100,
+            'total_paid' => 1100,
+            'status' => 'paid',
+        ]);
+        $this->assertDatabaseHas('loan_installments', [
+            'loan_id' => $loan->id,
+            'installment_number' => 2,
+            'principal_amount' => 2000,
+            'interest_amount' => 200,
+            'installment_amount' => 2200,
+            'total_paid' => 0,
+        ]);
+        $this->assertDatabaseHas('loans', [
+            'id' => $loan->id,
+            'principal_amount' => 9000,
+            'remaining_balance' => 8000,
+            'total_interest' => 900,
+            'total_amount' => 9900,
+        ]);
+        $this->assertSame(5, $loan->fresh()->installments()->count());
+    }
+
     public function test_overpayment_can_be_returned_as_change(): void
     {
         $user = $this->adminUser();
@@ -430,6 +537,53 @@ class PaymentManagementTest extends TestCase
                 'status' => 'pending',
             ]);
             $due = $due->addMonthNoOverflow();
+        }
+
+        return $loan;
+    }
+
+    private function interestOnlyLoan(int $companyId): Loan
+    {
+        $client = Client::query()->create([
+            'company_id' => $companyId,
+            'full_name' => 'Cliente Interes Only',
+            'status' => 'active',
+            'risk_level' => 'low',
+        ]);
+
+        $loan = Loan::query()->create([
+            'company_id' => $companyId,
+            'client_id' => $client->id,
+            'loan_number' => 'PRE-INTERES-'.fake()->unique()->numerify('####'),
+            'principal_amount' => 5000,
+            'interest_rate' => 2,
+            'interest_type' => 'fixed',
+            'payment_frequency' => 'weekly',
+            'calculation_method' => 'interest_only',
+            'term_quantity' => 4,
+            'installment_amount' => 100,
+            'total_interest' => 400,
+            'total_amount' => 5400,
+            'remaining_balance' => 5000,
+            'late_fee_type' => 'none',
+            'late_fee_value' => 0,
+            'allows_capital_prepayment' => true,
+            'start_date' => '2026-06-01',
+            'first_payment_date' => '2026-06-08',
+            'status' => 'active',
+        ]);
+
+        $due = CarbonImmutable::parse('2026-06-08');
+        for ($n = 1; $n <= 4; $n++) {
+            $loan->installments()->create([
+                'installment_number' => $n,
+                'due_date' => $due->toDateString(),
+                'principal_amount' => $n === 4 ? 5000 : 0,
+                'interest_amount' => 100,
+                'installment_amount' => $n === 4 ? 5100 : 100,
+                'status' => 'pending',
+            ]);
+            $due = $due->addWeek();
         }
 
         return $loan;

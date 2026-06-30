@@ -25,7 +25,7 @@
 
     @if ($hasPayments)
         <div class="alert alert-warning" style="max-width: 920px;">
-            <i class="fa-solid fa-lock me-2"></i>Este préstamo ya tiene pagos registrados. Las condiciones financieras (monto, tasa, plazo) están bloqueadas, pero puedes modificar el tipo y valor de mora.
+            <i class="fa-solid fa-triangle-exclamation me-2"></i>Este prestamo ya tiene pagos registrados. Puedes modificar monto, tasa, plazo y mora; las cuotas ya cobradas se conservan y el cambio se recalcula solo desde las cuotas futuras sin pagos.
         </div>
     @endif
 
@@ -34,7 +34,7 @@
             <form method="POST" action="{{ route('loans.update', $loan) }}" novalidate>
                 @csrf
                 @method('PUT')
-                @php $disabled = $hasPayments ? 'disabled' : ''; @endphp
+                @php $disabled = ''; @endphp
 
                 <div class="row g-3">
                     {{-- Cliente --}}

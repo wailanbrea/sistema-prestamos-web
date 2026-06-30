@@ -10,6 +10,7 @@ use App\Models\LoanInstallment;
 use App\Models\LoanQuote;
 use App\Services\Audit\AuditService;
 use App\Services\Cash\CashMovementService;
+use Carbon\CarbonImmutable;
 use Illuminate\Contracts\Pagination\LengthAwarePaginator;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Support\Facades\DB;
@@ -31,8 +32,8 @@ class LoanService
     public function paginateForCompany(int $companyId, array $filters = []): LengthAwarePaginator
     {
         $today = now()->toDateString();
-        $pendingBalanceSql = 'GREATEST(installment_amount - paid_principal - paid_interest, 0)';
-        $pendingLateFeeSql = 'GREATEST(late_fee - paid_late_fee, 0)';
+        $pendingBalanceSql = '(case when (installment_amount - paid_principal - paid_interest) > 0 then (installment_amount - paid_principal - paid_interest) else 0 end)';
+        $pendingLateFeeSql = '(case when (late_fee - paid_late_fee) > 0 then (late_fee - paid_late_fee) else 0 end)';
         $hasPendingAmountSql = "({$pendingBalanceSql} + {$pendingLateFeeSql}) > 0";
 
         return Loan::query()
@@ -94,8 +95,8 @@ class LoanService
 
         // Cuotas vencidas y mora pendiente sobre los mismos préstamos filtrados.
         $today = now()->toDateString();
-        $pendingBalanceSql = 'GREATEST(installment_amount - paid_principal - paid_interest, 0)';
-        $pendingLateFeeSql = 'GREATEST(late_fee - paid_late_fee, 0)';
+        $pendingBalanceSql = '(case when (installment_amount - paid_principal - paid_interest) > 0 then (installment_amount - paid_principal - paid_interest) else 0 end)';
+        $pendingLateFeeSql = '(case when (late_fee - paid_late_fee) > 0 then (late_fee - paid_late_fee) else 0 end)';
 
         $installments = LoanInstallment::query()
             ->whereHas('loan', function (Builder $query) use ($companyId, $filters): void {
@@ -331,44 +332,14 @@ class LoanService
                 'allows_capital_prepayment' => (bool) ($data['allows_capital_prepayment'] ?? false),
             ]);
 
-            $hasPayments = $loan->payments()->where('status', 'valid')->exists();
-
             // Mora siempre editable: no recalcula cuotas, solo afecta cobros futuros.
             if (array_key_exists('late_fee_type', $data) && $data['late_fee_type'] !== null) {
                 $loan->late_fee_type = $data['late_fee_type'];
                 $loan->late_fee_value = $data['late_fee_value'] ?? 0;
             }
 
-            if (! $hasPayments && array_key_exists('principal_amount', $data) && $data['principal_amount'] !== null) {
-                $calculation = $this->calculator->calculate(
-                    principal: (float) $data['principal_amount'],
-                    annualRate: (float) $data['interest_rate'],
-                    termQuantity: (int) $data['term_quantity'],
-                    method: (string) $data['calculation_method'],
-                );
-
-                $loan->fill([
-                    'principal_amount' => $data['principal_amount'],
-                    'interest_rate' => $data['interest_rate'],
-                    'interest_type' => $data['interest_type'],
-                    'payment_frequency' => $data['payment_frequency'],
-                    'calculation_method' => $data['calculation_method'],
-                    'term_quantity' => $data['term_quantity'],
-                    'installment_amount' => $calculation['installment_amount'],
-                    'total_interest' => $calculation['total_interest'],
-                    'total_amount' => $calculation['total_amount'],
-                    'remaining_balance' => $data['principal_amount'],
-                    'late_fee_type' => $data['late_fee_type'],
-                    'late_fee_value' => $data['late_fee_value'] ?? 0,
-                    'start_date' => $data['start_date'],
-                    'first_payment_date' => $data['first_payment_date'],
-                ]);
-
-                $loan->save();
-
-                $loan->installments()->delete();
-                $settings = CompanySetting::query()->where('company_id', $companyId)->first();
-                $this->installmentGenerator->createForLoan($loan, $calculation, (bool) ($settings?->exclude_sundays_for_daily_loans ?? false));
+            if (array_key_exists('principal_amount', $data) && $data['principal_amount'] !== null) {
+                $this->recalculateScheduleAfterPayments($companyId, $loan, $data);
             } else {
                 $loan->save();
             }
@@ -386,6 +357,139 @@ class LoanService
 
             return $loan->fresh(['client', 'collector', 'installments']) ?? $loan;
         });
+    }
+
+    /**
+     * Recalcula el plan conservando las cuotas que ya tienen pagos aplicados.
+     *
+     * @param  array<string, mixed>  $data
+     */
+    private function recalculateScheduleAfterPayments(int $companyId, Loan $loan, array $data): void
+    {
+        $settings = CompanySetting::query()->where('company_id', $companyId)->first();
+        $excludeSundays = (bool) ($settings?->exclude_sundays_for_daily_loans ?? false);
+
+        $paidPrincipal = round((float) $loan->paid_principal, 2);
+        $paidInterest = round((float) $loan->paid_interest, 2);
+        $newPrincipal = round((float) $data['principal_amount'], 2);
+        $newTermQuantity = (int) $data['term_quantity'];
+
+        if ($newPrincipal < $paidPrincipal) {
+            throw new InvalidArgumentException('El nuevo monto principal no puede ser menor al capital ya cobrado.');
+        }
+
+        $protectedInstallments = $loan->installments()
+            ->where('total_paid', '>', 0)
+            ->orderBy('installment_number')
+            ->lockForUpdate()
+            ->get();
+        $protectedCount = $protectedInstallments->count();
+        $remainingTermQuantity = $newTermQuantity - $protectedCount;
+        $remainingPrincipal = round($newPrincipal - $paidPrincipal, 2);
+
+        if ($remainingPrincipal > 0 && $remainingTermQuantity <= 0) {
+            throw new InvalidArgumentException('El plazo debe dejar cuotas futuras para el capital pendiente.');
+        }
+
+        $calculation = $remainingPrincipal > 0
+            ? $this->calculator->calculate(
+                principal: $remainingPrincipal,
+                annualRate: (float) $data['interest_rate'],
+                termQuantity: $remainingTermQuantity,
+                method: (string) $data['calculation_method'],
+            )
+            : [
+                'installment_amount' => 0.0,
+                'total_interest' => 0.0,
+                'total_amount' => 0.0,
+                'installments' => [],
+            ];
+
+        $loan->fill([
+            'principal_amount' => $newPrincipal,
+            'interest_rate' => $data['interest_rate'],
+            'interest_type' => $data['interest_type'],
+            'payment_frequency' => $data['payment_frequency'],
+            'calculation_method' => $data['calculation_method'],
+            'term_quantity' => $newTermQuantity,
+            'installment_amount' => $calculation['installment_amount'],
+            'total_interest' => round($paidInterest + (float) $calculation['total_interest'], 2),
+            'total_amount' => round($newPrincipal + $paidInterest + (float) $calculation['total_interest'], 2),
+            'remaining_balance' => $remainingPrincipal,
+            'late_fee_type' => $data['late_fee_type'] ?? $loan->late_fee_type,
+            'late_fee_value' => $data['late_fee_value'] ?? $loan->late_fee_value,
+            'start_date' => $data['start_date'],
+            'first_payment_date' => $data['first_payment_date'],
+            'status' => $loan->status === 'paid' && $remainingPrincipal > 0 ? 'active' : $loan->status,
+        ]);
+        $loan->save();
+
+        $firstFutureDate = $this->firstFutureDueDate(
+            loan: $loan,
+            firstPaymentDate: (string) $data['first_payment_date'],
+            frequency: (string) $data['payment_frequency'],
+            protectedCount: $protectedCount,
+            excludeSundays: $excludeSundays,
+        );
+
+        $loan->installments()
+            ->where('total_paid', '<=', 0)
+            ->delete();
+
+        $futureDates = $this->installmentGenerator->dueDatesFor($firstFutureDate, (string) $data['payment_frequency'], count($calculation['installments']), $excludeSundays);
+
+        foreach ($calculation['installments'] as $index => $installment) {
+            $loan->installments()->create([
+                'installment_number' => $protectedCount + (int) $installment['number'],
+                'due_date' => $futureDates[$index],
+                'principal_amount' => $installment['principal'],
+                'interest_amount' => $installment['interest'],
+                'installment_amount' => $installment['amount'],
+            ]);
+        }
+
+        foreach ($loan->installments()->whereNotIn('status', ['paid', 'cancelled'])->get() as $installment) {
+            $this->lateFeeService->refreshInstallment($loan, $installment);
+        }
+
+        $loan->forceFill(['status' => $this->resolveStatusFromInstallments($loan)])->save();
+    }
+
+    private function resolveStatusFromInstallments(Loan $loan): string
+    {
+        $openInstallments = $loan->installments()
+            ->where('status', '!=', 'cancelled')
+            ->get(['status', 'principal_amount', 'paid_principal', 'interest_amount', 'paid_interest', 'late_fee', 'paid_late_fee']);
+
+        $hasPendingDebt = $openInstallments->contains(function ($installment): bool {
+            $pendingPrincipal = max(0, round((float) $installment->principal_amount - (float) $installment->paid_principal, 2));
+            $pendingInterest = max(0, round((float) $installment->interest_amount - (float) $installment->paid_interest, 2));
+            $pendingLateFee = max(0, round((float) $installment->late_fee - (float) $installment->paid_late_fee, 2));
+
+            return ($pendingPrincipal + $pendingInterest + $pendingLateFee) > 0;
+        });
+
+        if (! $hasPendingDebt) {
+            return 'paid';
+        }
+
+        return $openInstallments->where('status', 'late')->isNotEmpty() ? 'late' : 'active';
+    }
+
+    private function firstFutureDueDate(Loan $loan, string $firstPaymentDate, string $frequency, int $protectedCount, bool $excludeSundays): string
+    {
+        $existingFuture = $loan->installments()
+            ->where('total_paid', '<=', 0)
+            ->orderBy('installment_number')
+            ->value('due_date');
+
+        if ($existingFuture) {
+            return CarbonImmutable::parse($existingFuture)->toDateString();
+        }
+
+        $dates = $this->installmentGenerator->dueDatesFor($firstPaymentDate, $frequency, $protectedCount + 1, $excludeSundays);
+
+        return $dates[$protectedCount] ?? $firstPaymentDate;
     }
 
     public function updateLateFee(int $companyId, ?int $userId, Loan $loan, string $type, float $value): Loan
