@@ -25,6 +25,27 @@ class ApiV2CollectorTest extends TestCase
     public function test_collector_can_read_assigned_mobile_workload(): void
     {
         [$user, $collector, $loan] = $this->collectorWithLoan();
+        $paidLoan = Loan::query()->create([
+            'company_id' => $loan->company_id,
+            'client_id' => $loan->client_id,
+            'collector_id' => $collector->id,
+            'loan_number' => 'PRE-API-PAGADO',
+            'principal_amount' => 1000,
+            'interest_rate' => 10,
+            'interest_type' => 'fixed',
+            'payment_frequency' => 'monthly',
+            'calculation_method' => 'flat_interest',
+            'term_quantity' => 1,
+            'installment_amount' => 1100,
+            'total_interest' => 100,
+            'total_amount' => 1100,
+            'remaining_balance' => 0,
+            'late_fee_type' => 'none',
+            'late_fee_value' => 0,
+            'start_date' => '2026-05-01',
+            'first_payment_date' => '2026-06-01',
+            'status' => 'paid',
+        ]);
         $token = $this->loginToken($user);
 
         $this->withToken($token)
@@ -46,7 +67,14 @@ class ApiV2CollectorTest extends TestCase
         $this->withToken($token)
             ->getJson('/api/v2/collector/loans')
             ->assertOk()
-            ->assertJsonPath('data.0.loan_number', $loan->loan_number);
+            ->assertJsonPath('data.0.loan_number', $loan->loan_number)
+            ->assertJsonPath('meta.total', 1);
+
+        $this->withToken($token)
+            ->getJson('/api/v2/collector/loans?include_paid=1')
+            ->assertOk()
+            ->assertJsonPath('meta.total', 2)
+            ->assertJsonFragment(['loan_number' => $paidLoan->loan_number]);
 
         $this->withToken($token)
             ->getJson('/api/v2/collector/installments')

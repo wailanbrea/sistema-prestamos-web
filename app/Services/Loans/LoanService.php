@@ -32,6 +32,7 @@ class LoanService
     public function paginateForCompany(int $companyId, array $filters = []): LengthAwarePaginator
     {
         $today = now()->toDateString();
+        $showAll = filter_var($filters['show_all'] ?? false, FILTER_VALIDATE_BOOLEAN);
         $pendingBalanceSql = '(case when (installment_amount - paid_principal - paid_interest) > 0 then (installment_amount - paid_principal - paid_interest) else 0 end)';
         $pendingLateFeeSql = '(case when (late_fee - paid_late_fee) > 0 then (late_fee - paid_late_fee) else 0 end)';
         $hasPendingAmountSql = "({$pendingBalanceSql} + {$pendingLateFeeSql}) > 0";
@@ -65,6 +66,7 @@ class LoanService
                     ->whereRaw($hasPendingAmountSql);
             }, 'amount_due_today')
             ->when($filters['status'] ?? null, fn (Builder $query, string $status) => $query->where('status', $status))
+            ->when(empty($filters['status']) && ! $showAll, fn (Builder $query) => $query->whereIn('status', ['active', 'late']))
             ->when($filters['client_id'] ?? null, fn (Builder $query, string $clientId) => $query->where('client_id', $clientId))
             ->latest('id')
             ->paginate(15)
@@ -80,9 +82,12 @@ class LoanService
      */
     public function summaryForCompany(int $companyId, array $filters = []): array
     {
+        $showAll = filter_var($filters['show_all'] ?? false, FILTER_VALIDATE_BOOLEAN);
+
         $row = Loan::query()
             ->forCompany($companyId)
             ->when($filters['status'] ?? null, fn (Builder $query, string $status) => $query->where('status', $status))
+            ->when(empty($filters['status']) && ! $showAll, fn (Builder $query) => $query->whereIn('status', ['active', 'late']))
             ->when($filters['client_id'] ?? null, fn (Builder $query, string $clientId) => $query->where('client_id', $clientId))
             ->selectRaw('count(*) as total')
             ->selectRaw("coalesce(sum(case when status in ('active', 'late') then 1 else 0 end), 0) as outstanding")
@@ -100,8 +105,11 @@ class LoanService
 
         $installments = LoanInstallment::query()
             ->whereHas('loan', function (Builder $query) use ($companyId, $filters): void {
+                $showAll = filter_var($filters['show_all'] ?? false, FILTER_VALIDATE_BOOLEAN);
+
                 $query->forCompany($companyId)
                     ->when($filters['status'] ?? null, fn (Builder $q, string $status) => $q->where('status', $status))
+                    ->when(empty($filters['status']) && ! $showAll, fn (Builder $q) => $q->whereIn('status', ['active', 'late']))
                     ->when($filters['client_id'] ?? null, fn (Builder $q, string $clientId) => $q->where('client_id', $clientId));
             })
             ->whereNotIn('status', ['paid', 'cancelled'])

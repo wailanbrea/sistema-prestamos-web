@@ -489,12 +489,15 @@ class AdminController extends Controller
             'collector_id' => ['nullable', 'integer'],
             'search' => ['nullable', 'string', 'max:120'],
             'per_page' => ['nullable', 'integer', 'min:1', 'max:100'],
+            'include_paid' => ['nullable', 'boolean'],
         ]);
+        $includePaid = (bool) ($validated['include_paid'] ?? false);
 
         $loans = Loan::query()
             ->forCompany($companyId)
             ->with('client:id,code,full_name,identification,phone,address,status,risk_level')
             ->when($validated['status'] ?? null, fn (Builder $query, string $status): Builder => $query->where('status', $status))
+            ->when(empty($validated['status']) && ! $includePaid, fn (Builder $query): Builder => $query->whereIn('status', ['active', 'late']))
             ->when($validated['collector_id'] ?? null, fn (Builder $query, int $collectorId): Builder => $query->where('collector_id', $collectorId))
             ->when($validated['search'] ?? null, fn (Builder $query, string $search): Builder => $query
                 ->where(fn (Builder $inner) => $inner

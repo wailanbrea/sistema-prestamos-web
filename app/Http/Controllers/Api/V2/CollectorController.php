@@ -281,16 +281,21 @@ class CollectorController extends Controller
     public function loans(Request $request): JsonResponse
     {
         $collector = $this->collectorForUser($request);
+        $validated = $request->validate([
+            'include_paid' => ['nullable', 'boolean'],
+            'per_page' => ['nullable', 'integer', 'min:1', 'max:100'],
+        ]);
+        $includePaid = (bool) ($validated['include_paid'] ?? false);
 
         $loans = $this->assignedLoanQuery($collector)
             ->with('client:id,full_name,identification,phone,address')
-            ->where(function (Builder $query): void {
+            ->when(! $includePaid, fn (Builder $query): Builder => $query->where(function (Builder $query): void {
                 $query->whereIn('status', ['active', 'late'])
                     ->orWhereHas('installments', fn (Builder $installmentQuery): Builder => $installmentQuery
                         ->whereIn('status', ['pending', 'partial', 'late']));
-            })
+            }))
             ->orderBy('loan_number')
-            ->paginate((int) $request->integer('per_page', 25));
+            ->paginate((int) ($validated['per_page'] ?? 25));
 
         return response()->json([
             'data' => $loans->through(fn (Loan $loan): array => $this->loanPayload($loan))->items(),

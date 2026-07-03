@@ -18,6 +18,11 @@
 @section('title', 'Préstamos - '.config('app.name'))
 
 @section('content')
+    @php
+        $showAllLoans = filter_var($filters['show_all'] ?? false, FILTER_VALIDATE_BOOLEAN);
+        $statusFilter = (string) ($filters['status'] ?? '');
+    @endphp
+
     <section class="mb-4">
         <div class="d-flex flex-column flex-lg-row align-items-lg-end justify-content-between gap-3">
             <div>
@@ -109,6 +114,9 @@
     <section class="card content-card mb-4">
         <div class="card-body">
             <form method="GET" action="{{ route('loans.index') }}" class="row g-3 align-items-end">
+                @if ($showAllLoans)
+                    <input type="hidden" name="show_all" value="1">
+                @endif
                 <div class="col-12 col-md-5">
                     <label for="client_id" class="form-label">Cliente</label>
                     <select id="client_id" name="client_id" class="form-select">
@@ -123,7 +131,7 @@
                     <select id="status" name="status" class="form-select">
                         <option value="">Todos</option>
                         @foreach ($loanStatusLabels as $value => $data)
-                            <option value="{{ $value }}" @selected(($filters['status'] ?? '') === $value)>{{ $data['label'] }}</option>
+                            <option value="{{ $value }}" @selected($statusFilter === $value)>{{ $data['label'] }}</option>
                         @endforeach
                     </select>
                 </div>
@@ -131,6 +139,26 @@
                     <button type="submit" class="btn btn-outline-secondary"><i class="fa-solid fa-filter"></i></button>
                 </div>
             </form>
+            <div class="d-flex flex-wrap align-items-center justify-content-between gap-2 mt-3">
+                <div class="small text-muted">
+                    @if ($statusFilter !== '')
+                        Mostrando préstamos con el estado seleccionado.
+                    @elseif ($showAllLoans)
+                        Mostrando todos los préstamos, incluyendo saldados.
+                    @else
+                        Mostrando solo préstamos activos y atrasados.
+                    @endif
+                </div>
+                @if ($showAllLoans || $statusFilter !== '')
+                    <a href="{{ route('loans.index', array_filter(['client_id' => $filters['client_id'] ?? null])) }}" class="btn btn-sm btn-outline-primary">
+                        Ver activos
+                    </a>
+                @else
+                    <a href="{{ route('loans.index', array_filter(['client_id' => $filters['client_id'] ?? null, 'show_all' => 1])) }}" class="btn btn-sm btn-primary">
+                        Ver todos
+                    </a>
+                @endif
+            </div>
         </div>
     </section>
 

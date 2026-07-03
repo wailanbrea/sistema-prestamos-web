@@ -44,6 +44,12 @@ class ApiV2AdminTest extends TestCase
         $this->withToken($token)
             ->getJson('/api/v2/admin/loans')
             ->assertOk()
+            ->assertJsonPath('meta.total', 1)
+            ->assertJsonPath('data.0.id', $activeLoan->id);
+
+        $this->withToken($token)
+            ->getJson('/api/v2/admin/loans?include_paid=1')
+            ->assertOk()
             ->assertJsonPath('meta.total', 2); // activo + pendiente
 
         $this->withToken($token)
