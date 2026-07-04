@@ -78,6 +78,10 @@
             <div class="card content-card h-100">
                 <div class="card-body">
                     <div class="text-muted small text-uppercase">Distribución</div>
+                    <div>Tipo aplicado: <strong>@include('payments.partials.allocation-label', ['payment' => $payment])</strong></div>
+                    @if ($payment->targetInstallment)
+                        <div class="text-muted small">Cuota objetivo: #{{ $payment->targetInstallment->installment_number }}</div>
+                    @endif
                     <div>Capital: {{ $paymentCurrency }} {{ number_format((float) $payment->principal_paid, 2) }}</div>
                     <div>Interés: {{ $paymentCurrency }} {{ number_format((float) $payment->interest_paid, 2) }}</div>
                     <div>Mora: {{ $paymentCurrency }} {{ number_format((float) $payment->late_fee_paid, 2) }}</div>

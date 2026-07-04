@@ -55,10 +55,11 @@
                     <div class="col-12 col-md-6 col-lg-3">
                         <label for="calculation_method" class="form-label">Método</label>
                         <select id="calculation_method" name="calculation_method" class="form-select @error('calculation_method') is-invalid @enderror" required>
-                            @foreach ($methodLabels as $value => $label)
+                            @foreach (enabled_loan_calculation_methods() as $value => $label)
                                 <option value="{{ $value }}" @selected(old('calculation_method', 'french_amortization') === $value)>{{ $label }}</option>
                             @endforeach
                         </select>
+                        <div id="methodHelp" class="form-text"></div>
                         @error('calculation_method') <div class="invalid-feedback">{{ $message }}</div> @enderror
                     </div>
 
@@ -101,3 +102,27 @@
         </div>
     </section>
 @endsection
+
+@push('scripts')
+<script>
+    const methodDescriptions = {
+        flat_interest: 'Interés total sobre el capital, dividido en cuotas iguales.',
+        fixed_installment: 'Equivalente al interés fijo: cuota constante con interés total prorrateado.',
+        capital_plus_interest: 'Capital lineal más interés fijo por cuota sobre el capital inicial.',
+        interest_only: 'Cada cuota paga solo interés y el capital completo queda para la última cuota.',
+        german_amortization: 'Capital fijo en cada cuota e interés decreciente sobre el saldo pendiente.',
+        french_amortization: 'Cuota fija; el interés baja y el capital sube en cada período.',
+    };
+
+    const methodSelect = document.getElementById('calculation_method');
+    const methodHelp = document.getElementById('methodHelp');
+    const syncMethodHelp = () => {
+        if (methodSelect && methodHelp) {
+            methodHelp.textContent = methodDescriptions[methodSelect.value] || '';
+        }
+    };
+
+    methodSelect?.addEventListener('change', syncMethodHelp);
+    syncMethodHelp();
+</script>
+@endpush

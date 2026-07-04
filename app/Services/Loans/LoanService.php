@@ -65,9 +65,7 @@ class LoanService
                     ->whereDate('due_date', '<=', $today)
                     ->whereRaw($hasPendingAmountSql);
             }, 'amount_due_today')
-            ->when($filters['status'] ?? null, fn (Builder $query, string $status) => $query->where('status', $status))
-            ->when(empty($filters['status']) && ! $showAll, fn (Builder $query) => $query->whereIn('status', ['active', 'late']))
-            ->when($filters['client_id'] ?? null, fn (Builder $query, string $clientId) => $query->where('client_id', $clientId))
+            ->tap(fn (Builder $query) => $this->applyFilters($query, $filters))
             ->latest('id')
             ->paginate(15)
             ->withQueryString();
@@ -82,13 +80,9 @@ class LoanService
      */
     public function summaryForCompany(int $companyId, array $filters = []): array
     {
-        $showAll = filter_var($filters['show_all'] ?? false, FILTER_VALIDATE_BOOLEAN);
-
         $row = Loan::query()
             ->forCompany($companyId)
-            ->when($filters['status'] ?? null, fn (Builder $query, string $status) => $query->where('status', $status))
-            ->when(empty($filters['status']) && ! $showAll, fn (Builder $query) => $query->whereIn('status', ['active', 'late']))
-            ->when($filters['client_id'] ?? null, fn (Builder $query, string $clientId) => $query->where('client_id', $clientId))
+            ->tap(fn (Builder $query) => $this->applyFilters($query, $filters))
             ->selectRaw('count(*) as total')
             ->selectRaw("coalesce(sum(case when status in ('active', 'late') then 1 else 0 end), 0) as outstanding")
             ->selectRaw("coalesce(sum(case when status = 'late' then 1 else 0 end), 0) as late")
@@ -105,12 +99,8 @@ class LoanService
 
         $installments = LoanInstallment::query()
             ->whereHas('loan', function (Builder $query) use ($companyId, $filters): void {
-                $showAll = filter_var($filters['show_all'] ?? false, FILTER_VALIDATE_BOOLEAN);
-
-                $query->forCompany($companyId)
-                    ->when($filters['status'] ?? null, fn (Builder $q, string $status) => $q->where('status', $status))
-                    ->when(empty($filters['status']) && ! $showAll, fn (Builder $q) => $q->whereIn('status', ['active', 'late']))
-                    ->when($filters['client_id'] ?? null, fn (Builder $q, string $clientId) => $q->where('client_id', $clientId));
+                $query->forCompany($companyId);
+                $this->applyFilters($query, $filters);
             })
             ->whereNotIn('status', ['paid', 'cancelled'])
             ->whereDate('due_date', '<', $today)
@@ -130,6 +120,34 @@ class LoanService
             'overdue_installments' => (int) ($installments->overdue_count ?? 0),
             'late_fee_pending' => (float) ($installments->late_fee_pending ?? 0),
         ];
+    }
+
+    /**
+     * @param  array<string, mixed>  $filters
+     */
+    private function applyFilters(Builder $query, array $filters): void
+    {
+        $showAll = filter_var($filters['show_all'] ?? false, FILTER_VALIDATE_BOOLEAN);
+
+        $query
+            ->when($filters['status'] ?? null, fn (Builder $query, string $status) => $query->where('status', $status))
+            ->when(empty($filters['status']) && ! $showAll, fn (Builder $query) => $query->whereIn('status', ['active', 'late']))
+            ->when($filters['client_id'] ?? null, fn (Builder $query, string $clientId) => $query->where('client_id', $clientId))
+            ->when(trim((string) ($filters['q'] ?? '')) !== '', function (Builder $query) use ($filters): void {
+                $term = trim((string) $filters['q']);
+                $like = "%{$term}%";
+
+                $query->where(function (Builder $query) use ($like): void {
+                    $query
+                        ->where('loan_number', 'like', $like)
+                        ->orWhereHas('client', function (Builder $clientQuery) use ($like): void {
+                            $clientQuery
+                                ->where('full_name', 'like', $like)
+                                ->orWhere('phone', 'like', $like)
+                                ->orWhere('identification', 'like', $like);
+                        });
+                });
+            });
     }
 
     /**
@@ -234,7 +252,16 @@ class LoanService
     public function findForCompany(int $companyId, int $loanId): Loan
     {
         return Loan::query()
-            ->with(['client', 'collector', 'quote', 'installments' => fn ($query) => $query->orderBy('installment_number')])
+            ->with([
+                'client',
+                'collector',
+                'quote',
+                'installments' => fn ($query) => $query->orderBy('installment_number'),
+                'payments' => fn ($query) => $query
+                    ->with(['collector:id,name', 'targetInstallment:id,installment_number', 'details.installment:id,installment_number,due_date'])
+                    ->orderByDesc('payment_date')
+                    ->orderByDesc('id'),
+            ])
             ->forCompany($companyId)
             ->whereKey($loanId)
             ->firstOrFail();

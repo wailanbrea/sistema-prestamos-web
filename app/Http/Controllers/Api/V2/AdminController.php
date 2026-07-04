@@ -827,7 +827,10 @@ class AdminController extends Controller
             'amount' => ['required', 'numeric', 'min:0.01', 'max:999999999.99'],
             'payment_method' => ['required', Rule::in(['cash', 'transfer', 'card', 'check', 'other'])],
             'mobile_uuid' => ['nullable', 'uuid'],
-            'allocation_mode' => ['nullable', Rule::in(['auto', 'principal_and_interest', 'interest_only', 'principal_only', 'current_plus_capital'])],
+            'allocation_mode' => ['nullable', Rule::in(array_values(array_intersect(
+                array_keys(enabled_payment_allocation_modes()),
+                ['auto', 'principal_and_interest', 'interest_only', 'principal_only', 'current_plus_capital']
+            )))],
             'excess_action' => ['nullable', Rule::in(['reject', 'prepayment', 'change'])],
             'capital_prepayment_amount' => ['nullable', 'numeric', 'min:0', 'max:999999999.99'],
             'target_installment_id' => [

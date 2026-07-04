@@ -117,7 +117,19 @@
                 @if ($showAllLoans)
                     <input type="hidden" name="show_all" value="1">
                 @endif
-                <div class="col-12 col-md-5">
+                <div class="col-12 col-lg-4">
+                    <label for="q" class="form-label">Buscar</label>
+                    <input
+                        type="search"
+                        id="q"
+                        name="q"
+                        class="form-control"
+                        value="{{ $filters['q'] ?? '' }}"
+                        placeholder="Nombre, teléfono, cédula o préstamo"
+                        autocomplete="off"
+                    >
+                </div>
+                <div class="col-12 col-md-6 col-lg-3">
                     <label for="client_id" class="form-label">Cliente</label>
                     <select id="client_id" name="client_id" class="form-select">
                         <option value="">Todos</option>
@@ -126,7 +138,7 @@
                         @endforeach
                     </select>
                 </div>
-                <div class="col-12 col-md-5">
+                <div class="col-12 col-md-6 col-lg-3">
                     <label for="status" class="form-label">Estado</label>
                     <select id="status" name="status" class="form-select">
                         <option value="">Todos</option>
@@ -135,8 +147,10 @@
                         @endforeach
                     </select>
                 </div>
-                <div class="col-12 col-md-2 d-grid">
-                    <button type="submit" class="btn btn-outline-secondary"><i class="fa-solid fa-filter"></i></button>
+                <div class="col-12 col-lg-2 d-grid">
+                    <button type="submit" class="btn btn-outline-secondary">
+                        <i class="fa-solid fa-filter me-2"></i>Aplicar filtro
+                    </button>
                 </div>
             </form>
             <div class="d-flex flex-wrap align-items-center justify-content-between gap-2 mt-3">

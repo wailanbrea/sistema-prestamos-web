@@ -35,6 +35,8 @@ class CompanySettingsService
                 'currency' => $data['currency'],
                 'default_loan_currency' => $data['default_loan_currency'],
                 'default_account_payable_currency' => $data['default_account_payable_currency'],
+                'enabled_loan_calculation_methods' => array_values(array_unique($data['enabled_loan_calculation_methods'] ?? [])),
+                'enabled_payment_allocation_modes' => array_values(array_unique($data['enabled_payment_allocation_modes'] ?? [])),
                 'default_interest_rate' => $data['default_interest_rate'],
                 'default_late_fee_type' => $data['default_late_fee_type'],
                 'default_late_fee_value' => $data['default_late_fee_value'],

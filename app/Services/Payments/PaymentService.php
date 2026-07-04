@@ -85,6 +85,8 @@ class PaymentService
                 ->lockForUpdate()
                 ->firstOrFail();
 
+            $this->assertPaymentModeIsEnabled((int) $loan->company_id, $mode);
+
             $hasPendingInstallmentDebt = $loan->installments()
                 ->whereNotIn('status', ['paid', 'cancelled'])
                 ->where(function (Builder $query): void {
@@ -145,6 +147,7 @@ class PaymentService
                 'payment_date' => $data['payment_date'],
                 'amount' => 0,
                 'payment_method' => $data['payment_method'],
+                'allocation_mode' => $mode,
                 'previous_balance' => $previousBalance,
                 'new_balance' => $previousBalance,
                 'created_by' => $data['created_by'] ?? null,
@@ -257,6 +260,8 @@ class PaymentService
                 'late_fee_paid' => $lateFeePaid,
                 'capital_prepaid' => $capitalPrepaid,
                 'change_given' => $changeGiven,
+                'target_installment_id' => $targetInstallmentId,
+                'excess_action' => $leftover > 0 ? $excessAction : null,
                 'new_balance' => $newBalance,
             ])->save();
 
@@ -292,6 +297,22 @@ class PaymentService
         });
     }
 
+    private function assertPaymentModeIsEnabled(int $companyId, string $mode): void
+    {
+        $enabledModes = CompanySetting::query()
+            ->where('company_id', $companyId)
+            ->first()
+            ?->enabled_payment_allocation_modes;
+
+        if (! is_array($enabledModes) || $enabledModes === []) {
+            return;
+        }
+
+        if (! in_array($mode, $enabledModes, true)) {
+            throw new InvalidArgumentException('Este tipo de pago está deshabilitado en la configuración.');
+        }
+    }
+
     public function findForCompany(int $companyId, int $paymentId): Payment
     {
         return Payment::query()
@@ -300,6 +321,7 @@ class PaymentService
                 'loan:id,loan_number,principal_amount,total_amount,remaining_balance,status,currency',
                 'collector:id,name',
                 'cancelledBy:id,name',
+                'targetInstallment:id,installment_number',
                 'details.installment:id,installment_number,due_date,interest_amount,paid_interest',
             ])
             ->forCompany($companyId)

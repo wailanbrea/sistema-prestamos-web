@@ -20,6 +20,12 @@ class UpdateLoanRequest extends FormRequest
     public function rules(): array
     {
         $companyId = (int) $this->user()->company_id;
+        $loan = $this->route('loan');
+        $allowedCalculationMethods = array_keys(enabled_loan_calculation_methods());
+
+        if ($loan?->calculation_method && ! in_array($loan->calculation_method, $allowedCalculationMethods, true)) {
+            $allowedCalculationMethods[] = $loan->calculation_method;
+        }
 
         return [
             // Siempre editables.
@@ -34,7 +40,7 @@ class UpdateLoanRequest extends FormRequest
             'interest_rate' => ['nullable', 'numeric', 'min:0', 'max:999.9999', 'required_with:principal_amount'],
             'interest_type' => ['nullable', Rule::in(['fixed', 'compound', 'amortized']), 'required_with:principal_amount'],
             'payment_frequency' => ['nullable', Rule::in(['daily', 'weekly', 'biweekly', 'monthly']), 'required_with:principal_amount'],
-            'calculation_method' => ['nullable', Rule::in(['flat_interest', 'fixed_installment', 'capital_plus_interest', 'interest_only', 'french_amortization']), 'required_with:principal_amount'],
+            'calculation_method' => ['nullable', Rule::in($allowedCalculationMethods), 'required_with:principal_amount'],
             'term_quantity' => ['nullable', 'integer', 'min:1', 'max:1000', 'required_with:principal_amount'],
             'late_fee_type' => ['nullable', Rule::in(['none', 'fixed', 'daily_percentage', 'daily_fixed'])],
             'late_fee_value' => ['nullable', 'numeric', 'min:0', 'max:9999999999.99'],

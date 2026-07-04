@@ -52,6 +52,24 @@ class LoanManagementTest extends TestCase
             ->assertSee($paidLoan->loan_number);
     }
 
+    public function test_admin_can_search_loans_by_client_name(): void
+    {
+        $user = $this->adminUser();
+        $matchedClient = $this->namedClientForCompany((int) $user->company_id, 'Maria Buscada');
+        $otherClient = $this->namedClientForCompany((int) $user->company_id, 'Pedro Oculto');
+
+        $this->loanForClient((int) $user->company_id, (int) $matchedClient->id, 'PRE-SEARCH-001');
+        $this->loanForClient((int) $user->company_id, (int) $otherClient->id, 'PRE-SEARCH-002');
+
+        $this->actingAs($user)
+            ->get('/prestamos?q=Maria')
+            ->assertOk()
+            ->assertSee('Maria Buscada')
+            ->assertSee('PRE-SEARCH-001')
+            ->assertDontSee('Pedro Oculto')
+            ->assertDontSee('PRE-SEARCH-002');
+    }
+
     public function test_admin_can_view_loan_create_form(): void
     {
         $user = $this->adminUser();
@@ -271,7 +289,17 @@ class LoanManagementTest extends TestCase
         ]);
     }
 
-    private function loanForClient(int $companyId, int $clientId, string $loanNumber, string $status): Loan
+    private function namedClientForCompany(int $companyId, string $fullName): Client
+    {
+        return Client::query()->create([
+            'company_id' => $companyId,
+            'full_name' => $fullName,
+            'status' => 'active',
+            'risk_level' => 'low',
+        ]);
+    }
+
+    private function loanForClient(int $companyId, int $clientId, string $loanNumber, string $status = 'active'): Loan
     {
         return Loan::query()->create([
             'company_id' => $companyId,

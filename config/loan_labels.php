@@ -14,6 +14,7 @@ return [
         'fixed_installment' => 'Cuota fija',
         'capital_plus_interest' => 'Capital + interés',
         'interest_only' => 'Solo interés',
+        'german_amortization' => 'Amortización alemana',
         'french_amortization' => 'Amortización francesa',
     ],
     'quote_statuses' => [
@@ -51,6 +52,14 @@ return [
         'card' => 'Tarjeta',
         'check' => 'Cheque',
         'other' => 'Otro',
+    ],
+    'payment_allocation_modes' => [
+        'auto' => 'Automático',
+        'principal_and_interest' => 'Capital + interés',
+        'interest_only' => 'Solo interés',
+        'principal_only' => 'Solo capital',
+        'current_plus_capital' => 'Cuota + capital',
+        'custom' => 'Personalizado',
     ],
     'payment_statuses' => [
         'valid' => ['label' => 'Válido', 'class' => 'text-bg-success'],

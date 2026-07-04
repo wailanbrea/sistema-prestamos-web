@@ -28,7 +28,7 @@ class StoreAccountPayableRequest extends FormRequest
             'interest_rate' => ['required', 'numeric', 'min:0', 'max:999999.9999'],
             'interest_type' => ['required', Rule::in(['fixed', 'compound', 'amortized'])],
             'payment_frequency' => ['required', Rule::in(['daily', 'weekly', 'biweekly', 'monthly'])],
-            'calculation_method' => ['required', Rule::in(['flat_interest', 'fixed_installment', 'capital_plus_interest', 'interest_only', 'french_amortization'])],
+            'calculation_method' => ['required', Rule::in(array_keys(enabled_loan_calculation_methods()))],
             'term_quantity' => ['required', 'integer', 'min:1', 'max:1000'],
             'late_fee_type' => ['required', Rule::in(['none', 'fixed', 'daily_fixed'])],
             'late_fee_value' => ['required', 'numeric', 'min:0', 'max:999999999.99'],

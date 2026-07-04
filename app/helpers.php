@@ -85,3 +85,41 @@ if (! function_exists('default_map_center')) {
         ];
     }
 }
+
+if (! function_exists('enabled_loan_calculation_methods')) {
+    /**
+     * Metodos de calculo habilitados para crear prestamos/cotizaciones.
+     *
+     * @return array<string, string>
+     */
+    function enabled_loan_calculation_methods(): array
+    {
+        $all = config('loan_labels.methods', []);
+        $enabled = company_setting('enabled_loan_calculation_methods', null);
+
+        if (! is_array($enabled) || $enabled === []) {
+            return $all;
+        }
+
+        return array_intersect_key($all, array_flip($enabled));
+    }
+}
+
+if (! function_exists('enabled_payment_allocation_modes')) {
+    /**
+     * Modos de reparto habilitados para registrar cobros.
+     *
+     * @return array<string, string>
+     */
+    function enabled_payment_allocation_modes(): array
+    {
+        $all = config('loan_labels.payment_allocation_modes', []);
+        $enabled = company_setting('enabled_payment_allocation_modes', null);
+
+        if (! is_array($enabled) || $enabled === []) {
+            return $all;
+        }
+
+        return array_intersect_key($all, array_flip($enabled));
+    }
+}

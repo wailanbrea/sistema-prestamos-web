@@ -107,7 +107,7 @@
                         <div class="col-12 col-md-6">
                             <label for="calculation_method" class="form-label">Método de cálculo</label>
                             <select id="calculation_method" name="calculation_method" class="form-select @error('calculation_method') is-invalid @enderror">
-                                @foreach ($methodLabels as $value => $label)
+                                @foreach (enabled_loan_calculation_methods() as $value => $label)
                                     <option value="{{ $value }}" @selected(old('calculation_method', 'french_amortization') === $value)>{{ $label }}</option>
                                 @endforeach
                             </select>
@@ -227,6 +227,7 @@
             fixed_installment: 'Igual que interés fijo: la tasa es el % total sobre el capital y la cuota es constante.',
             capital_plus_interest: 'La tasa es el % de interés <strong>por cuota</strong> sobre el capital. El interés se mantiene y la cuota es fija.',
             interest_only: 'Cada cuota paga solo el interés (% del capital) y el capital completo se paga en la última cuota.',
+            german_amortization: 'Amortización alemana: el <strong>capital es fijo</strong> en cada cuota y el interés se calcula sobre el saldo pendiente. La cuota va bajando cada período.',
             french_amortization: 'Cuota fija; la tasa es el % <strong>por período</strong> sobre el saldo pendiente. El interés baja y el capital sube cada cuota. Ideal para préstamos formales.',
         };
         const sel = document.getElementById('calculation_method');

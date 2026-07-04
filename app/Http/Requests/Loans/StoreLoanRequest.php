@@ -30,7 +30,7 @@ class StoreLoanRequest extends FormRequest
             'interest_rate' => ['required_without:quote_id', 'nullable', 'numeric', 'min:0', 'max:999.9999'],
             'interest_type' => ['required_without:quote_id', 'nullable', Rule::in(['fixed', 'compound', 'amortized'])],
             'payment_frequency' => ['required_without:quote_id', 'nullable', Rule::in(['daily', 'weekly', 'biweekly', 'monthly'])],
-            'calculation_method' => ['required_without:quote_id', 'nullable', Rule::in(['flat_interest', 'fixed_installment', 'capital_plus_interest', 'interest_only', 'french_amortization'])],
+            'calculation_method' => ['required_without:quote_id', 'nullable', Rule::in(array_keys(enabled_loan_calculation_methods()))],
             'term_quantity' => ['required_without:quote_id', 'nullable', 'integer', 'min:1', 'max:1000'],
             'late_fee_type' => ['required', Rule::in(['none', 'fixed', 'daily_percentage', 'daily_fixed'])],
             'late_fee_value' => ['nullable', 'numeric', 'min:0', 'max:9999999999.99'],

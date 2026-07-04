@@ -53,6 +53,11 @@ class Payment extends Model
         return $this->hasMany(PaymentDetail::class);
     }
 
+    public function targetInstallment(): BelongsTo
+    {
+        return $this->belongsTo(LoanInstallment::class, 'target_installment_id');
+    }
+
     public function collectorCommission(): HasOne
     {
         return $this->hasOne(CollectorCommission::class);

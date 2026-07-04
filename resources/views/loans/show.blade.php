@@ -192,6 +192,62 @@
         </section>
     @endcan
 
+    <section class="row g-3 mb-4">
+        <div class="col-12">
+            <article class="card content-card">
+                <div class="card-header bg-white border-0 pb-0">
+                    <h2 class="h6 fw-bold mb-1">Pagos realizados</h2>
+                    <p class="text-muted small mb-0">Historial de cobros y tipo de aplicación usado en cada pago.</p>
+                </div>
+                <div class="card-body">
+                    <div class="table-responsive">
+                        <table class="table align-middle mb-0">
+                            <thead>
+                                <tr>
+                                    <th>Recibo</th>
+                                    <th>Fecha</th>
+                                    <th>Tipo aplicado</th>
+                                    <th class="text-end">Monto</th>
+                                    <th class="text-end">Capital</th>
+                                    <th class="text-end">Interés</th>
+                                    <th class="text-end">Mora</th>
+                                    <th class="text-end">Abono capital</th>
+                                    <th class="text-end">Balance</th>
+                                    <th>Estado</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                @forelse ($loan->payments as $payment)
+                                    <tr>
+                                        <td>
+                                            <a href="{{ route('payments.show', $payment) }}" class="fw-semibold text-decoration-none">{{ $payment->receipt_number }}</a>
+                                            @if ($payment->targetInstallment)
+                                                <div class="text-muted small">Cuota #{{ $payment->targetInstallment->installment_number }}</div>
+                                            @endif
+                                        </td>
+                                        <td>{{ $payment->payment_date->format('d/m/Y') }}</td>
+                                        <td>@include('payments.partials.allocation-label', ['payment' => $payment])</td>
+                                        <td class="text-end">{{ $loanCurrency }} {{ number_format((float) $payment->amount, 2) }}</td>
+                                        <td class="text-end">{{ $loanCurrency }} {{ number_format((float) $payment->principal_paid, 2) }}</td>
+                                        <td class="text-end">{{ $loanCurrency }} {{ number_format((float) $payment->interest_paid, 2) }}</td>
+                                        <td class="text-end">{{ $loanCurrency }} {{ number_format((float) $payment->late_fee_paid, 2) }}</td>
+                                        <td class="text-end">{{ $loanCurrency }} {{ number_format((float) $payment->capital_prepaid, 2) }}</td>
+                                        <td class="text-end">{{ $loanCurrency }} {{ number_format((float) $payment->new_balance, 2) }}</td>
+                                        <td>@include('partials.status-badge', ['map' => 'payment_statuses', 'value' => $payment->status])</td>
+                                    </tr>
+                                @empty
+                                    <tr>
+                                        <td colspan="10" class="text-center text-muted py-4">Este préstamo no tiene pagos registrados.</td>
+                                    </tr>
+                                @endforelse
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </article>
+        </div>
+    </section>
+
     <section class="row g-3">
         <div class="col-12 col-xl-8">
             <article class="card content-card">

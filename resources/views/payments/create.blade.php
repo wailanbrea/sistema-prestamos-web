@@ -198,16 +198,21 @@
                     <p class="text-muted small mb-0">Cómo se aplica el dinero recibido.</p>
                 </div>
                 <div class="card-body">
-                    <input type="hidden" name="allocation_mode" id="allocation_mode" value="{{ old('allocation_mode', 'auto') }}">
+                    @php
+                        $enabledPaymentModes = enabled_payment_allocation_modes();
+                        $enabledPaymentModeKeys = array_keys($enabledPaymentModes);
+                        $defaultPaymentMode = $enabledPaymentModeKeys[0] ?? 'auto';
+                    @endphp
+                    <input type="hidden" name="allocation_mode" id="allocation_mode" value="{{ old('allocation_mode', $defaultPaymentMode) }}">
                     <div class="row g-2 mb-4" id="modeOptions">
                         @php
-                            $modes = [
-                                'auto'                   => ['Automático',         'Mora → interés → capital, en orden.',     'fa-wand-magic-sparkles'],
-                                'principal_and_interest' => ['Capital + Interés',  'Cubre interés y capital, sin mora.',      'fa-scale-balanced'],
-                                'interest_only'          => ['Solo interés',       'Aplica únicamente al interés.',           'fa-percent'],
-                                'principal_only'         => ['Solo capital',       'Aplica únicamente al capital.',           'fa-sack-dollar'],
-                                'custom'                 => ['Personalizado',      'Elige cuánto pagar en cada cuota.',       'fa-sliders'],
-                            ];
+                            $modes = array_intersect_key([
+                                'auto'                   => ['Automático',         'Paga mora, interés y capital de cuotas en orden.', 'fa-wand-magic-sparkles'],
+                                'principal_and_interest' => ['Capital + Interés',  'Paga capital e interés de cuotas; no incluye mora.', 'fa-scale-balanced'],
+                                'interest_only'          => ['Solo interés',       'Solo cubre interés; no baja el balance de capital.', 'fa-percent'],
+                                'principal_only'         => ['Solo capital',       'Baja capital, pero deja intereses/mora pendientes.', 'fa-sack-dollar'],
+                                'custom'                 => ['Personalizado',      'Elige cuotas y montos exactos a pagar.', 'fa-sliders'],
+                            ], $enabledPaymentModes);
                         @endphp
                         @foreach ($modes as $value => $info)
                             <div class="col-6 col-lg-3">
@@ -218,14 +223,22 @@
                                 </button>
                             </div>
                         @endforeach
-                        <div class="col-6 col-lg-3">
-                            <button type="button" class="mode-btn" data-mode="current_plus_capital">
-                                <i class="fa-solid fa-arrow-trend-down"></i>
-                                <span class="mode-title">Cuota + capital</span>
-                                <span class="mode-desc">Paga una cuota y abona sobrante a capital.</span>
-                            </button>
-                        </div>
+                        @if (in_array('current_plus_capital', $enabledPaymentModeKeys, true))
+                            <div class="col-6 col-lg-3">
+                                <button type="button" class="mode-btn" data-mode="current_plus_capital">
+                                    <i class="fa-solid fa-arrow-trend-down"></i>
+                                    <span class="mode-title">Cuota + capital</span>
+                                    <span class="mode-desc">Para abonar o saldar antes de tiempo.</span>
+                                </button>
+                            </div>
+                        @endif
                     </div>
+                    @if (in_array('current_plus_capital', $enabledPaymentModeKeys, true))
+                    <div class="alert alert-info mb-4" style="border-radius:12px; font-size:.84rem;">
+                        <i class="fa-solid fa-circle-info me-2"></i>
+                        Para saldar un préstamo antes de tiempo usa <strong>Cuota + capital</strong>: primero cubre la cuota actual y luego aplica el monto indicado directamente al capital. No uses <strong>Solo capital</strong> si quieres cerrar el préstamo, porque puede dejar intereses pendientes.
+                    </div>
+                    @endif
 
                     {{-- Amount + target --}}
                     <div id="pooledControls" class="row g-3">

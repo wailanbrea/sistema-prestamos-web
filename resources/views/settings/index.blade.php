@@ -99,6 +99,48 @@
                         <input id="default_interest_rate" name="default_interest_rate" type="number" step="0.0001" min="0" value="{{ old('default_interest_rate', $settings->default_interest_rate ?? 0) }}" class="form-control @error('default_interest_rate') is-invalid @enderror" required>
                         @error('default_interest_rate') <div class="invalid-feedback">{{ $message }}</div> @enderror
                     </div>
+
+                    @php
+                        $enabledLoanMethods = old('enabled_loan_calculation_methods', $settings->enabled_loan_calculation_methods ?? array_keys(config('loan_labels.methods')));
+                        $enabledPaymentModes = old('enabled_payment_allocation_modes', $settings->enabled_payment_allocation_modes ?? array_keys(config('loan_labels.payment_allocation_modes')));
+                    @endphp
+
+                    <div class="col-12">
+                        <div class="border rounded-3 p-3 bg-light-subtle">
+                            <div class="fw-semibold mb-1">Tipos de préstamos habilitados</div>
+                            <div class="text-muted small mb-3">Solo estos modelos aparecerán al crear préstamos, cotizaciones y cuentas por pagar.</div>
+                            <div class="row g-2">
+                                @foreach (config('loan_labels.methods') as $value => $label)
+                                    <div class="col-12 col-md-6 col-xl-4">
+                                        <div class="form-check">
+                                            <input class="form-check-input" type="checkbox" id="enabled_loan_method_{{ $value }}" name="enabled_loan_calculation_methods[]" value="{{ $value }}" @checked(in_array($value, $enabledLoanMethods, true))>
+                                            <label class="form-check-label" for="enabled_loan_method_{{ $value }}">{{ $label }}</label>
+                                        </div>
+                                    </div>
+                                @endforeach
+                            </div>
+                            @error('enabled_loan_calculation_methods') <div class="text-danger small mt-2">{{ $message }}</div> @enderror
+                        </div>
+                    </div>
+
+                    <div class="col-12">
+                        <div class="border rounded-3 p-3 bg-light-subtle">
+                            <div class="fw-semibold mb-1">Tipos de pago habilitados</div>
+                            <div class="text-muted small mb-3">Solo estos modos aparecerán al registrar cobros.</div>
+                            <div class="row g-2">
+                                @foreach (config('loan_labels.payment_allocation_modes') as $value => $label)
+                                    <div class="col-12 col-md-6 col-xl-4">
+                                        <div class="form-check">
+                                            <input class="form-check-input" type="checkbox" id="enabled_payment_mode_{{ $value }}" name="enabled_payment_allocation_modes[]" value="{{ $value }}" @checked(in_array($value, $enabledPaymentModes, true))>
+                                            <label class="form-check-label" for="enabled_payment_mode_{{ $value }}">{{ $label }}</label>
+                                        </div>
+                                    </div>
+                                @endforeach
+                            </div>
+                            @error('enabled_payment_allocation_modes') <div class="text-danger small mt-2">{{ $message }}</div> @enderror
+                        </div>
+                    </div>
+
                     <div class="col-12 col-md-3">
                         <label for="default_late_fee_type" class="form-label">Tipo de mora</label>
                         <select id="default_late_fee_type" name="default_late_fee_type" class="form-select @error('default_late_fee_type') is-invalid @enderror" required>

@@ -75,7 +75,13 @@
                             <div class="col-12 col-md-6">
                                 <label for="calculation_method" class="form-label">Metodo de calculo</label>
                                 <select id="calculation_method" name="calculation_method" class="form-select @error('calculation_method') is-invalid @enderror" required>
-                                    @foreach (config('loan_labels.methods', []) as $value => $label)
+                                    @php
+                                        $editableMethodLabels = enabled_loan_calculation_methods();
+                                        if (! isset($editableMethodLabels[$account->calculation_method])) {
+                                            $editableMethodLabels[$account->calculation_method] = config('loan_labels.methods.'.$account->calculation_method, $account->calculation_method).' (actual)';
+                                        }
+                                    @endphp
+                                    @foreach ($editableMethodLabels as $value => $label)
                                         <option value="{{ $value }}" @selected(old('calculation_method', $account->calculation_method) === $value)>{{ $label }}</option>
                                     @endforeach
                                 </select>
@@ -158,6 +164,7 @@
             fixed_installment: 'Genera una cuota fija y estable para todo el plazo.',
             capital_plus_interest: 'Cada cuota combina capital lineal mas interes calculado.',
             interest_only: 'Las primeras cuotas cubren interes y el capital fuerte queda al final.',
+            german_amortization: 'Capital fijo en cada cuota e interes decreciente calculado sobre el saldo pendiente.',
             french_amortization: 'Cuota fija con interes decreciente sobre saldo pendiente.',
         };
 

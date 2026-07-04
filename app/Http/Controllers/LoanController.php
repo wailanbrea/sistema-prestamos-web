@@ -34,7 +34,7 @@ class LoanController extends Controller
     {
         $companyId = (int) $request->user()->company_id;
 
-        $filters = $request->only(['status', 'client_id', 'show_all']);
+        $filters = $request->only(['status', 'client_id', 'show_all', 'q']);
 
         return view('loans.index', [
             'loans' => $this->loanService->paginateForCompany($companyId, $filters),
@@ -145,7 +145,7 @@ class LoanController extends Controller
             'principal_amount' => ['required', 'numeric', 'min:1', 'max:9999999999.99'],
             'interest_rate' => ['required', 'numeric', 'min:0', 'max:999.9999'],
             'term_quantity' => ['required', 'integer', 'min:1', 'max:1000'],
-            'calculation_method' => ['required', Rule::in(['flat_interest', 'fixed_installment', 'capital_plus_interest', 'interest_only', 'french_amortization'])],
+            'calculation_method' => ['required', Rule::in(array_keys(enabled_loan_calculation_methods()))],
             'payment_frequency' => ['required', Rule::in(['daily', 'weekly', 'biweekly', 'monthly'])],
             'first_payment_date' => ['required', 'date'],
         ]);

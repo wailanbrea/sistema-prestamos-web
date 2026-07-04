@@ -21,6 +21,7 @@
         'fixed_installment' => 'Cuota fija',
         'capital_plus_interest' => 'Capital + interés',
         'interest_only' => 'Solo interés',
+        'german_amortization' => 'Amortización alemana',
         'french_amortization' => 'Amortización francesa',
     ];
 @endphp

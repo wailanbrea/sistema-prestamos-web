@@ -26,6 +26,8 @@ class CompanySetting extends Model
             'default_late_fee_value' => 'decimal:2',
             'default_map_latitude' => 'decimal:7',
             'default_map_longitude' => 'decimal:7',
+            'enabled_loan_calculation_methods' => 'array',
+            'enabled_payment_allocation_modes' => 'array',
         ];
     }
 

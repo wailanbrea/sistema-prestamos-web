@@ -22,6 +22,7 @@ class LoanCalculatorService
             'fixed_installment' => $this->fixedInstallment($principal, $annualRate, $termQuantity),
             'capital_plus_interest' => $this->capitalPlusInterest($principal, $annualRate, $termQuantity),
             'interest_only' => $this->interestOnly($principal, $annualRate, $termQuantity),
+            'german_amortization' => $this->germanAmortization($principal, $annualRate, $termQuantity),
             'french_amortization' => $this->frenchAmortization($principal, $annualRate, $termQuantity),
             default => throw new InvalidArgumentException("Método de cálculo no soportado: {$method}."),
         };
@@ -81,6 +82,40 @@ class LoanCalculatorService
         }
 
         $totalInterest = $this->money($interestPerInstallment * $termQuantity);
+
+        return [
+            'installment_amount' => $installments[0]['amount'],
+            'total_interest' => $totalInterest,
+            'total_amount' => $this->money($principal + $totalInterest),
+            'installments' => $installments,
+        ];
+    }
+
+    /**
+     * @return array{installment_amount: float, total_interest: float, total_amount: float, installments: list<array{number:int, principal:float, interest:float, amount:float}>}
+     */
+    private function germanAmortization(float $principal, float $annualRate, int $termQuantity): array
+    {
+        $rate = $annualRate / 100;
+        $principalPerInstallment = $this->money($principal / $termQuantity);
+        $balance = $principal;
+        $installments = [];
+        $totalInterest = 0.0;
+
+        for ($number = 1; $number <= $termQuantity; $number++) {
+            $principalAmount = $number === $termQuantity ? $this->money($balance) : $principalPerInstallment;
+            $interest = $this->money($balance * $rate);
+            $amount = $this->money($principalAmount + $interest);
+            $balance = $this->money($balance - $principalAmount);
+            $totalInterest = $this->money($totalInterest + $interest);
+
+            $installments[] = [
+                'number' => $number,
+                'principal' => $principalAmount,
+                'interest' => $interest,
+                'amount' => $amount,
+            ];
+        }
 
         return [
             'installment_amount' => $installments[0]['amount'],
