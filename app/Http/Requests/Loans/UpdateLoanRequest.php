@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Http\Requests\Loans;
 
+use App\Models\Loan;
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Validation\Rule;
 
@@ -20,7 +21,11 @@ class UpdateLoanRequest extends FormRequest
     public function rules(): array
     {
         $companyId = (int) $this->user()->company_id;
-        $loan = $this->route('loan');
+        // La ruta expone {loan} como id numerico, no como modelo enlazado.
+        $routeLoan = $this->route('loan');
+        $loan = $routeLoan instanceof Loan
+            ? $routeLoan
+            : Loan::query()->whereKey($routeLoan)->where('company_id', $companyId)->first();
         $allowedCalculationMethods = array_keys(enabled_loan_calculation_methods());
 
         if ($loan?->calculation_method && ! in_array($loan->calculation_method, $allowedCalculationMethods, true)) {

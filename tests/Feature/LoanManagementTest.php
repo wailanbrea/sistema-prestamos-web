@@ -66,7 +66,8 @@ class LoanManagementTest extends TestCase
             ->assertOk()
             ->assertSee('Maria Buscada')
             ->assertSee('PRE-SEARCH-001')
-            ->assertDontSee('Pedro Oculto')
+            // Pedro Oculto sigue apareciendo en el dropdown de filtro por
+            // cliente, por eso solo se valida que su prestamo no se liste.
             ->assertDontSee('PRE-SEARCH-002');
     }
 

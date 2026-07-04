@@ -283,17 +283,26 @@ class CollectorController extends Controller
         $collector = $this->collectorForUser($request);
         $validated = $request->validate([
             'include_paid' => ['nullable', 'boolean'],
+            'search' => ['nullable', 'string', 'max:120'],
             'per_page' => ['nullable', 'integer', 'min:1', 'max:100'],
         ]);
         $includePaid = (bool) ($validated['include_paid'] ?? false);
 
         $loans = $this->assignedLoanQuery($collector)
+            ->withDueSummary()
             ->with('client:id,full_name,identification,phone,address')
             ->when(! $includePaid, fn (Builder $query): Builder => $query->where(function (Builder $query): void {
                 $query->whereIn('status', ['active', 'late'])
                     ->orWhereHas('installments', fn (Builder $installmentQuery): Builder => $installmentQuery
                         ->whereIn('status', ['pending', 'partial', 'late']));
             }))
+            ->when($validated['search'] ?? null, fn (Builder $query, string $search): Builder => $query
+                ->where(fn (Builder $inner) => $inner
+                    ->where('loan_number', 'like', "%{$search}%")
+                    ->orWhereHas('client', fn (Builder $c) => $c
+                        ->where('full_name', 'like', "%{$search}%")
+                        ->orWhere('phone', 'like', "%{$search}%")
+                        ->orWhere('identification', 'like', "%{$search}%"))))
             ->orderBy('loan_number')
             ->paginate((int) ($validated['per_page'] ?? 25));
 

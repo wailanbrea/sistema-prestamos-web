@@ -4,7 +4,25 @@ Fecha: 2026-07-04
 
 Este archivo debe actualizarse cada vez que se hagan cambios en la web/backend que requieran paridad o ajuste en la app Android.
 
-## 2026-07-04
+## 2026-07-04 — ESTADO: sincronizado
+
+Todo lo listado abajo quedó implementado (backend API v2 + app Android) el 2026-07-04:
+
+- API: `admin/loans` y `collector/loans` ahora incluyen `overdue_installments_count`,
+  `overdue_amount_due` y `amount_due_today` por préstamo (scope `Loan::withDueSummary()`).
+- API: `collector/loans` acepta `search` (número, cliente, teléfono, cédula);
+  `admin/loans` amplió `search` a teléfono/cédula.
+- API: login y `/profile` exponen en `company` las listas efectivas
+  `enabled_loan_calculation_methods` y `enabled_payment_allocation_modes`.
+- App: búsqueda de cartera contra el backend con debounce; toggle Ver todos/activos ya existía.
+- App: el listado muestra cuotas vencidas y "Debe hoy" sin abrir el detalle.
+- App: `german_amortization` en todos los catálogos de método de cálculo.
+- App: dropdowns de método y selector de modos de pago filtran por la configuración
+  habilitada (CompositionLocals `LocalEnabledCalculationMethods` / `LocalEnabledAllocationModes`;
+  backend viejo = null = mostrar todo). Al editar se conserva el método actual del préstamo.
+- App: mora (condonar) y detalle de tipo de pago aplicado ya estaban desde commits anteriores.
+
+## 2026-07-04 (detalle original)
 
 ### Prestamos
 

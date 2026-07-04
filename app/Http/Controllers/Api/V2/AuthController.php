@@ -147,6 +147,12 @@ class AuthController extends Controller
      */
     private function userPayload(User $user): array
     {
+        // Listas efectivas: si la empresa no configuró nada, todos habilitados.
+        // La app oculta las opciones que no estén en estas listas.
+        $settings = $user->company?->settings;
+        $enabledMethods = array_values((array) ($settings?->enabled_loan_calculation_methods ?: []));
+        $enabledModes = array_values((array) ($settings?->enabled_payment_allocation_modes ?: []));
+
         return [
             'id' => $user->id,
             'name' => $user->name,
@@ -175,6 +181,13 @@ class AuthController extends Controller
                 'status' => $user->company?->status,
                 // Moneda por defecto de la empresa (RD$/US$) para formatear en la app.
                 'default_currency' => $user->company?->settings?->default_loan_currency ?: 'RD$',
+                // Efectivas: vacías nunca; si la empresa no configuró, van todas.
+                'enabled_loan_calculation_methods' => $enabledMethods !== []
+                    ? $enabledMethods
+                    : array_keys((array) config('loan_labels.methods')),
+                'enabled_payment_allocation_modes' => $enabledModes !== []
+                    ? $enabledModes
+                    : array_keys((array) config('loan_labels.payment_allocation_modes')),
             ],
         ];
     }

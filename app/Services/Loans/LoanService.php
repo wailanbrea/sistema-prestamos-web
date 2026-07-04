@@ -31,40 +31,10 @@ class LoanService
      */
     public function paginateForCompany(int $companyId, array $filters = []): LengthAwarePaginator
     {
-        $today = now()->toDateString();
-        $showAll = filter_var($filters['show_all'] ?? false, FILTER_VALIDATE_BOOLEAN);
-        $pendingBalanceSql = '(case when (installment_amount - paid_principal - paid_interest) > 0 then (installment_amount - paid_principal - paid_interest) else 0 end)';
-        $pendingLateFeeSql = '(case when (late_fee - paid_late_fee) > 0 then (late_fee - paid_late_fee) else 0 end)';
-        $hasPendingAmountSql = "({$pendingBalanceSql} + {$pendingLateFeeSql}) > 0";
-
         return Loan::query()
             ->with(['client', 'collector'])
             ->forCompany($companyId)
-            ->select('loans.*')
-            ->selectSub(function ($query) use ($today, $hasPendingAmountSql): void {
-                $query->from('loan_installments')
-                    ->selectRaw('count(*)')
-                    ->whereColumn('loan_installments.loan_id', 'loans.id')
-                    ->whereNotIn('status', ['paid', 'cancelled'])
-                    ->whereDate('due_date', '<', $today)
-                    ->whereRaw($hasPendingAmountSql);
-            }, 'overdue_installments_count')
-            ->selectSub(function ($query) use ($today, $pendingBalanceSql, $pendingLateFeeSql, $hasPendingAmountSql): void {
-                $query->from('loan_installments')
-                    ->selectRaw("coalesce(sum({$pendingBalanceSql} + {$pendingLateFeeSql}), 0)")
-                    ->whereColumn('loan_installments.loan_id', 'loans.id')
-                    ->whereNotIn('status', ['paid', 'cancelled'])
-                    ->whereDate('due_date', '<', $today)
-                    ->whereRaw($hasPendingAmountSql);
-            }, 'overdue_amount_due')
-            ->selectSub(function ($query) use ($today, $pendingBalanceSql, $pendingLateFeeSql, $hasPendingAmountSql): void {
-                $query->from('loan_installments')
-                    ->selectRaw("coalesce(sum({$pendingBalanceSql} + {$pendingLateFeeSql}), 0)")
-                    ->whereColumn('loan_installments.loan_id', 'loans.id')
-                    ->whereNotIn('status', ['paid', 'cancelled'])
-                    ->whereDate('due_date', '<=', $today)
-                    ->whereRaw($hasPendingAmountSql);
-            }, 'amount_due_today')
+            ->withDueSummary()
             ->tap(fn (Builder $query) => $this->applyFilters($query, $filters))
             ->latest('id')
             ->paginate(15)

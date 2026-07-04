@@ -89,7 +89,18 @@ trait BuildsApiPayloads
      */
     protected function loanPayload(Loan $loan): array
     {
+        // Presentes solo cuando la consulta usó el scope withDueSummary()
+        // (listados). Permiten mostrar deuda vencida sin abrir el detalle.
+        $dueSummary = array_key_exists('overdue_installments_count', $loan->getAttributes())
+            ? [
+                'overdue_installments_count' => (int) $loan->getAttribute('overdue_installments_count'),
+                'overdue_amount_due' => (float) $loan->getAttribute('overdue_amount_due'),
+                'amount_due_today' => (float) $loan->getAttribute('amount_due_today'),
+            ]
+            : [];
+
         return [
+            ...$dueSummary,
             'id' => $loan->id,
             'loan_number' => $loan->loan_number,
             'client' => $loan->client ? $this->clientPayload($loan->client) : null,

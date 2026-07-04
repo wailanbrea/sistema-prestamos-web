@@ -495,6 +495,7 @@ class AdminController extends Controller
 
         $loans = Loan::query()
             ->forCompany($companyId)
+            ->withDueSummary()
             ->with('client:id,code,full_name,identification,phone,address,status,risk_level')
             ->when($validated['status'] ?? null, fn (Builder $query, string $status): Builder => $query->where('status', $status))
             ->when(empty($validated['status']) && ! $includePaid, fn (Builder $query): Builder => $query->whereIn('status', ['active', 'late']))
@@ -502,7 +503,10 @@ class AdminController extends Controller
             ->when($validated['search'] ?? null, fn (Builder $query, string $search): Builder => $query
                 ->where(fn (Builder $inner) => $inner
                     ->where('loan_number', 'like', "%{$search}%")
-                    ->orWhereHas('client', fn (Builder $c) => $c->where('full_name', 'like', "%{$search}%"))))
+                    ->orWhereHas('client', fn (Builder $c) => $c
+                        ->where('full_name', 'like', "%{$search}%")
+                        ->orWhere('phone', 'like', "%{$search}%")
+                        ->orWhere('identification', 'like', "%{$search}%"))))
             ->orderByDesc('id')
             ->paginate((int) ($validated['per_page'] ?? 25));
 
