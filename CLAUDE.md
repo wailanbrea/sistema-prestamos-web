@@ -15,3 +15,16 @@ App Laravel de gestión de préstamos (multi-empresa, roles admin/cobrador/super
 - Tests: `php artisan test` (SQLite en memoria; cuidado con SQL específico de MySQL).
 - Migraciones: `php artisan migrate`.
 - Seed demo: `php artisan db:seed` (crea el admin de prueba).
+
+## Despliegue en el VPS (IMPORTANTE)
+
+El VPS cachea rutas/config en producción (`route:cache`/`config:cache`). Tras cada `git pull`, **especialmente si el cambio agregó/renombró/eliminó controladores o rutas**, hay que limpiar y regenerar caché y autoloader, o los endpoints darán **HTTP 500** ("Server Error") por referirse a clases viejas:
+
+```bash
+composer dump-autoload -o     # registra clases de controladores nuevos
+php artisan optimize:clear    # limpia route/config/view/cache
+php artisan config:cache      # (prod) reconstruye
+php artisan route:cache       # (prod) reconstruye
+```
+
+Si cambiaron vistas Blade: `php artisan view:clear`. Síntoma típico de caché viejo: la **web funciona** (usa rutas web) pero la **app Android da 500** en secciones cuyo controlador se movió (usa rutas API v2).
