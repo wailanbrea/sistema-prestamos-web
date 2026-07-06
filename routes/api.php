@@ -11,7 +11,9 @@ use App\Http\Controllers\Api\V2\AdminQuoteController;
 use App\Http\Controllers\Api\V2\AdminReportController;
 use App\Http\Controllers\Api\V2\AuthController;
 use App\Http\Controllers\Api\V2\CashboxController;
-use App\Http\Controllers\Api\V2\CollectorController;
+use App\Http\Controllers\Api\V2\CollectorLoanController;
+use App\Http\Controllers\Api\V2\CollectorPaymentController;
+use App\Http\Controllers\Api\V2\CollectorRouteController;
 use App\Http\Controllers\Api\V2\DashboardController;
 use Illuminate\Support\Facades\Route;
 
@@ -26,24 +28,24 @@ Route::prefix('v2')->name('api.v2.')->group(function (): void {
         Route::get('/dashboard', DashboardController::class)->middleware('permission:dashboard.view')->name('dashboard');
 
         Route::prefix('collector')->name('collector.')->middleware('permission:collector.access')->group(function (): void {
-            Route::get('/summary', [CollectorController::class, 'summary'])->name('summary');
-            Route::get('/map-clients', [CollectorController::class, 'mapClients'])->name('map-clients');
-            Route::get('/routes', [CollectorController::class, 'routes'])->name('routes');
-            Route::get('/route-sessions/active', [CollectorController::class, 'activeRouteSession'])->name('route-sessions.active');
-            Route::post('/route-sessions', [CollectorController::class, 'startRouteSession'])->name('route-sessions.start');
-            Route::post('/route-sessions/{session}/locations', [CollectorController::class, 'recordRouteLocation'])->whereNumber('session')->name('route-sessions.locations');
-            Route::post('/route-sessions/{session}/finish', [CollectorController::class, 'finishRouteSession'])->whereNumber('session')->name('route-sessions.finish');
-            Route::get('/clients', [CollectorController::class, 'clients'])->name('clients');
-            Route::get('/clients/{client}', [CollectorController::class, 'client'])->name('clients.show');
-            Route::get('/loans', [CollectorController::class, 'loans'])->name('loans');
-            Route::get('/loans/{loan}', [CollectorController::class, 'loan'])->name('loans.show');
-            Route::get('/loans/{loan}/documents', [CollectorController::class, 'loanDocuments'])->whereNumber('loan')->name('loans.documents');
-            Route::post('/loans/{loan}/documents', [CollectorController::class, 'generateLoanDocument'])->whereNumber('loan')->name('loans.documents.generate');
-            Route::get('/installments', [CollectorController::class, 'installments'])->name('installments');
-            Route::get('/installments/{installment}', [CollectorController::class, 'installment'])->name('installments.show');
-            Route::get('/payments', [CollectorController::class, 'payments'])->name('payments');
-            Route::get('/payments/{payment}', [CollectorController::class, 'payment'])->name('payments.show');
-            Route::post('/payments', [CollectorController::class, 'storePayment'])->name('payments.store');
+            Route::get('/summary', [CollectorRouteController::class, 'summary'])->name('summary');
+            Route::get('/map-clients', [CollectorRouteController::class, 'mapClients'])->name('map-clients');
+            Route::get('/routes', [CollectorRouteController::class, 'routes'])->name('routes');
+            Route::get('/route-sessions/active', [CollectorRouteController::class, 'activeRouteSession'])->name('route-sessions.active');
+            Route::post('/route-sessions', [CollectorRouteController::class, 'startRouteSession'])->name('route-sessions.start');
+            Route::post('/route-sessions/{session}/locations', [CollectorRouteController::class, 'recordRouteLocation'])->whereNumber('session')->name('route-sessions.locations');
+            Route::post('/route-sessions/{session}/finish', [CollectorRouteController::class, 'finishRouteSession'])->whereNumber('session')->name('route-sessions.finish');
+            Route::get('/clients', [CollectorRouteController::class, 'clients'])->name('clients');
+            Route::get('/clients/{client}', [CollectorRouteController::class, 'client'])->name('clients.show');
+            Route::get('/loans', [CollectorLoanController::class, 'loans'])->name('loans');
+            Route::get('/loans/{loan}', [CollectorLoanController::class, 'loan'])->name('loans.show');
+            Route::get('/loans/{loan}/documents', [CollectorLoanController::class, 'loanDocuments'])->whereNumber('loan')->name('loans.documents');
+            Route::post('/loans/{loan}/documents', [CollectorLoanController::class, 'generateLoanDocument'])->whereNumber('loan')->name('loans.documents.generate');
+            Route::get('/installments', [CollectorLoanController::class, 'installments'])->name('installments');
+            Route::get('/installments/{installment}', [CollectorLoanController::class, 'installment'])->name('installments.show');
+            Route::get('/payments', [CollectorPaymentController::class, 'payments'])->name('payments');
+            Route::get('/payments/{payment}', [CollectorPaymentController::class, 'payment'])->name('payments.show');
+            Route::post('/payments', [CollectorPaymentController::class, 'storePayment'])->name('payments.store');
         });
 
         // Back-office (Administrador/Supervisor/Caja). Cada endpoint gated por su permiso.
