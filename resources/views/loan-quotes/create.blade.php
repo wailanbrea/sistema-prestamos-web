@@ -56,21 +56,21 @@
                         <label for="calculation_method" class="form-label">Método</label>
                         <select id="calculation_method" name="calculation_method" class="form-select @error('calculation_method') is-invalid @enderror" required>
                             @foreach (enabled_loan_calculation_methods() as $value => $label)
+                                {{-- "Cuota fija" da el mismo resultado que "Interés fijo"; se oculta para no duplicar --}}
+                                @continue($value === 'fixed_installment')
                                 <option value="{{ $value }}" @selected(old('calculation_method', 'french_amortization') === $value)>{{ $label }}</option>
                             @endforeach
                         </select>
-                        <div id="methodHelp" class="form-text"></div>
                         @error('calculation_method') <div class="invalid-feedback">{{ $message }}</div> @enderror
                     </div>
 
-                    <div class="col-12 col-md-6 col-lg-3">
-                        <label for="interest_type" class="form-label">Tipo de interés</label>
-                        <select id="interest_type" name="interest_type" class="form-select @error('interest_type') is-invalid @enderror" required>
-                            <option value="fixed" @selected(old('interest_type', 'amortized') === 'fixed')>Fijo</option>
-                            <option value="compound" @selected(old('interest_type', 'amortized') === 'compound')>Compuesto</option>
-                            <option value="amortized" @selected(old('interest_type', 'amortized') === 'amortized')>Amortizado</option>
-                        </select>
-                        @error('interest_type') <div class="invalid-feedback">{{ $message }}</div> @enderror
+                    {{-- "Tipo de interés" no afecta el cálculo (lo define el método); se fija por defecto para no confundir --}}
+                    <input type="hidden" name="interest_type" value="{{ old('interest_type', 'amortized') }}">
+                    <div class="col-12">
+                        <div class="alert alert-info d-flex align-items-start gap-2 mb-0 py-2 px-3" role="alert" style="border-left: 4px solid var(--bs-info, #0dcaf0);">
+                            <i class="fa-solid fa-circle-info mt-1"></i>
+                            <span id="methodHelp" class="small"></span>
+                        </div>
                     </div>
 
                     <div class="col-12 col-md-6 col-lg-3">
@@ -106,12 +106,12 @@
 @push('scripts')
 <script>
     const methodDescriptions = {
-        flat_interest: 'Interés total sobre el capital, dividido en cuotas iguales.',
-        fixed_installment: 'Equivalente al interés fijo: cuota constante con interés total prorrateado.',
-        capital_plus_interest: 'Capital lineal más interés fijo por cuota sobre el capital inicial.',
-        interest_only: 'Cada cuota paga solo interés y el capital completo queda para la última cuota.',
-        german_amortization: 'Capital fijo en cada cuota e interés decreciente sobre el saldo pendiente.',
-        french_amortization: 'Cuota fija; el interés baja y el capital sube en cada período.',
+        flat_interest: 'La tasa es el % TOTAL sobre el capital (no por cuota). Ej: 10% de 10,000 = 1,000 de interés en todo el préstamo. Cuota fija.',
+        fixed_installment: 'Igual que interés fijo: la tasa es el % total sobre el capital y la cuota es constante.',
+        capital_plus_interest: 'La tasa es el % de interés POR CUOTA sobre el capital. El interés se mantiene y la cuota es fija (más caro).',
+        interest_only: 'Cada cuota paga solo el interés (% del capital por cuota) y el capital completo se paga en la última cuota.',
+        german_amortization: 'Capital fijo en cada cuota; la tasa es el % por período sobre el saldo pendiente. La cuota va bajando.',
+        french_amortization: 'Cuota fija; la tasa es el % por período sobre el saldo pendiente. El interés baja y el capital sube. Ideal para préstamos formales.',
     };
 
     const methodSelect = document.getElementById('calculation_method');

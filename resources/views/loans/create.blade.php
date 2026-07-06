@@ -108,18 +108,19 @@
                             <label for="calculation_method" class="form-label">Método de cálculo</label>
                             <select id="calculation_method" name="calculation_method" class="form-select @error('calculation_method') is-invalid @enderror">
                                 @foreach (enabled_loan_calculation_methods() as $value => $label)
+                                    {{-- "Cuota fija" da el mismo resultado que "Interés fijo"; se oculta para no duplicar opciones --}}
+                                    @continue($value === 'fixed_installment')
                                     <option value="{{ $value }}" @selected(old('calculation_method', 'french_amortization') === $value)>{{ $label }}</option>
                                 @endforeach
                             </select>
-                            <div id="methodHint" class="form-text"></div>
                         </div>
-                        <div class="col-6 col-md-3">
-                            <label for="interest_type" class="form-label">Tipo de interés</label>
-                            <select id="interest_type" name="interest_type" class="form-select @error('interest_type') is-invalid @enderror">
-                                <option value="fixed" @selected(old('interest_type', 'amortized') === 'fixed')>Fijo</option>
-                                <option value="compound" @selected(old('interest_type', 'amortized') === 'compound')>Compuesto</option>
-                                <option value="amortized" @selected(old('interest_type', 'amortized') === 'amortized')>Amortizado</option>
-                            </select>
+                        {{-- "Tipo de interés" no afectaba el cálculo (lo define el método); se fija por defecto para no confundir --}}
+                        <input type="hidden" name="interest_type" value="{{ old('interest_type', 'amortized') }}">
+                        <div class="col-12">
+                            <div id="methodHint" class="alert alert-info d-flex align-items-start gap-2 mb-0 py-2 px-3" role="alert" style="border-left: 4px solid var(--bs-info, #0dcaf0);">
+                                <i class="fa-solid fa-circle-info mt-1"></i>
+                                <span id="methodHintText" class="small"></span>
+                            </div>
                         </div>
                     @endunless
 
@@ -231,7 +232,7 @@
             french_amortization: 'Cuota fija; la tasa es el % <strong>por período</strong> sobre el saldo pendiente. El interés baja y el capital sube cada cuota. Ideal para préstamos formales.',
         };
         const sel = document.getElementById('calculation_method');
-        const hint = document.getElementById('methodHint');
+        const hint = document.getElementById('methodHintText');
         if (!sel || !hint) return;
         const update = () => { hint.innerHTML = hints[sel.value] || ''; };
         sel.addEventListener('change', update);

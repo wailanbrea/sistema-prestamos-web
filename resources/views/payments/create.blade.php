@@ -552,7 +552,10 @@ function selectMethod(val) {
             const inst = installments[0];
             if (inst) val = pick(inst);
         } else {
-            val = installments.reduce((s, i) => s + pick(i), 0);
+            // Sugerir solo la próxima cuota pendiente (no el balance completo) para
+            // evitar cobrar de más por accidente. Para saldar el préstamo está "Saldar todo".
+            const inst = installments[0];
+            if (inst) val = pick(inst);
         }
         amountInput.value = round2(val).toFixed(2);
     }
