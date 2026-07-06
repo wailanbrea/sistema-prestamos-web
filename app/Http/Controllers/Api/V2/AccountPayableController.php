@@ -22,7 +22,7 @@ use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use InvalidArgumentException;
 
-class AccountsPayableController extends Controller
+class AccountPayableController extends Controller
 {
     use BuildsApiPayloads;
 

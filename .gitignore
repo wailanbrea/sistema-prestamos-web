@@ -22,3 +22,7 @@
 Homestead.json
 Homestead.yaml
 Thumbs.db
+
+# Artefactos de herramientas locales (no forman parte del proyecto)
+/graphify-out
+/.playwright-mcp
