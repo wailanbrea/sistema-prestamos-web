@@ -16,6 +16,7 @@ return [
         'interest_only' => 'Solo interés',
         'german_amortization' => 'Amortización alemana',
         'french_amortization' => 'Amortización francesa',
+        'personalized' => 'Personalizado',
     ],
     'quote_statuses' => [
         'pending' => ['label' => 'Pendiente', 'class' => 'text-bg-warning'],

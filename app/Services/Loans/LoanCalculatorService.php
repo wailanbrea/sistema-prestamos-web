@@ -24,6 +24,7 @@ class LoanCalculatorService
             'interest_only' => $this->interestOnly($principal, $annualRate, $termQuantity),
             'german_amortization' => $this->germanAmortization($principal, $annualRate, $termQuantity),
             'french_amortization' => $this->frenchAmortization($principal, $annualRate, $termQuantity),
+            'personalized' => $this->capitalPlusInterest($principal, $annualRate, $termQuantity),
             default => throw new InvalidArgumentException("Método de cálculo no soportado: {$method}."),
         };
     }

@@ -76,10 +76,10 @@
                         @error('principal_amount') <div class="invalid-feedback d-block">{{ $message }}</div> @enderror
                     </div>
                     <div class="col-6 col-md-3">
-                        <label for="interest_rate" class="form-label">Tasa</label>
+                        <label for="interest_rate" class="form-label" id="interest_rate_label">Tasa</label>
                         <div class="input-group">
                             <input id="interest_rate" name="interest_rate" type="number" step="0.01" min="0" value="{{ old('interest_rate', $fmtRate($loan->interest_rate)) }}" class="form-control @error('interest_rate') is-invalid @enderror" {{ $disabled }}>
-                            <span class="input-group-text">%</span>
+                            <span class="input-group-text" id="interest_rate_suffix">%</span>
                         </div>
                         @error('interest_rate') <div class="invalid-feedback d-block">{{ $message }}</div> @enderror
                     </div>
@@ -186,6 +186,7 @@
             interest_only: 'Cada cuota paga solo el interés (% del capital) y el capital completo se paga en la última cuota.',
             german_amortization: 'Amortización alemana: el <strong>capital es fijo</strong> en cada cuota y el interés se calcula sobre el saldo pendiente. La cuota va bajando cada período.',
             french_amortization: 'Cuota fija; la tasa es el % <strong>por período</strong> sobre el saldo pendiente. El interés baja y el capital sube cada cuota. Ideal para préstamos formales.',
+            personalized: 'Préstamo personalizado: ingresa el monto fijo de interés por cuota. La tasa porcentual equivalente se calcula automáticamente.',
         };
         const sel = document.getElementById('calculation_method');
         const hint = document.getElementById('methodHintText');
@@ -193,6 +194,74 @@
         const update = () => { hint.innerHTML = hints[sel.value] || ''; };
         sel.addEventListener('change', update);
         update();
+    })();
+
+    // Lógica para tipo de cálculo personalizado en Edición.
+    (function () {
+        const el = {
+            principal_amount: document.getElementById('principal_amount'),
+            interest_rate: document.getElementById('interest_rate'),
+            calculation_method: document.getElementById('calculation_method'),
+            currency: document.getElementById('currency'),
+        };
+        if (!el.calculation_method || !el.interest_rate) return;
+
+        const currentCurrency = () => el.currency?.value || 'RD$';
+
+        let isPersonalizedActive = false;
+        const syncInterestInput = () => {
+            const isPersonalized = el.calculation_method.value === 'personalized';
+            const label = document.getElementById('interest_rate_label');
+            const suffix = document.getElementById('interest_rate_suffix');
+            if (!label || !suffix) return;
+
+            if (isPersonalized) {
+                if (!isPersonalizedActive) {
+                    isPersonalizedActive = true;
+                    label.textContent = 'Interés';
+                    suffix.textContent = currentCurrency();
+                    
+                    const p = parseFloat(el.principal_amount.value);
+                    const r = parseFloat(el.interest_rate.value);
+                    if (p > 0 && r > 0) {
+                        el.interest_rate.value = (p * (r / 100)).toFixed(2);
+                    }
+                } else {
+                    suffix.textContent = currentCurrency();
+                }
+            } else {
+                if (isPersonalizedActive) {
+                    isPersonalizedActive = false;
+                    label.textContent = 'Tasa';
+                    suffix.textContent = '%';
+                    
+                    const p = parseFloat(el.principal_amount.value);
+                    const r = parseFloat(el.interest_rate.value);
+                    if (p > 0 && r > 0) {
+                        el.interest_rate.value = ((r / p) * 100).toFixed(4);
+                    }
+                }
+            }
+        };
+
+        el.calculation_method.addEventListener('change', syncInterestInput);
+        if (el.currency) {
+            el.currency.addEventListener('change', syncInterestInput);
+        }
+
+        const form = document.querySelector('form');
+        form?.addEventListener('submit', function (event) {
+            const p = parseFloat(el.principal_amount.value);
+            const r = parseFloat(el.interest_rate.value);
+            if (el.calculation_method.value === 'personalized' && p > 0 && r > 0) {
+                // Solo si el campo no está deshabilitado
+                if (!el.interest_rate.disabled) {
+                    el.interest_rate.value = ((r / p) * 100).toFixed(6);
+                }
+            }
+        });
+
+        syncInterestInput();
     })();
 </script>
 @endpush

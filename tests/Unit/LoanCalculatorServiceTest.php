@@ -28,4 +28,25 @@ class LoanCalculatorServiceTest extends TestCase
             ['number' => 3, 'principal' => 1000.0, 'interest' => 100.0, 'amount' => 1100.0],
         ], $result['installments']);
     }
+
+    public function test_personalized_amortization_uses_equal_capital_and_fixed_interest(): void
+    {
+        $result = (new LoanCalculatorService())->calculate(
+            principal: 10000.0,
+            annualRate: 11.0, // calculated from 1100 interest / 10000 principal * 100
+            termQuantity: 10,
+            method: 'personalized',
+        );
+
+        $this->assertSame(2100.0, $result['installment_amount']);
+        $this->assertSame(11000.0, $result['total_interest']);
+        $this->assertSame(21000.0, $result['total_amount']);
+
+        $this->assertCount(10, $result['installments']);
+        $first = $result['installments'][0];
+        $this->assertSame(1, $first['number']);
+        $this->assertSame(1000.0, $first['principal']);
+        $this->assertSame(1100.0, $first['interest']);
+        $this->assertSame(2100.0, $first['amount']);
+    }
 }
