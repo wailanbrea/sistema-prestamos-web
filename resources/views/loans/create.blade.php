@@ -283,25 +283,25 @@
             const val = parseFloat(el.interest_rate.value);
 
             if (isPersonalized) {
-                label.textContent = 'Cuota';
+                label.textContent = 'Interés';
                 suffix.textContent = currentCurrency();
                 help.classList.remove('d-none');
 
                 if (!isPersonalizedActive) {
                     isPersonalizedActive = true;
-                    // Si pasamos a personalizado, convertimos porcentaje a cuota
-                    // C = P/N + P * (R/100)
-                    if (p > 0 && t > 0 && val > 0) {
-                        el.interest_rate.value = ((p / t) + p * (val / 100)).toFixed(2);
+                    // Si pasamos a personalizado, convertimos porcentaje a monto de interés por cuota
+                    // I = P * (R / 100)
+                    if (p > 0 && val > 0) {
+                        el.interest_rate.value = (p * (val / 100)).toFixed(2);
                     }
                 }
 
-                const currentC = parseFloat(el.interest_rate.value);
-                if (p > 0 && t > 0 && currentC > 0) {
-                    const r = (currentC / p - 1 / t) * 100;
-                    const totInt = (currentC * t) - p;
+                const currentI = parseFloat(el.interest_rate.value);
+                if (p > 0 && t > 0 && currentI > 0) {
+                    const r = (currentI / p) * 100;
+                    const totInt = currentI * t;
                     const totRate = (totInt / p) * 100;
-                    help.innerHTML = `Tasa: <strong>${Math.max(0, r).toFixed(4)}%</strong> por cuota (${Math.max(0, totRate).toFixed(2)}% total)`;
+                    help.innerHTML = `Tasa: <strong>${r.toFixed(4)}%</strong> por cuota (${totRate.toFixed(2)}% total)`;
                 } else {
                     help.textContent = '';
                 }
@@ -312,10 +312,10 @@
                     label.textContent = 'Tasa';
                     suffix.textContent = '%';
                     
-                    // Si salimos de personalizado, convertimos la cuota a porcentaje
-                    // R = (C/P - 1/N) * 100
-                    if (p > 0 && t > 0 && val > 0) {
-                        el.interest_rate.value = Math.max(0, (val / p - 1 / t) * 100).toFixed(4);
+                    // Si salimos de personalizado, convertimos el monto de interés a porcentaje
+                    // R = (I / P) * 100
+                    if (p > 0 && val > 0) {
+                        el.interest_rate.value = ((val / p) * 100).toFixed(4);
                     }
                 }
             }
@@ -329,8 +329,8 @@
             let r = parseFloat(el.interest_rate.value);
             const t = parseInt(el.term_quantity.value);
             
-            if (el.calculation_method.value === 'personalized' && p > 0 && t > 0 && r > 0) {
-                r = (r / p - 1 / t) * 100;
+            if (el.calculation_method.value === 'personalized' && p > 0 && r > 0) {
+                r = (r / p) * 100;
             }
 
             if (!(p > 0) || isNaN(r) || !(t > 0) || !el.first_payment_date.value) { show('empty'); return; }
@@ -396,9 +396,8 @@
         form?.addEventListener('submit', function (event) {
             const p = parseFloat(el.principal_amount.value);
             const r = parseFloat(el.interest_rate.value);
-            const t = parseInt(el.term_quantity.value);
-            if (el.calculation_method.value === 'personalized' && p > 0 && t > 0 && r > 0) {
-                el.interest_rate.value = ((r / p - 1 / t) * 100).toFixed(6);
+            if (el.calculation_method.value === 'personalized' && p > 0 && r > 0) {
+                el.interest_rate.value = ((r / p) * 100).toFixed(6);
             }
         });
 

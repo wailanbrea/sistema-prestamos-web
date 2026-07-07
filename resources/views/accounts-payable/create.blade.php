@@ -235,26 +235,26 @@
             const val = parseFloat(interestRate.value);
 
             if (isPersonalized) {
-                label.textContent = 'Cuota';
+                label.textContent = 'Interés';
                 suffix.textContent = currentCurrency();
                 help.classList.remove('d-none');
 
                 if (!isPersonalizedActive) {
                     isPersonalizedActive = true;
-                    // C = P/N + P * (R/100)
-                    if (p > 0 && t > 0 && val > 0) {
-                        interestRate.value = ((p / t) + p * (val / 100)).toFixed(2);
+                    // I = P * (R / 100)
+                    if (p > 0 && val > 0) {
+                        interestRate.value = (p * (val / 100)).toFixed(2);
                     }
                 } else {
                     suffix.textContent = currentCurrency();
                 }
 
-                const currentC = parseFloat(interestRate.value);
-                if (p > 0 && t > 0 && currentC > 0) {
-                    const r = (currentC / p - 1 / t) * 100;
-                    const totInt = (currentC * t) - p;
+                const currentI = parseFloat(interestRate.value);
+                if (p > 0 && t > 0 && currentI > 0) {
+                    const r = (currentI / p) * 100;
+                    const totInt = currentI * t;
                     const totRate = (totInt / p) * 100;
-                    help.innerHTML = `Tasa: <strong>${Math.max(0, r).toFixed(4)}%</strong> por cuota (${Math.max(0, totRate).toFixed(2)}% total)`;
+                    help.innerHTML = `Tasa: <strong>${r.toFixed(4)}%</strong> por cuota (${totRate.toFixed(2)}% total)`;
                 } else {
                     help.textContent = '';
                 }
@@ -265,9 +265,9 @@
                     label.textContent = 'Tasa';
                     suffix.textContent = '%';
                     
-                    // R = (C/P - 1/N) * 100
-                    if (p > 0 && t > 0 && val > 0) {
-                        interestRate.value = Math.max(0, (val / p - 1 / t) * 100).toFixed(4);
+                    // R = (I / P) * 100
+                    if (p > 0 && val > 0) {
+                        interestRate.value = ((val / p) * 100).toFixed(4);
                     }
                 }
             }
@@ -289,9 +289,8 @@
         form?.addEventListener('submit', function (event) {
             const p = parseFloat(principalAmount.value);
             const r = parseFloat(interestRate.value);
-            const t = parseInt(termQuantity.value);
-            if (method.value === 'personalized' && p > 0 && t > 0 && r > 0) {
-                interestRate.value = ((r / p - 1 / t) * 100).toFixed(6);
+            if (method.value === 'personalized' && p > 0 && r > 0) {
+                interestRate.value = ((r / p) * 100).toFixed(6);
             }
         });
 
