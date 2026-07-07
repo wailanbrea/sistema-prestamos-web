@@ -113,6 +113,47 @@
         </div>
     </section>
 
+    <section class="card content-card mb-4">
+        <div class="card-body">
+            <div class="d-flex flex-column flex-lg-row align-items-lg-end justify-content-between gap-3 mb-3">
+                <div>
+                    <h2 class="h6 text-uppercase text-muted mb-1">Prestamos asignados</h2>
+                    <p class="text-muted small mb-0">Estos prestamos son los que el cobrador puede ver y cobrar desde la app.</p>
+                </div>
+                <span class="badge text-bg-light border">{{ $collector->loans->count() }} activos/en mora</span>
+            </div>
+
+            <div class="table-responsive">
+                <table class="table align-middle mb-0">
+                    <thead>
+                        <tr>
+                            <th>Prestamo</th>
+                            <th>Cliente</th>
+                            <th>Estado</th>
+                            <th class="text-end">Balance</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        @forelse ($collector->loans as $loan)
+                            <tr>
+                                <td>
+                                    <a href="{{ route('loans.show', $loan) }}" class="fw-semibold text-decoration-none">{{ $loan->loan_number }}</a>
+                                </td>
+                                <td>{{ $loan->client?->full_name ?: 'Cliente no disponible' }}</td>
+                                <td>@include('partials.status-badge', ['map' => 'loan_statuses', 'value' => $loan->status])</td>
+                                <td class="text-end">{{ $loan->currency ?? currency() }} {{ number_format((float) $loan->remaining_balance, 2) }}</td>
+                            </tr>
+                        @empty
+                            <tr>
+                                <td colspan="4" class="text-center text-muted py-4">Este cobrador no tiene prestamos asignados.</td>
+                            </tr>
+                        @endforelse
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </section>
+
     <section class="card content-card">
         <div class="card-body">
             <div class="d-flex flex-column flex-lg-row align-items-lg-end justify-content-between gap-3 mb-3">

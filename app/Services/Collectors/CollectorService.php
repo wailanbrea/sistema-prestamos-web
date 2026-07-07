@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Services\Collectors;
 
 use App\Models\Collector;
+use App\Models\Loan;
 use App\Models\User;
 use Illuminate\Contracts\Pagination\LengthAwarePaginator;
 use Illuminate\Database\Eloquent\Builder;
@@ -15,7 +16,7 @@ use Spatie\Permission\PermissionRegistrar;
 class CollectorService
 {
     /**
-     * @param array<string, mixed> $filters
+     * @param  array<string, mixed>  $filters
      */
     public function paginateForCompany(int $companyId, array $filters = []): LengthAwarePaginator
     {
@@ -36,25 +37,35 @@ class CollectorService
     }
 
     /**
-     * @param array<string, mixed> $data
+     * @param  array<string, mixed>  $data
      */
     public function create(int $companyId, array $data): Collector
     {
         return DB::transaction(function () use ($companyId, $data): Collector {
             $data = $this->normalizeCommission($data);
+            $loanIds = $this->loanIds($data);
             $data['company_id'] = $companyId;
             $data['user_id'] = $this->resolveUserIdForCreate($companyId, $data);
 
-            return Collector::query()->create($data);
+            $collector = Collector::query()->create($this->collectorAttributes($data));
+            $this->syncAssignedLoans($collector, $loanIds);
+
+            return $collector->refresh();
         });
     }
 
     /**
-     * @param array<string, mixed> $data
+     * @param  array<string, mixed>  $data
      */
     public function update(Collector $collector, array $data): Collector
     {
-        $collector->update($this->normalizeCommission($data));
+        DB::transaction(function () use ($collector, $data): void {
+            $data = $this->normalizeCommission($data);
+            $data['company_id'] = (int) $collector->company_id;
+
+            $collector->update($this->collectorAttributes($data));
+            $this->syncAssignedLoans($collector, $this->loanIds($data));
+        });
 
         return $collector->refresh();
     }
@@ -64,6 +75,10 @@ class CollectorService
         return Collector::query()
             ->with([
                 'user:id,name,email',
+                'loans' => fn ($query) => $query
+                    ->with('client:id,full_name')
+                    ->whereIn('status', ['active', 'late'])
+                    ->orderBy('loan_number'),
                 'commissions' => fn ($query) => $query
                     ->with(['payment:id,receipt_number,payment_date,client_id,amount', 'payment.client:id,full_name'])
                     ->latest('id')
@@ -86,7 +101,7 @@ class CollectorService
     }
 
     /**
-     * @param array<string, mixed> $data
+     * @param  array<string, mixed>  $data
      * @return array<string, mixed>
      */
     private function normalizeCommission(array $data): array
@@ -102,7 +117,61 @@ class CollectorService
     }
 
     /**
-     * @param array<string, mixed> $data
+     * @param  array<string, mixed>  $data
+     * @return array<string, mixed>
+     */
+    private function collectorAttributes(array $data): array
+    {
+        return [
+            'company_id' => $data['company_id'],
+            'user_id' => $data['user_id'] ?? null,
+            'name' => $data['name'],
+            'phone' => $data['phone'] ?? null,
+            'commission_type' => $data['commission_type'],
+            'commission_value' => $data['commission_value'],
+            'commission_base' => $data['commission_base'],
+            'status' => $data['status'],
+        ];
+    }
+
+    /**
+     * @param  array<string, mixed>  $data
+     * @return array<int, int>
+     */
+    private function loanIds(array $data): array
+    {
+        return collect($data['loan_ids'] ?? [])
+            ->map(fn ($id): int => (int) $id)
+            ->filter(fn (int $id): bool => $id > 0)
+            ->unique()
+            ->values()
+            ->all();
+    }
+
+    /**
+     * @param  array<int, int>  $loanIds
+     */
+    private function syncAssignedLoans(Collector $collector, array $loanIds): void
+    {
+        Loan::query()
+            ->forCompany((int) $collector->company_id)
+            ->where('collector_id', $collector->id)
+            ->when($loanIds !== [], fn ($query) => $query->whereNotIn('id', $loanIds))
+            ->update(['collector_id' => null]);
+
+        if ($loanIds === []) {
+            return;
+        }
+
+        Loan::query()
+            ->forCompany((int) $collector->company_id)
+            ->whereIn('status', ['active', 'late'])
+            ->whereIn('id', $loanIds)
+            ->update(['collector_id' => $collector->id]);
+    }
+
+    /**
+     * @param  array<string, mixed>  $data
      */
     private function resolveUserIdForCreate(int $companyId, array $data): ?int
     {

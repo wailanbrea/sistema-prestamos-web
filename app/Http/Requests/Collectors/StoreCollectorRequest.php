@@ -16,8 +16,10 @@ class StoreCollectorRequest extends FormRequest
 
     protected function prepareForValidation(): void
     {
+        $accessMode = $this->input('access_mode');
+
         $this->merge([
-            'access_mode' => $this->input('access_mode', 'none'),
+            'access_mode' => $accessMode ?: ($this->filled('user_id') ? 'existing' : 'none'),
             'commission_base' => $this->input('commission_base', 'payment_total'),
         ]);
     }
@@ -63,6 +65,13 @@ class StoreCollectorRequest extends FormRequest
                 Rule::when($this->input('commission_type') === 'percentage', ['max:100']),
             ],
             'status' => ['required', Rule::in(['active', 'inactive'])],
+            'loan_ids' => ['nullable', 'array'],
+            'loan_ids.*' => [
+                'integer',
+                Rule::exists('loans', 'id')
+                    ->where('company_id', $companyId)
+                    ->whereIn('status', ['active', 'late']),
+            ],
         ];
     }
 }

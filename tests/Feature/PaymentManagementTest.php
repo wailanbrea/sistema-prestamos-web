@@ -122,6 +122,34 @@ class PaymentManagementTest extends TestCase
             ->assertNotFound();
     }
 
+    public function test_payment_detail_exposes_receipt_print_action(): void
+    {
+        $user = $this->adminUser();
+        [$loan, $collector] = $this->loanWithCollector((int) $user->company_id);
+
+        $payment = Payment::query()->create([
+            'company_id' => $user->company_id,
+            'loan_id' => $loan->id,
+            'client_id' => $loan->client_id,
+            'collector_id' => $collector->id,
+            'receipt_number' => 'REC-PRINT-'.fake()->unique()->numerify('####'),
+            'payment_date' => '2026-05-06',
+            'amount' => 1100,
+            'payment_method' => 'cash',
+            'principal_paid' => 1000,
+            'interest_paid' => 100,
+            'previous_balance' => 1000,
+            'new_balance' => 0,
+            'status' => 'valid',
+        ]);
+
+        $this->actingAs($user)
+            ->get(route('payments.show', $payment))
+            ->assertOk()
+            ->assertSee('Imprimir recibo')
+            ->assertSee('window.print()', false);
+    }
+
     public function test_admin_can_cancel_payment_and_reverse_balances(): void
     {
         $user = $this->adminUser();

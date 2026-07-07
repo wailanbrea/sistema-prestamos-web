@@ -4,14 +4,22 @@
 
 @section('content')
     @php($paymentCurrency = $payment->loan->currency ?? currency())
-    <section class="mb-4">
+    <section class="mb-4 payment-receipt-header">
         <div class="d-flex flex-column flex-lg-row align-items-lg-start justify-content-between gap-3">
             <div>
                 <h1 class="h3 fw-bold mb-1">{{ $payment->receipt_number }}</h1>
                 <p class="text-muted mb-0">{{ $payment->client->full_name }} · {{ $payment->loan->loan_number }}</p>
                 <div class="mt-2">@include('partials.status-badge', ['map' => 'payment_statuses', 'value' => $payment->status])</div>
             </div>
-            <div class="d-flex gap-2">
+            <div class="d-flex flex-column flex-sm-row gap-2 no-print">
+                <button type="button" class="btn btn-primary" onclick="window.print()">
+                    <i class="fa-solid fa-print me-2"></i> Imprimir recibo
+                </button>
+                @if (session('paymentReceiptUrl'))
+                    <a href="{{ session('paymentReceiptUrl') }}" target="_blank" rel="noopener" class="btn btn-outline-secondary">
+                        <i class="fa-solid fa-file-arrow-down me-2"></i> Descargar PDF
+                    </a>
+                @endif
                 @can('payments.create')
                     <a href="{{ route('payments.create', ['loan_id' => $payment->loan_id]) }}" class="btn btn-outline-primary">
                         <i class="fa-solid fa-plus me-2"></i> Otro cobro
@@ -33,6 +41,23 @@
         </div>
     </section>
 
+    @if (session('paymentReceiptUrl'))
+        <section class="alert alert-success d-flex flex-column flex-lg-row align-items-lg-center justify-content-between gap-3 no-print">
+            <div>
+                <div class="fw-semibold">Cobro registrado correctamente.</div>
+                <div class="small mb-0">Puedes imprimir el recibo ahora o descargar el PDF generado.</div>
+            </div>
+            <div class="d-flex flex-column flex-sm-row gap-2">
+                <button type="button" class="btn btn-success" onclick="window.print()">
+                    <i class="fa-solid fa-print me-2"></i> Imprimir ahora
+                </button>
+                <a href="{{ session('paymentReceiptUrl') }}" target="_blank" rel="noopener" class="btn btn-outline-success">
+                    <i class="fa-solid fa-file-pdf me-2"></i> Abrir PDF
+                </a>
+            </div>
+        </section>
+    @endif
+
     @if ($payment->status === 'cancelled')
         <section class="alert alert-danger">
             <div class="fw-semibold">Cobro anulado</div>
@@ -43,7 +68,7 @@
 
     @can('payments.cancel')
         @if ($payment->status === 'valid')
-            <section id="cancelPaymentForm" class="collapse mb-4">
+            <section id="cancelPaymentForm" class="collapse mb-4 no-print">
                 <div class="card border-danger">
                     <div class="card-body">
                         <h2 class="h6 text-danger text-uppercase mb-3">Anular cobro</h2>
@@ -148,3 +173,57 @@
         </script>
     @endif
 @endsection
+
+@push('styles')
+    <style>
+        @media print {
+            @page {
+                margin: 12mm;
+            }
+
+            body {
+                background: #fff !important;
+                color: #000 !important;
+                font-size: 12px;
+            }
+
+            .sidebar,
+            .sidebar-backdrop,
+            .topbar,
+            .no-print {
+                display: none !important;
+            }
+
+            .app-shell {
+                display: block !important;
+                min-height: auto !important;
+            }
+
+            .main {
+                padding: 0 !important;
+            }
+
+            .content-card,
+            .card {
+                border: 1px solid #d6d6d6 !important;
+                box-shadow: none !important;
+                break-inside: avoid;
+            }
+
+            .payment-receipt-header {
+                border-bottom: 1px solid #d6d6d6;
+                margin-bottom: 16px !important;
+                padding-bottom: 12px;
+            }
+
+            .row {
+                --bs-gutter-x: .75rem;
+                --bs-gutter-y: .75rem;
+            }
+
+            .table {
+                font-size: 11px;
+            }
+        }
+    </style>
+@endpush

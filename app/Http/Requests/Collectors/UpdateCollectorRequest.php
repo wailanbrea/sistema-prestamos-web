@@ -46,6 +46,13 @@ class UpdateCollectorRequest extends FormRequest
                 Rule::when($this->input('commission_type') === 'percentage', ['max:100']),
             ],
             'status' => ['required', Rule::in(['active', 'inactive'])],
+            'loan_ids' => ['nullable', 'array'],
+            'loan_ids.*' => [
+                'integer',
+                Rule::exists('loans', 'id')
+                    ->where('company_id', $companyId)
+                    ->whereIn('status', ['active', 'late']),
+            ],
         ];
     }
 }

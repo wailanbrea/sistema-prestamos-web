@@ -7,8 +7,9 @@ namespace App\Http\Controllers;
 use App\Http\Requests\Collectors\StoreCollectorRequest;
 use App\Http\Requests\Collectors\UpdateCollectorRequest;
 use App\Models\Collector as CollectorModel;
-use App\Services\Collectors\CollectorCommissionService;
+use App\Models\Loan;
 use App\Models\User;
+use App\Services\Collectors\CollectorCommissionService;
 use App\Services\Collectors\CollectorService;
 use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Http\RedirectResponse;
@@ -37,6 +38,7 @@ class CollectorController extends Controller
     {
         return view('collectors.create', [
             'users' => $this->companyUsers((int) $request->user()->company_id),
+            'assignableLoans' => $this->assignableLoans((int) $request->user()->company_id),
         ]);
     }
 
@@ -78,6 +80,7 @@ class CollectorController extends Controller
         return view('collectors.edit', [
             'collector' => $collectorModel,
             'users' => $this->companyUsers((int) $request->user()->company_id, (int) $collectorModel->user_id),
+            'assignableLoans' => $this->assignableLoans((int) $request->user()->company_id, (int) $collectorModel->id),
         ]);
     }
 
@@ -143,5 +146,23 @@ class CollectorController extends Controller
             })
             ->orderBy('name')
             ->get(['id', 'name', 'email']);
+    }
+
+    /**
+     * @return Collection<int, Loan>
+     */
+    private function assignableLoans(int $companyId, ?int $collectorId = null): Collection
+    {
+        return Loan::query()
+            ->with(['client:id,full_name', 'collector:id,name'])
+            ->forCompany($companyId)
+            ->whereIn('status', ['active', 'late'])
+            ->when($collectorId, function ($query) use ($collectorId): void {
+                $query->orderByRaw('case when collector_id = ? then 0 when collector_id is null then 1 else 2 end', [$collectorId]);
+            }, function ($query): void {
+                $query->orderByRaw('case when collector_id is null then 0 else 1 end');
+            })
+            ->orderBy('loan_number')
+            ->get(['id', 'company_id', 'client_id', 'collector_id', 'loan_number', 'currency', 'remaining_balance', 'status']);
     }
 }

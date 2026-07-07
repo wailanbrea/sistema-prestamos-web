@@ -5,6 +5,7 @@
 @endif
 
 @php($isEdit = isset($collector) && $collector->exists)
+@php($selectedLoanIds = collect(old('loan_ids', $isEdit ? $collector->loans->pluck('id')->all() : []))->map(fn ($id) => (string) $id)->all())
 
 <div class="row g-3">
     <div class="col-12 col-md-6">
@@ -122,6 +123,60 @@
         </select>
         @error('commission_base') <div class="invalid-feedback">{{ $message }}</div> @enderror
     </div>
+
+    <div class="col-12">
+        <div class="card border-light-subtle">
+            <div class="card-body">
+                <div class="d-flex flex-column flex-lg-row align-items-lg-center justify-content-between gap-2 mb-3">
+                    <div>
+                        <h2 class="h6 fw-bold mb-1">Prestamos visibles para este cobrador</h2>
+                        <p class="text-muted small mb-0">Los prestamos seleccionados apareceran en la app del cobrador y podra registrar cobros sobre ellos.</p>
+                    </div>
+                    <span class="badge text-bg-light border">{{ count($selectedLoanIds) }} seleccionados</span>
+                </div>
+
+                @error('loan_ids') <div class="alert alert-danger py-2">{{ $message }}</div> @enderror
+                @error('loan_ids.*') <div class="alert alert-danger py-2">{{ $message }}</div> @enderror
+
+                @if (($assignableLoans ?? collect())->isEmpty())
+                    <div class="text-muted small border rounded-3 p-3">No hay prestamos activos o en mora disponibles para asignar.</div>
+                @else
+                    <div class="collector-loan-list border rounded-3">
+                        @foreach ($assignableLoans as $loan)
+                            @php($isSelected = in_array((string) $loan->id, $selectedLoanIds, true))
+                            <label class="collector-loan-item d-flex align-items-start gap-3 p-3 border-bottom mb-0">
+                                <input
+                                    type="checkbox"
+                                    name="loan_ids[]"
+                                    value="{{ $loan->id }}"
+                                    class="form-check-input mt-1"
+                                    @checked($isSelected)
+                                >
+                                <span class="flex-grow-1">
+                                    <span class="d-flex flex-column flex-md-row justify-content-md-between gap-1">
+                                        <span class="fw-semibold">{{ $loan->loan_number }}</span>
+                                        <span class="text-muted small">{{ $loan->currency ?? currency() }} {{ number_format((float) $loan->remaining_balance, 2) }}</span>
+                                    </span>
+                                    <span class="d-flex flex-column flex-md-row justify-content-md-between gap-1 small text-muted mt-1">
+                                        <span>{{ $loan->client?->full_name ?: 'Cliente no disponible' }}</span>
+                                        <span>
+                                            @if ($loan->collector_id && (! $isEdit || (int) $loan->collector_id !== (int) $collector->id))
+                                                Asignado a {{ $loan->collector?->name ?: 'otro cobrador' }}
+                                            @elseif ($loan->collector_id)
+                                                Ya asignado a este cobrador
+                                            @else
+                                                Sin cobrador asignado
+                                            @endif
+                                        </span>
+                                    </span>
+                                </span>
+                            </label>
+                        @endforeach
+                    </div>
+                @endif
+            </div>
+        </div>
+    </div>
 </div>
 
 <div class="d-flex justify-content-end gap-2 mt-4">
@@ -153,3 +208,25 @@
         })();
     </script>
 @endif
+
+@push('styles')
+    <style>
+        .collector-loan-list {
+            max-height: 360px;
+            overflow-y: auto;
+        }
+
+        .collector-loan-item {
+            cursor: pointer;
+            transition: background-color .15s ease;
+        }
+
+        .collector-loan-item:last-child {
+            border-bottom: 0 !important;
+        }
+
+        .collector-loan-item:hover {
+            background: rgba(0, 38, 83, .04);
+        }
+    </style>
+@endpush
