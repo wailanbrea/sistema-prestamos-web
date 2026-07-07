@@ -64,6 +64,8 @@ class CollectorService
             $data['company_id'] = (int) $collector->company_id;
 
             $collector->update($this->collectorAttributes($data));
+            $collector->refresh();
+            $this->updateLinkedUser($collector, $data);
             $this->syncAssignedLoans($collector, $this->loanIds($data));
         });
 
@@ -168,6 +170,41 @@ class CollectorService
             ->whereIn('status', ['active', 'late'])
             ->whereIn('id', $loanIds)
             ->update(['collector_id' => $collector->id]);
+    }
+
+    /**
+     * @param  array<string, mixed>  $data
+     */
+    private function updateLinkedUser(Collector $collector, array $data): void
+    {
+        if (! $collector->user_id) {
+            return;
+        }
+
+        $attributes = [];
+
+        if (filled($data['user_name'] ?? null)) {
+            $attributes['name'] = $data['user_name'];
+        }
+
+        if (filled($data['user_email'] ?? null)) {
+            $attributes['email'] = $data['user_email'];
+        }
+
+        if (filled($data['user_password'] ?? null)) {
+            $attributes['password'] = $data['user_password'];
+        }
+
+        if ($attributes === []) {
+            return;
+        }
+
+        $user = User::query()
+            ->where('company_id', $collector->company_id)
+            ->whereKey($collector->user_id)
+            ->first();
+
+        $user?->update($attributes);
     }
 
     /**

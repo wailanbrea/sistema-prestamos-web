@@ -62,6 +62,35 @@ class CollectorManagementTest extends TestCase
             ->assertSessionHasErrors('user_id');
     }
 
+    public function test_admin_users_are_not_available_as_collector_linked_users(): void
+    {
+        $user = $this->adminUser();
+        $collectorUser = $this->userForCompany((int) $user->company_id);
+
+        $this->actingAs($user)
+            ->get(route('collectors.create'))
+            ->assertOk()
+            ->assertDontSee('<option value="'.$user->id.'"', false)
+            ->assertSee('<option value="'.$collectorUser->id.'"', false)
+            ->assertSee($collectorUser->email);
+    }
+
+    public function test_collector_cannot_be_linked_to_admin_user(): void
+    {
+        $user = $this->adminUser();
+
+        $this->actingAs($user)
+            ->post('/cobradores', [
+                'access_mode' => 'existing',
+                'user_id' => $user->id,
+                'name' => 'Cobrador Admin Invalido',
+                'commission_type' => 'none',
+                'commission_value' => 0,
+                'status' => 'active',
+            ])
+            ->assertSessionHasErrors('user_id');
+    }
+
     public function test_none_commission_is_normalized_to_zero(): void
     {
         $user = $this->adminUser();
@@ -81,6 +110,78 @@ class CollectorManagementTest extends TestCase
             'commission_type' => 'none',
             'commission_value' => 0,
         ]);
+    }
+
+    public function test_collector_form_includes_loan_assignment_search(): void
+    {
+        $user = $this->adminUser();
+        $loan = $this->loanForCompany((int) $user->company_id, 'PRE-BUSCAR-001');
+
+        $this->actingAs($user)
+            ->get(route('collectors.create'))
+            ->assertOk()
+            ->assertSee('Buscar prestamo')
+            ->assertSee('data-collector-loan-search', false)
+            ->assertSee($loan->loan_number);
+    }
+
+    public function test_edit_collector_form_shows_linked_user_access_fields(): void
+    {
+        $user = $this->adminUser();
+        $collectorUser = $this->userForCompany((int) $user->company_id);
+        $collector = Collector::query()->create([
+            'company_id' => $user->company_id,
+            'user_id' => $collectorUser->id,
+            'name' => 'Cobrador Con Acceso',
+            'commission_type' => 'none',
+            'commission_value' => 0,
+            'status' => 'active',
+        ]);
+
+        $this->actingAs($user)
+            ->get(route('collectors.edit', $collector))
+            ->assertOk()
+            ->assertSee('Usuario actual: '.$collectorUser->name)
+            ->assertSee($collectorUser->email)
+            ->assertSee('Nueva clave temporal')
+            ->assertDontSee('Password123!');
+    }
+
+    public function test_admin_can_update_collector_linked_user_credentials(): void
+    {
+        $user = $this->adminUser();
+        $collectorUser = $this->userForCompany((int) $user->company_id);
+        $collector = Collector::query()->create([
+            'company_id' => $user->company_id,
+            'user_id' => $collectorUser->id,
+            'name' => 'Cobrador Credenciales',
+            'commission_type' => 'none',
+            'commission_value' => 0,
+            'status' => 'active',
+        ]);
+
+        $this->actingAs($user)
+            ->put(route('collectors.update', $collector), [
+                'user_id' => $collectorUser->id,
+                'user_name' => 'Cobrador App Actualizado',
+                'user_email' => 'cobrador.app.actualizado@example.com',
+                'user_password' => 'NuevaClave123!',
+                'name' => 'Cobrador Credenciales',
+                'commission_type' => 'none',
+                'commission_value' => 0,
+                'commission_base' => 'payment_total',
+                'status' => 'active',
+                'loan_ids' => [],
+            ])
+            ->assertRedirect(route('collectors.show', $collector))
+            ->assertSessionHas('collector_credentials.password', 'NuevaClave123!');
+
+        $collectorUser->refresh();
+
+        $this->assertSame('Cobrador App Actualizado', $collectorUser->name);
+        $this->assertSame('cobrador.app.actualizado@example.com', $collectorUser->email);
+        $this->assertTrue(Hash::check('NuevaClave123!', $collectorUser->password));
+        $this->assertNotSame('NuevaClave123!', $collectorUser->password);
     }
 
     public function test_admin_can_assign_visible_loans_when_creating_collector(): void

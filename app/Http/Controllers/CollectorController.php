@@ -14,6 +14,7 @@ use App\Services\Collectors\CollectorService;
 use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\DB;
 use Illuminate\View\View;
 use InvalidArgumentException;
 
@@ -87,11 +88,22 @@ class CollectorController extends Controller
     public function update(UpdateCollectorRequest $request, int $collector): RedirectResponse
     {
         $model = $this->collectorService->findForCompany((int) $request->user()->company_id, $collector);
-        $this->collectorService->update($model, $request->validated());
+        $validated = $request->validated();
+        $updated = $this->collectorService->update($model, $validated);
 
-        return redirect()
-            ->route('collectors.show', $model)
+        $redirect = redirect()
+            ->route('collectors.show', $updated)
             ->with('status', 'Cobrador actualizado correctamente.');
+
+        if (! empty($validated['user_password']) && $updated->user) {
+            $redirect->with('collector_credentials', [
+                'user_name' => $updated->user->name,
+                'email' => $updated->user->email,
+                'password' => $validated['user_password'],
+            ]);
+        }
+
+        return $redirect;
     }
 
     public function destroy(Request $request, int $collector): RedirectResponse
@@ -127,6 +139,7 @@ class CollectorController extends Controller
      */
     private function companyUsers(int $companyId, ?int $includeUserId = null): Collection
     {
+        $adminUserIds = $this->adminUserIds($companyId);
         $linkedUserIds = CollectorModel::query()
             ->forCompany($companyId)
             ->pluck('user_id')
@@ -136,6 +149,7 @@ class CollectorController extends Controller
         return User::query()
             ->where('company_id', $companyId)
             ->where('status', 'active')
+            ->when($adminUserIds !== [], fn ($query) => $query->whereNotIn('id', $adminUserIds))
             ->when($linkedUserIds !== [], function ($query) use ($linkedUserIds, $includeUserId): void {
                 $query->where(function ($nested) use ($linkedUserIds, $includeUserId): void {
                     $nested->whereNotIn('id', $linkedUserIds);
@@ -146,6 +160,27 @@ class CollectorController extends Controller
             })
             ->orderBy('name')
             ->get(['id', 'name', 'email']);
+    }
+
+    /**
+     * @return array<int, int>
+     */
+    private function adminUserIds(int $companyId): array
+    {
+        $roleTable = config('permission.table_names.roles');
+        $modelRoleTable = config('permission.table_names.model_has_roles');
+        $rolePivotKey = config('permission.column_names.role_pivot_key') ?: 'role_id';
+        $modelKey = config('permission.column_names.model_morph_key');
+        $teamKey = config('permission.column_names.team_foreign_key');
+
+        return DB::table($modelRoleTable)
+            ->join($roleTable, "{$roleTable}.id", '=', "{$modelRoleTable}.{$rolePivotKey}")
+            ->where("{$roleTable}.name", 'Administrador')
+            ->where("{$modelRoleTable}.{$teamKey}", $companyId)
+            ->where("{$modelRoleTable}.model_type", User::class)
+            ->pluck("{$modelRoleTable}.{$modelKey}")
+            ->map(fn ($id): int => (int) $id)
+            ->all();
     }
 
     /**

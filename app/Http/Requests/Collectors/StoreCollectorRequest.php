@@ -4,7 +4,9 @@ declare(strict_types=1);
 
 namespace App\Http\Requests\Collectors;
 
+use App\Models\User;
 use Illuminate\Foundation\Http\FormRequest;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\Rule;
 
 class StoreCollectorRequest extends FormRequest
@@ -39,6 +41,7 @@ class StoreCollectorRequest extends FormRequest
                 Rule::exists('users', 'id')->where('company_id', $companyId),
                 Rule::when($this->input('access_mode') === 'existing', ['required']),
                 Rule::unique('collectors', 'user_id'),
+                Rule::notIn($this->adminUserIds($companyId)),
             ],
             'name' => ['required', 'string', 'max:150'],
             'phone' => ['nullable', 'string', 'max:50'],
@@ -73,5 +76,26 @@ class StoreCollectorRequest extends FormRequest
                     ->whereIn('status', ['active', 'late']),
             ],
         ];
+    }
+
+    /**
+     * @return array<int, int>
+     */
+    private function adminUserIds(int $companyId): array
+    {
+        $roleTable = config('permission.table_names.roles');
+        $modelRoleTable = config('permission.table_names.model_has_roles');
+        $rolePivotKey = config('permission.column_names.role_pivot_key') ?: 'role_id';
+        $modelKey = config('permission.column_names.model_morph_key');
+        $teamKey = config('permission.column_names.team_foreign_key');
+
+        return DB::table($modelRoleTable)
+            ->join($roleTable, "{$roleTable}.id", '=', "{$modelRoleTable}.{$rolePivotKey}")
+            ->where("{$roleTable}.name", 'Administrador')
+            ->where("{$modelRoleTable}.{$teamKey}", $companyId)
+            ->where("{$modelRoleTable}.model_type", User::class)
+            ->pluck("{$modelRoleTable}.{$modelKey}")
+            ->map(fn ($id): int => (int) $id)
+            ->all();
     }
 }

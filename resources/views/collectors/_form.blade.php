@@ -74,17 +74,60 @@
             </div>
         </div>
     @else
-        <div class="col-12 col-md-6">
-            <label for="user_id" class="form-label">Usuario vinculado</label>
-            <select id="user_id" name="user_id" class="form-select @error('user_id') is-invalid @enderror">
-                <option value="">Sin usuario vinculado</option>
-                @foreach ($users as $user)
-                    <option value="{{ $user->id }}" @selected((string) old('user_id', $collector->user_id ?? '') === (string) $user->id)>
-                        {{ $user->name }} - {{ $user->email }}
-                    </option>
-                @endforeach
-            </select>
-            @error('user_id') <div class="invalid-feedback">{{ $message }}</div> @enderror
+        <div class="col-12">
+            <div class="card border-light-subtle">
+                <div class="card-body">
+                    <h2 class="h6 fw-bold mb-3">Acceso del cobrador</h2>
+                    <div class="row g-3">
+                        <div class="col-12">
+                            <label for="user_id" class="form-label">Usuario vinculado</label>
+                            <select id="user_id" name="user_id" class="form-select @error('user_id') is-invalid @enderror" data-linked-user-select>
+                                <option value="">Sin usuario vinculado</option>
+                                @foreach ($users as $user)
+                                    <option
+                                        value="{{ $user->id }}"
+                                        data-name="{{ $user->name }}"
+                                        data-email="{{ $user->email }}"
+                                        @selected((string) old('user_id', $collector->user_id ?? '') === (string) $user->id)
+                                    >
+                                        {{ $user->name }} - {{ $user->email }}
+                                    </option>
+                                @endforeach
+                            </select>
+                            @error('user_id') <div class="invalid-feedback">{{ $message }}</div> @enderror
+                        </div>
+
+                        @if ($collector->user)
+                            <div class="col-12">
+                                <div class="alert alert-info mb-0">
+                                    <div class="fw-semibold">Usuario actual: {{ $collector->user->name }}</div>
+                                    <div class="small">Correo: {{ $collector->user->email }}</div>
+                                    <div class="small">La clave actual no se muestra por seguridad. Puedes asignar una nueva clave temporal abajo.</div>
+                                </div>
+                            </div>
+                        @endif
+
+                        <div class="col-12 col-md-6">
+                            <label for="user_name" class="form-label">Nombre del usuario</label>
+                            <input id="user_name" name="user_name" type="text" value="{{ old('user_name', $collector->user?->name) }}" class="form-control @error('user_name') is-invalid @enderror" maxlength="150" data-linked-user-name>
+                            @error('user_name') <div class="invalid-feedback">{{ $message }}</div> @enderror
+                        </div>
+
+                        <div class="col-12 col-md-6">
+                            <label for="user_email" class="form-label">Correo del usuario</label>
+                            <input id="user_email" name="user_email" type="email" value="{{ old('user_email', $collector->user?->email) }}" class="form-control @error('user_email') is-invalid @enderror" maxlength="150" data-linked-user-email>
+                            @error('user_email') <div class="invalid-feedback">{{ $message }}</div> @enderror
+                        </div>
+
+                        <div class="col-12 col-md-6">
+                            <label for="user_password" class="form-label">Nueva clave temporal</label>
+                            <input id="user_password" name="user_password" type="text" value="{{ old('user_password') }}" class="form-control @error('user_password') is-invalid @enderror" maxlength="150" autocomplete="new-password">
+                            @error('user_password') <div class="invalid-feedback">{{ $message }}</div> @enderror
+                            <div class="form-text">Llena este campo solo si necesitas cambiar la clave para que el cobrador entre a la app.</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
         </div>
     @endif
 
@@ -132,7 +175,7 @@
                         <h2 class="h6 fw-bold mb-1">Prestamos visibles para este cobrador</h2>
                         <p class="text-muted small mb-0">Los prestamos seleccionados apareceran en la app del cobrador y podra registrar cobros sobre ellos.</p>
                     </div>
-                    <span class="badge text-bg-light border">{{ count($selectedLoanIds) }} seleccionados</span>
+                    <span class="badge text-bg-light border" data-selected-loan-count>{{ count($selectedLoanIds) }} seleccionados</span>
                 </div>
 
                 @error('loan_ids') <div class="alert alert-danger py-2">{{ $message }}</div> @enderror
@@ -141,10 +184,32 @@
                 @if (($assignableLoans ?? collect())->isEmpty())
                     <div class="text-muted small border rounded-3 p-3">No hay prestamos activos o en mora disponibles para asignar.</div>
                 @else
+                    <div class="mb-3">
+                        <label for="collector_loan_search" class="form-label">Buscar prestamo</label>
+                        <div class="input-group">
+                            <span class="input-group-text"><i class="fa-solid fa-magnifying-glass"></i></span>
+                            <input
+                                id="collector_loan_search"
+                                type="search"
+                                class="form-control"
+                                placeholder="Buscar por prestamo, cliente, cobrador o balance"
+                                autocomplete="off"
+                                data-collector-loan-search
+                            >
+                        </div>
+                        <div class="form-text" data-visible-loan-count>{{ $assignableLoans->count() }} prestamos disponibles</div>
+                    </div>
                     <div class="collector-loan-list border rounded-3">
                         @foreach ($assignableLoans as $loan)
                             @php($isSelected = in_array((string) $loan->id, $selectedLoanIds, true))
-                            <label class="collector-loan-item d-flex align-items-start gap-3 p-3 border-bottom mb-0">
+                            @php($assignmentLabel = $loan->collector_id && (! $isEdit || (int) $loan->collector_id !== (int) $collector->id)
+                                ? 'Asignado a '.($loan->collector?->name ?: 'otro cobrador')
+                                : ($loan->collector_id ? 'Ya asignado a este cobrador' : 'Sin cobrador asignado'))
+                            <label
+                                class="collector-loan-item d-flex align-items-start gap-3 p-3 border-bottom mb-0"
+                                data-collector-loan-item
+                                data-search-text="{{ $loan->loan_number }} {{ $loan->client?->full_name }} {{ $assignmentLabel }} {{ $loan->currency }} {{ number_format((float) $loan->remaining_balance, 2, '.', '') }}"
+                            >
                                 <input
                                     type="checkbox"
                                     name="loan_ids[]"
@@ -159,19 +224,14 @@
                                     </span>
                                     <span class="d-flex flex-column flex-md-row justify-content-md-between gap-1 small text-muted mt-1">
                                         <span>{{ $loan->client?->full_name ?: 'Cliente no disponible' }}</span>
-                                        <span>
-                                            @if ($loan->collector_id && (! $isEdit || (int) $loan->collector_id !== (int) $collector->id))
-                                                Asignado a {{ $loan->collector?->name ?: 'otro cobrador' }}
-                                            @elseif ($loan->collector_id)
-                                                Ya asignado a este cobrador
-                                            @else
-                                                Sin cobrador asignado
-                                            @endif
-                                        </span>
+                                        <span>{{ $assignmentLabel }}</span>
                                     </span>
                                 </span>
                             </label>
                         @endforeach
+                        <div class="collector-loan-empty text-center text-muted small p-4 d-none" data-collector-loan-empty>
+                            No hay prestamos que coincidan con la busqueda.
+                        </div>
                     </div>
                 @endif
             </div>
@@ -208,6 +268,80 @@
         })();
     </script>
 @endif
+
+@if ($isEdit)
+    <script>
+        (() => {
+            const userSelect = document.querySelector('[data-linked-user-select]');
+            const nameInput = document.querySelector('[data-linked-user-name]');
+            const emailInput = document.querySelector('[data-linked-user-email]');
+
+            if (!userSelect || !nameInput || !emailInput) {
+                return;
+            }
+
+            userSelect.addEventListener('change', () => {
+                const option = userSelect.selectedOptions[0];
+                nameInput.value = option?.dataset.name || '';
+                emailInput.value = option?.dataset.email || '';
+            });
+        })();
+    </script>
+@endif
+
+<script>
+    (() => {
+        const searchInput = document.querySelector('[data-collector-loan-search]');
+        const loanItems = Array.from(document.querySelectorAll('[data-collector-loan-item]'));
+        const emptyState = document.querySelector('[data-collector-loan-empty]');
+        const visibleCount = document.querySelector('[data-visible-loan-count]');
+        const selectedCount = document.querySelector('[data-selected-loan-count]');
+
+        if (!searchInput || loanItems.length === 0) {
+            return;
+        }
+
+        const normalize = (value) => value
+            .toString()
+            .normalize('NFD')
+            .replace(/[\u0300-\u036f]/g, '')
+            .toLowerCase()
+            .trim();
+
+        const syncSelectedCount = () => {
+            if (!selectedCount) {
+                return;
+            }
+
+            const total = loanItems.filter((item) => item.querySelector('input[type="checkbox"]')?.checked).length;
+            selectedCount.textContent = `${total} seleccionados`;
+        };
+
+        const syncVisibleLoans = () => {
+            const query = normalize(searchInput.value);
+            let visible = 0;
+
+            loanItems.forEach((item) => {
+                const matches = normalize(item.dataset.searchText || '').includes(query);
+                item.classList.toggle('d-none', !matches);
+                visible += matches ? 1 : 0;
+            });
+
+            if (emptyState) {
+                emptyState.classList.toggle('d-none', visible > 0);
+            }
+
+            if (visibleCount) {
+                visibleCount.textContent = `${visible} prestamos visibles`;
+            }
+        };
+
+        searchInput.addEventListener('input', syncVisibleLoans);
+        loanItems.forEach((item) => item.addEventListener('change', syncSelectedCount));
+        syncVisibleLoans();
+        syncSelectedCount();
+    })();
+</script>
 
 @push('styles')
     <style>
