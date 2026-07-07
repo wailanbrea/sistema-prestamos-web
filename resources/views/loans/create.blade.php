@@ -84,9 +84,10 @@
                             @error('principal_amount') <div class="invalid-feedback d-block">{{ $message }}</div> @enderror
                         </div>
                         <div class="col-6 col-md-3">
-                            <label for="interest_rate" class="form-label" id="interest_rate_label">Tasa</label>
+                            <label for="interest_rate_visual" class="form-label" id="interest_rate_label">Tasa</label>
                             <div class="input-group">
-                                <input id="interest_rate" name="interest_rate" type="number" step="0.01" min="0" value="{{ old('interest_rate', isset($settings) && $settings ? $fmtRate($settings->default_interest_rate) : '') }}" class="form-control @error('interest_rate') is-invalid @enderror" required>
+                                <input id="interest_rate_visual" type="number" step="0.01" min="0" value="{{ old('interest_rate', isset($settings) && $settings ? $fmtRate($settings->default_interest_rate) : '') }}" class="form-control @error('interest_rate') is-invalid @enderror" required>
+                                <input type="hidden" id="interest_rate" name="interest_rate" value="{{ old('interest_rate', isset($settings) && $settings ? $fmtRate($settings->default_interest_rate) : '') }}">
                                 <span class="input-group-text" id="interest_rate_suffix">%</span>
                             </div>
                             @error('interest_rate') <div class="invalid-feedback d-block">{{ $message }}</div> @enderror
@@ -245,11 +246,13 @@
     (function () {
         const url = @json(route('loans.preview', [], false));
         const token = document.querySelector('meta[name="csrf-token"]')?.content;
-        const ids = ['principal_amount', 'interest_rate', 'term_quantity', 'calculation_method', 'payment_frequency', 'first_payment_date'];
+        const ids = ['principal_amount', 'term_quantity', 'calculation_method', 'payment_frequency', 'first_payment_date'];
         const el = {};
         ids.forEach((i) => el[i] = document.getElementById(i));
+        el.interest_rate = document.getElementById('interest_rate');
+        el.interest_rate_visual = document.getElementById('interest_rate_visual');
         el.currency = document.getElementById('currency');
-        if (ids.some((i) => !el[i])) return; // modo conversión de cotización: sin campos editables
+        if (ids.some((i) => !el[i]) || !el.interest_rate_visual || !el.interest_rate) return;
 
         const empty = document.getElementById('previewEmpty');
         const error = document.getElementById('previewError');
@@ -270,8 +273,24 @@
             content.classList.toggle('d-none', which !== 'content');
         };
 
+        const syncInterestRate = () => {
+            const isPersonalized = el.calculation_method.value === 'personalized';
+            const p = parseFloat(el.principal_amount.value);
+            const val = parseFloat(el.interest_rate_visual.value);
+
+            if (isPersonalized) {
+                if (p > 0 && val > 0) {
+                    el.interest_rate.value = ((val / p) * 100).toFixed(6);
+                } else {
+                    el.interest_rate.value = '';
+                }
+            } else {
+                el.interest_rate.value = el.interest_rate_visual.value;
+            }
+        };
+
         let isPersonalizedActive = false;
-        const syncInterestInput = () => {
+        const syncInterestVisual = () => {
             const isPersonalized = el.calculation_method.value === 'personalized';
             const label = document.getElementById('interest_rate_label');
             const suffix = document.getElementById('interest_rate_suffix');
@@ -280,7 +299,7 @@
 
             const p = parseFloat(el.principal_amount.value);
             const t = parseInt(el.term_quantity.value);
-            const val = parseFloat(el.interest_rate.value);
+            const r = parseFloat(el.interest_rate.value);
 
             if (isPersonalized) {
                 label.textContent = 'Interés';
@@ -289,33 +308,29 @@
 
                 if (!isPersonalizedActive) {
                     isPersonalizedActive = true;
-                    // Si pasamos a personalizado, convertimos porcentaje a monto de interés por cuota
-                    // I = P * (R / 100)
-                    if (p > 0 && val > 0) {
-                        el.interest_rate.value = (p * (val / 100)).toFixed(2);
+                    if (p > 0 && r > 0) {
+                        el.interest_rate_visual.value = (p * (r / 100)).toFixed(2);
                     }
                 }
 
-                const currentI = parseFloat(el.interest_rate.value);
+                const currentI = parseFloat(el.interest_rate_visual.value);
                 if (p > 0 && t > 0 && currentI > 0) {
-                    const r = (currentI / p) * 100;
+                    const rCalc = (currentI / p) * 100;
                     const totInt = currentI * t;
                     const totRate = (totInt / p) * 100;
-                    help.innerHTML = `Tasa: <strong>${r.toFixed(4)}%</strong> por cuota (${totRate.toFixed(2)}% total)`;
+                    help.innerHTML = `Tasa: <strong>${rCalc.toFixed(4)}%</strong> por cuota (${totRate.toFixed(2)}% total)`;
                 } else {
                     help.textContent = '';
                 }
             } else {
+                label.textContent = 'Tasa';
+                suffix.textContent = '%';
                 help.classList.add('d-none');
+                
                 if (isPersonalizedActive) {
                     isPersonalizedActive = false;
-                    label.textContent = 'Tasa';
-                    suffix.textContent = '%';
-                    
-                    // Si salimos de personalizado, convertimos el monto de interés a porcentaje
-                    // R = (I / P) * 100
-                    if (p > 0 && val > 0) {
-                        el.interest_rate.value = ((val / p) * 100).toFixed(4);
+                    if (r > 0) {
+                        el.interest_rate_visual.value = r;
                     }
                 }
             }
@@ -326,12 +341,8 @@
 
         async function run() {
             const p = parseFloat(el.principal_amount.value);
-            let r = parseFloat(el.interest_rate.value);
+            const r = parseFloat(el.interest_rate.value);
             const t = parseInt(el.term_quantity.value);
-            
-            if (el.calculation_method.value === 'personalized' && p > 0 && r > 0) {
-                r = (r / p) * 100;
-            }
 
             if (!(p > 0) || isNaN(r) || !(t > 0) || !el.first_payment_date.value) { show('empty'); return; }
 
@@ -372,37 +383,40 @@
 
         ids.forEach((i) => {
             el[i].addEventListener('input', () => {
-                syncInterestInput();
+                syncInterestRate();
+                syncInterestVisual();
                 schedule();
             });
             el[i].addEventListener('change', () => {
-                syncInterestInput();
+                syncInterestRate();
+                syncInterestVisual();
                 schedule();
             });
         });
+        el.interest_rate_visual.addEventListener('input', () => {
+            syncInterestRate();
+            syncInterestVisual();
+            schedule();
+        });
+        el.interest_rate_visual.addEventListener('change', () => {
+            syncInterestRate();
+            syncInterestVisual();
+            schedule();
+        });
         el.calculation_method.addEventListener('change', () => {
-            syncInterestInput();
+            syncInterestVisual();
             schedule();
         });
         if (el.currency) {
             el.currency.addEventListener('change', () => {
                 syncCurrencySymbol();
-                syncInterestInput();
+                syncInterestVisual();
                 run();
             });
         }
         
-        const form = document.querySelector('form');
-        form?.addEventListener('submit', function (event) {
-            const p = parseFloat(el.principal_amount.value);
-            const r = parseFloat(el.interest_rate.value);
-            if (el.calculation_method.value === 'personalized' && p > 0 && r > 0) {
-                el.interest_rate.value = ((r / p) * 100).toFixed(6);
-            }
-        });
-
         syncCurrencySymbol();
-        syncInterestInput();
+        syncInterestVisual();
         run();
     })();
 </script>

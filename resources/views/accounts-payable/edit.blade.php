@@ -50,9 +50,10 @@
                             </div>
 
                             <div class="col-12 col-md-4">
-                                <label for="interest_rate" class="form-label" id="interest_rate_label">Tasa</label>
+                                <label for="interest_rate_visual" class="form-label" id="interest_rate_label">Tasa</label>
                                 <div class="input-group">
-                                    <input id="interest_rate" name="interest_rate" type="number" step="0.0001" min="0" value="{{ old('interest_rate', $account->interest_rate) }}" class="form-control @error('interest_rate') is-invalid @enderror" required>
+                                    <input id="interest_rate_visual" type="number" step="0.0001" min="0" value="{{ old('interest_rate', $account->interest_rate) }}" class="form-control @error('interest_rate') is-invalid @enderror" required>
+                                    <input type="hidden" id="interest_rate" name="interest_rate" value="{{ old('interest_rate', $account->interest_rate) }}">
                                     <span class="input-group-text" id="interest_rate_suffix">%</span>
                                 </div>
                                 @error('interest_rate') <div class="invalid-feedback d-block">{{ $message }}</div> @enderror
@@ -176,9 +177,10 @@
         const currencySpans = document.querySelectorAll('.js-account-payable-currency-symbol');
         const principalAmount = document.getElementById('principal_amount');
         const interestRate = document.getElementById('interest_rate');
+        const interestRateVisual = document.getElementById('interest_rate_visual');
         const termQuantity = document.getElementById('term_quantity');
         
-        if (!method || !hint) {
+        if (!method || !hint || !interestRate || !interestRateVisual) {
             return;
         }
 
@@ -194,8 +196,24 @@
             });
         };
 
+        const syncInterestRate = () => {
+            const isPersonalized = method.value === 'personalized';
+            const p = parseFloat(principalAmount.value);
+            const val = parseFloat(interestRateVisual.value);
+
+            if (isPersonalized) {
+                if (p > 0 && val > 0) {
+                    interestRate.value = ((val / p) * 100).toFixed(6);
+                } else {
+                    interestRate.value = '';
+                }
+            } else {
+                interestRate.value = interestRateVisual.value;
+            }
+        };
+
         let isPersonalizedActive = false;
-        const syncInterestInput = () => {
+        const syncInterestVisual = () => {
             const isPersonalized = method.value === 'personalized';
             const label = document.getElementById('interest_rate_label');
             const suffix = document.getElementById('interest_rate_suffix');
@@ -204,7 +222,7 @@
 
             const p = parseFloat(principalAmount.value);
             const t = parseInt(termQuantity.value);
-            const val = parseFloat(interestRate.value);
+            const r = parseFloat(interestRate.value);
 
             if (isPersonalized) {
                 label.textContent = 'Interés';
@@ -213,33 +231,29 @@
 
                 if (!isPersonalizedActive) {
                     isPersonalizedActive = true;
-                    // I = P * (R / 100)
-                    if (p > 0 && val > 0) {
-                        interestRate.value = (p * (val / 100)).toFixed(2);
+                    if (p > 0 && r > 0) {
+                        interestRateVisual.value = (p * (r / 100)).toFixed(2);
                     }
-                } else {
-                    suffix.textContent = currentCurrency();
                 }
 
-                const currentI = parseFloat(interestRate.value);
+                const currentI = parseFloat(interestRateVisual.value);
                 if (p > 0 && t > 0 && currentI > 0) {
-                    const r = (currentI / p) * 100;
+                    const rCalc = (currentI / p) * 100;
                     const totInt = currentI * t;
                     const totRate = (totInt / p) * 100;
-                    help.innerHTML = `Tasa: <strong>${r.toFixed(4)}%</strong> por cuota (${totRate.toFixed(2)}% total)`;
+                    help.innerHTML = `Tasa: <strong>${rCalc.toFixed(4)}%</strong> por cuota (${totRate.toFixed(2)}% total)`;
                 } else {
                     help.textContent = '';
                 }
             } else {
+                label.textContent = 'Tasa';
+                suffix.textContent = '%';
                 help.classList.add('d-none');
+                
                 if (isPersonalizedActive) {
                     isPersonalizedActive = false;
-                    label.textContent = 'Tasa';
-                    suffix.textContent = '%';
-                    
-                    // R = (I / P) * 100
-                    if (p > 0 && val > 0) {
-                        interestRate.value = ((val / p) * 100).toFixed(4);
+                    if (r > 0) {
+                        interestRateVisual.value = r;
                     }
                 }
             }
@@ -247,30 +261,32 @@
 
         method.addEventListener('change', () => {
             update();
-            syncInterestInput();
+            syncInterestVisual();
         });
         currency?.addEventListener('change', () => {
             updateCurrency();
-            syncInterestInput();
+            syncInterestVisual();
         });
-        principalAmount?.addEventListener('input', syncInterestInput);
-        termQuantity?.addEventListener('input', syncInterestInput);
-        interestRate?.addEventListener('input', syncInterestInput);
-        
-        const form = document.querySelector('form');
-        form?.addEventListener('submit', function (event) {
-            const p = parseFloat(principalAmount.value);
-            const r = parseFloat(interestRate.value);
-            if (method.value === 'personalized' && p > 0 && r > 0) {
-                if (!interestRate.disabled) {
-                    interestRate.value = ((r / p) * 100).toFixed(6);
-                }
-            }
+        principalAmount?.addEventListener('input', () => {
+            syncInterestRate();
+            syncInterestVisual();
+        });
+        termQuantity?.addEventListener('input', () => {
+            syncInterestRate();
+            syncInterestVisual();
+        });
+        interestRateVisual.addEventListener('input', () => {
+            syncInterestRate();
+            syncInterestVisual();
+        });
+        interestRateVisual.addEventListener('change', () => {
+            syncInterestRate();
+            syncInterestVisual();
         });
 
         update();
         updateCurrency();
-        syncInterestInput();
+        syncInterestVisual();
     })();
 </script>
 @endpush

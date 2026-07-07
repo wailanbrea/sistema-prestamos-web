@@ -76,9 +76,10 @@
                         @error('principal_amount') <div class="invalid-feedback d-block">{{ $message }}</div> @enderror
                     </div>
                     <div class="col-6 col-md-3">
-                        <label for="interest_rate" class="form-label" id="interest_rate_label">Tasa</label>
+                        <label for="interest_rate_visual" class="form-label" id="interest_rate_label">Tasa</label>
                         <div class="input-group">
-                            <input id="interest_rate" name="interest_rate" type="number" step="0.01" min="0" value="{{ old('interest_rate', $fmtRate($loan->interest_rate)) }}" class="form-control @error('interest_rate') is-invalid @enderror" {{ $disabled }}>
+                            <input id="interest_rate_visual" type="number" step="0.01" min="0" value="{{ old('interest_rate', $fmtRate($loan->interest_rate)) }}" class="form-control @error('interest_rate') is-invalid @enderror" {{ $disabled }}>
+                            <input type="hidden" id="interest_rate" name="interest_rate" value="{{ old('interest_rate', $fmtRate($loan->interest_rate)) }}">
                             <span class="input-group-text" id="interest_rate_suffix">%</span>
                         </div>
                         @error('interest_rate') <div class="invalid-feedback d-block">{{ $message }}</div> @enderror
@@ -202,16 +203,33 @@
         const el = {
             principal_amount: document.getElementById('principal_amount'),
             interest_rate: document.getElementById('interest_rate'),
+            interest_rate_visual: document.getElementById('interest_rate_visual'),
             term_quantity: document.getElementById('term_quantity'),
             calculation_method: document.getElementById('calculation_method'),
             currency: document.getElementById('currency'),
         };
-        if (!el.calculation_method || !el.interest_rate) return;
+        if (!el.calculation_method || !el.interest_rate || !el.interest_rate_visual) return;
 
         const currentCurrency = () => el.currency?.value || 'RD$';
 
+        const syncInterestRate = () => {
+            const isPersonalized = el.calculation_method.value === 'personalized';
+            const p = parseFloat(el.principal_amount.value);
+            const val = parseFloat(el.interest_rate_visual.value);
+
+            if (isPersonalized) {
+                if (p > 0 && val > 0) {
+                    el.interest_rate.value = ((val / p) * 100).toFixed(6);
+                } else {
+                    el.interest_rate.value = '';
+                }
+            } else {
+                el.interest_rate.value = el.interest_rate_visual.value;
+            }
+        };
+
         let isPersonalizedActive = false;
-        const syncInterestInput = () => {
+        const syncInterestVisual = () => {
             const isPersonalized = el.calculation_method.value === 'personalized';
             const label = document.getElementById('interest_rate_label');
             const suffix = document.getElementById('interest_rate_suffix');
@@ -220,7 +238,7 @@
 
             const p = parseFloat(el.principal_amount.value);
             const t = parseInt(el.term_quantity.value);
-            const val = parseFloat(el.interest_rate.value);
+            const r = parseFloat(el.interest_rate.value);
 
             if (isPersonalized) {
                 label.textContent = 'Interés';
@@ -229,57 +247,60 @@
 
                 if (!isPersonalizedActive) {
                     isPersonalizedActive = true;
-                    // I = P * (R / 100)
-                    if (p > 0 && val > 0) {
-                        el.interest_rate.value = (p * (val / 100)).toFixed(2);
+                    if (p > 0 && r > 0) {
+                        el.interest_rate_visual.value = (p * (r / 100)).toFixed(2);
                     }
                 }
 
-                const currentI = parseFloat(el.interest_rate.value);
+                const currentI = parseFloat(el.interest_rate_visual.value);
                 if (p > 0 && t > 0 && currentI > 0) {
-                    const r = (currentI / p) * 100;
+                    const rCalc = (currentI / p) * 100;
                     const totInt = currentI * t;
                     const totRate = (totInt / p) * 100;
-                    help.innerHTML = `Tasa: <strong>${r.toFixed(4)}%</strong> por cuota (${totRate.toFixed(2)}% total)`;
+                    help.innerHTML = `Tasa: <strong>${rCalc.toFixed(4)}%</strong> por cuota (${totRate.toFixed(2)}% total)`;
                 } else {
                     help.textContent = '';
                 }
             } else {
+                label.textContent = 'Tasa';
+                suffix.textContent = '%';
                 help.classList.add('d-none');
+                
                 if (isPersonalizedActive) {
                     isPersonalizedActive = false;
-                    label.textContent = 'Tasa';
-                    suffix.textContent = '%';
-                    
-                    // R = (I / P) * 100
-                    if (p > 0 && val > 0) {
-                        el.interest_rate.value = ((val / p) * 100).toFixed(4);
+                    if (r > 0) {
+                        el.interest_rate_visual.value = r;
                     }
                 }
             }
         };
 
-        el.calculation_method.addEventListener('change', syncInterestInput);
+        el.calculation_method.addEventListener('change', () => {
+            syncInterestVisual();
+        });
         if (el.currency) {
-            el.currency.addEventListener('change', syncInterestInput);
+            el.currency.addEventListener('change', () => {
+                syncInterestVisual();
+            });
         }
-        el.principal_amount?.addEventListener('input', syncInterestInput);
-        el.term_quantity?.addEventListener('input', syncInterestInput);
-        el.interest_rate?.addEventListener('input', syncInterestInput);
-
-        const form = document.querySelector('form');
-        form?.addEventListener('submit', function (event) {
-            const p = parseFloat(el.principal_amount.value);
-            const r = parseFloat(el.interest_rate.value);
-            if (el.calculation_method.value === 'personalized' && p > 0 && r > 0) {
-                // Solo si el campo no está deshabilitado
-                if (!el.interest_rate.disabled) {
-                    el.interest_rate.value = ((r / p) * 100).toFixed(6);
-                }
-            }
+        el.principal_amount?.addEventListener('input', () => {
+            syncInterestRate();
+            syncInterestVisual();
+        });
+        el.term_quantity?.addEventListener('input', () => {
+            syncInterestRate();
+            syncInterestVisual();
+        });
+        el.interest_rate_visual.addEventListener('input', () => {
+            syncInterestRate();
+            syncInterestVisual();
+        });
+        el.interest_rate_visual.addEventListener('change', () => {
+            syncInterestRate();
+            syncInterestVisual();
         });
 
-        syncInterestInput();
+        syncInterestVisual();
     })();
 </script>
 @endpush
