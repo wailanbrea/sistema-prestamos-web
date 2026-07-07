@@ -90,6 +90,7 @@
                                 <span class="input-group-text" id="interest_rate_suffix">%</span>
                             </div>
                             @error('interest_rate') <div class="invalid-feedback d-block">{{ $message }}</div> @enderror
+                            <div id="interest_rate_help" class="form-text d-none"></div>
                         </div>
                         <div class="col-6 col-md-3">
                             <label for="term_quantity" class="form-label">Cuotas</label>
@@ -274,32 +275,47 @@
             const isPersonalized = el.calculation_method.value === 'personalized';
             const label = document.getElementById('interest_rate_label');
             const suffix = document.getElementById('interest_rate_suffix');
-            if (!label || !suffix) return;
+            const help = document.getElementById('interest_rate_help');
+            if (!label || !suffix || !help) return;
+
+            const p = parseFloat(el.principal_amount.value);
+            const t = parseInt(el.term_quantity.value);
+            const val = parseFloat(el.interest_rate.value);
 
             if (isPersonalized) {
+                label.textContent = 'Cuota';
+                suffix.textContent = currentCurrency();
+                help.classList.remove('d-none');
+
                 if (!isPersonalizedActive) {
                     isPersonalizedActive = true;
-                    label.textContent = 'Interés';
-                    suffix.textContent = currentCurrency();
-                    
-                    const p = parseFloat(el.principal_amount.value);
-                    const r = parseFloat(el.interest_rate.value);
-                    if (p > 0 && r > 0) {
-                        el.interest_rate.value = (p * (r / 100)).toFixed(2);
+                    // Si pasamos a personalizado, convertimos porcentaje a cuota
+                    // C = P/N + P * (R/100)
+                    if (p > 0 && t > 0 && val > 0) {
+                        el.interest_rate.value = ((p / t) + p * (val / 100)).toFixed(2);
                     }
+                }
+
+                const currentC = parseFloat(el.interest_rate.value);
+                if (p > 0 && t > 0 && currentC > 0) {
+                    const r = (currentC / p - 1 / t) * 100;
+                    const totInt = (currentC * t) - p;
+                    const totRate = (totInt / p) * 100;
+                    help.innerHTML = `Tasa: <strong>${Math.max(0, r).toFixed(4)}%</strong> por cuota (${Math.max(0, totRate).toFixed(2)}% total)`;
                 } else {
-                    suffix.textContent = currentCurrency();
+                    help.textContent = '';
                 }
             } else {
+                help.classList.add('d-none');
                 if (isPersonalizedActive) {
                     isPersonalizedActive = false;
                     label.textContent = 'Tasa';
                     suffix.textContent = '%';
                     
-                    const p = parseFloat(el.principal_amount.value);
-                    const r = parseFloat(el.interest_rate.value);
-                    if (p > 0 && r > 0) {
-                        el.interest_rate.value = ((r / p) * 100).toFixed(4);
+                    // Si salimos de personalizado, convertimos la cuota a porcentaje
+                    // R = (C/P - 1/N) * 100
+                    if (p > 0 && t > 0 && val > 0) {
+                        el.interest_rate.value = Math.max(0, (val / p - 1 / t) * 100).toFixed(4);
                     }
                 }
             }
@@ -313,8 +329,8 @@
             let r = parseFloat(el.interest_rate.value);
             const t = parseInt(el.term_quantity.value);
             
-            if (el.calculation_method.value === 'personalized' && p > 0 && r > 0) {
-                r = (r / p) * 100;
+            if (el.calculation_method.value === 'personalized' && p > 0 && t > 0 && r > 0) {
+                r = (r / p - 1 / t) * 100;
             }
 
             if (!(p > 0) || isNaN(r) || !(t > 0) || !el.first_payment_date.value) { show('empty'); return; }
@@ -354,7 +370,16 @@
             }
         }
 
-        ids.forEach((i) => { el[i].addEventListener('input', schedule); el[i].addEventListener('change', schedule); });
+        ids.forEach((i) => {
+            el[i].addEventListener('input', () => {
+                syncInterestInput();
+                schedule();
+            });
+            el[i].addEventListener('change', () => {
+                syncInterestInput();
+                schedule();
+            });
+        });
         el.calculation_method.addEventListener('change', () => {
             syncInterestInput();
             schedule();
@@ -371,8 +396,9 @@
         form?.addEventListener('submit', function (event) {
             const p = parseFloat(el.principal_amount.value);
             const r = parseFloat(el.interest_rate.value);
-            if (el.calculation_method.value === 'personalized' && p > 0 && r > 0) {
-                el.interest_rate.value = ((r / p) * 100).toFixed(6);
+            const t = parseInt(el.term_quantity.value);
+            if (el.calculation_method.value === 'personalized' && p > 0 && t > 0 && r > 0) {
+                el.interest_rate.value = ((r / p - 1 / t) * 100).toFixed(6);
             }
         });
 
