@@ -6,6 +6,8 @@
 
 @php($isEdit = isset($collector) && $collector->exists)
 @php($selectedLoanIds = collect(old('loan_ids', $isEdit ? $collector->loans->pluck('id')->all() : []))->map(fn ($id) => (string) $id)->all())
+@php($currentCollectorRole = $isEdit ? $collector->user?->roles->first()?->name : 'Cobrador')
+@php($selectedCollectorRole = old('collector_role', $currentCollectorRole ?: 'Cobrador'))
 
 <div class="row g-3">
     <div class="col-12 col-md-6">
@@ -52,22 +54,48 @@
                                 <input id="user_password" name="user_password" type="text" value="{{ old('user_password') }}" class="form-control @error('user_password') is-invalid @enderror" maxlength="150">
                                 @error('user_password') <div class="invalid-feedback">{{ $message }}</div> @enderror
                             </div>
+                            <div class="col-12 col-md-6">
+                                <label for="collector_role_new" class="form-label">Rol del acceso</label>
+                                <select id="collector_role_new" name="collector_role" class="form-select @error('collector_role') is-invalid @enderror">
+                                    @foreach ($roles as $role)
+                                        <option value="{{ $role }}" @selected($selectedCollectorRole === $role)>{{ $role }}</option>
+                                    @endforeach
+                                </select>
+                                @error('collector_role') <div class="invalid-feedback">{{ $message }}</div> @enderror
+                            </div>
                             <div class="col-12">
-                                <div class="form-text">Se creara un usuario con rol `Cobrador` dentro de esta misma empresa.</div>
+                                <div class="form-text">Se creara un usuario dentro de esta misma empresa. Por defecto se usa el rol Cobrador.</div>
                             </div>
                         </div>
 
                         <div class="col-12" data-access-section="existing">
-                            <label for="user_id" class="form-label">Usuario vinculado</label>
-                            <select id="user_id" name="user_id" class="form-select @error('user_id') is-invalid @enderror">
-                                <option value="">Seleccione un usuario</option>
-                                @foreach ($users as $user)
-                                    <option value="{{ $user->id }}" @selected((string) old('user_id', $collector->user_id ?? '') === (string) $user->id)>
-                                        {{ $user->name }} - {{ $user->email }}
-                                    </option>
-                                @endforeach
-                            </select>
-                            @error('user_id') <div class="invalid-feedback">{{ $message }}</div> @enderror
+                            <div class="row g-3">
+                                <div class="col-12 col-md-6">
+                                    <label for="user_id" class="form-label">Usuario vinculado</label>
+                                    <select id="user_id" name="user_id" class="form-select @error('user_id') is-invalid @enderror">
+                                        <option value="">Seleccione un usuario</option>
+                                        @foreach ($users as $user)
+                                            <option
+                                                value="{{ $user->id }}"
+                                                data-role="{{ $user->roles->first()?->name }}"
+                                                @selected((string) old('user_id', $collector->user_id ?? '') === (string) $user->id)
+                                            >
+                                                {{ $user->name }} - {{ $user->email }}
+                                            </option>
+                                        @endforeach
+                                    </select>
+                                    @error('user_id') <div class="invalid-feedback">{{ $message }}</div> @enderror
+                                </div>
+                                <div class="col-12 col-md-6">
+                                    <label for="collector_role_existing" class="form-label">Rol del acceso</label>
+                                    <select id="collector_role_existing" name="collector_role" class="form-select @error('collector_role') is-invalid @enderror">
+                                        @foreach ($roles as $role)
+                                            <option value="{{ $role }}" @selected($selectedCollectorRole === $role)>{{ $role }}</option>
+                                        @endforeach
+                                    </select>
+                                    @error('collector_role') <div class="invalid-feedback">{{ $message }}</div> @enderror
+                                </div>
+                            </div>
                         </div>
                     </div>
                 </div>
@@ -88,6 +116,7 @@
                                         value="{{ $user->id }}"
                                         data-name="{{ $user->name }}"
                                         data-email="{{ $user->email }}"
+                                        data-role="{{ $user->roles->first()?->name }}"
                                         @selected((string) old('user_id', $collector->user_id ?? '') === (string) $user->id)
                                     >
                                         {{ $user->name }} - {{ $user->email }}
@@ -95,6 +124,17 @@
                                 @endforeach
                             </select>
                             @error('user_id') <div class="invalid-feedback">{{ $message }}</div> @enderror
+                        </div>
+
+                        <div class="col-12 col-md-6">
+                            <label for="collector_role" class="form-label">Rol del acceso</label>
+                            <select id="collector_role" name="collector_role" class="form-select @error('collector_role') is-invalid @enderror" data-linked-user-role>
+                                @foreach ($roles as $role)
+                                    <option value="{{ $role }}" @selected($selectedCollectorRole === $role)>{{ $role }}</option>
+                                @endforeach
+                            </select>
+                            @error('collector_role') <div class="invalid-feedback">{{ $message }}</div> @enderror
+                            <div class="form-text">Este rol define los permisos del usuario vinculado al cobrador.</div>
                         </div>
 
                         @if ($collector->user)
@@ -260,6 +300,9 @@
                 const mode = modeSelect.value;
                 sections.forEach((section) => {
                     section.style.display = section.getAttribute('data-access-section') === mode ? '' : 'none';
+                    section.querySelectorAll('[name="collector_role"]').forEach((field) => {
+                        field.disabled = section.getAttribute('data-access-section') !== mode;
+                    });
                 });
             };
 
@@ -275,6 +318,7 @@
             const userSelect = document.querySelector('[data-linked-user-select]');
             const nameInput = document.querySelector('[data-linked-user-name]');
             const emailInput = document.querySelector('[data-linked-user-email]');
+            const roleSelect = document.querySelector('[data-linked-user-role]');
 
             if (!userSelect || !nameInput || !emailInput) {
                 return;
@@ -284,6 +328,9 @@
                 const option = userSelect.selectedOptions[0];
                 nameInput.value = option?.dataset.name || '';
                 emailInput.value = option?.dataset.email || '';
+                if (roleSelect && option?.dataset.role) {
+                    roleSelect.value = option.dataset.role;
+                }
             });
         })();
     </script>

@@ -59,6 +59,13 @@ class StoreCollectorRequest extends FormRequest
                 'min:8',
                 Rule::when($this->input('access_mode') === 'new', ['required']),
             ],
+            'collector_role' => [
+                'nullable',
+                'string',
+                Rule::when(in_array($this->input('access_mode'), ['existing', 'new'], true), ['required']),
+                Rule::exists('roles', 'name')->where('guard_name', 'web'),
+                Rule::notIn(['Administrador']),
+            ],
             'commission_type' => ['required', Rule::in(['percentage', 'fixed', 'none'])],
             'commission_base' => ['required', Rule::in(['payment_total', 'principal_only'])],
             'commission_value' => [

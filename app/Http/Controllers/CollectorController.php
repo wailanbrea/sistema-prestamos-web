@@ -17,6 +17,7 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\View\View;
 use InvalidArgumentException;
+use Spatie\Permission\Models\Role;
 
 class CollectorController extends Controller
 {
@@ -39,6 +40,7 @@ class CollectorController extends Controller
     {
         return view('collectors.create', [
             'users' => $this->companyUsers((int) $request->user()->company_id),
+            'roles' => $this->assignableRoles(),
             'assignableLoans' => $this->assignableLoans((int) $request->user()->company_id),
         ]);
     }
@@ -81,6 +83,7 @@ class CollectorController extends Controller
         return view('collectors.edit', [
             'collector' => $collectorModel,
             'users' => $this->companyUsers((int) $request->user()->company_id, (int) $collectorModel->user_id),
+            'roles' => $this->assignableRoles(),
             'assignableLoans' => $this->assignableLoans((int) $request->user()->company_id, (int) $collectorModel->id),
         ]);
     }
@@ -147,6 +150,7 @@ class CollectorController extends Controller
             ->all();
 
         return User::query()
+            ->with('roles:id,name')
             ->where('company_id', $companyId)
             ->where('status', 'active')
             ->when($adminUserIds !== [], fn ($query) => $query->whereNotIn('id', $adminUserIds))
@@ -160,6 +164,19 @@ class CollectorController extends Controller
             })
             ->orderBy('name')
             ->get(['id', 'name', 'email']);
+    }
+
+    /**
+     * @return \Illuminate\Support\Collection<int, string>
+     */
+    private function assignableRoles(): \Illuminate\Support\Collection
+    {
+        return Role::query()
+            ->where('guard_name', 'web')
+            ->where('name', '!=', 'Administrador')
+            ->orderByRaw("case when name = 'Cobrador' then 0 else 1 end")
+            ->orderBy('name')
+            ->pluck('name');
     }
 
     /**

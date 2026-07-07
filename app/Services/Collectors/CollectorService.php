@@ -195,16 +195,24 @@ class CollectorService
             $attributes['password'] = $data['user_password'];
         }
 
-        if ($attributes === []) {
-            return;
-        }
-
         $user = User::query()
             ->where('company_id', $collector->company_id)
             ->whereKey($collector->user_id)
             ->first();
 
-        $user?->update($attributes);
+        if (! $user) {
+            return;
+        }
+
+        if ($attributes !== []) {
+            $user->update($attributes);
+        }
+
+        $role = $this->collectorRole($data);
+        if ($role !== null) {
+            app(PermissionRegistrar::class)->setPermissionsTeamId((int) $collector->company_id);
+            $user->syncRoles([$role]);
+        }
     }
 
     /**
@@ -213,6 +221,20 @@ class CollectorService
     private function resolveUserIdForCreate(int $companyId, array $data): ?int
     {
         if (($data['access_mode'] ?? 'none') === 'existing') {
+            $userId = isset($data['user_id']) ? (int) $data['user_id'] : null;
+
+            if ($userId) {
+                $user = User::query()
+                    ->where('company_id', $companyId)
+                    ->whereKey($userId)
+                    ->first();
+
+                if ($user) {
+                    app(PermissionRegistrar::class)->setPermissionsTeamId($companyId);
+                    $user->syncRoles([$this->collectorRole($data) ?? 'Cobrador']);
+                }
+            }
+
             return isset($data['user_id']) ? (int) $data['user_id'] : null;
         }
 
@@ -231,8 +253,18 @@ class CollectorService
         ]);
 
         app(PermissionRegistrar::class)->setPermissionsTeamId($companyId);
-        $user->syncRoles(['Cobrador']);
+        $user->syncRoles([$this->collectorRole($data) ?? 'Cobrador']);
 
         return (int) $user->id;
+    }
+
+    /**
+     * @param  array<string, mixed>  $data
+     */
+    private function collectorRole(array $data): ?string
+    {
+        $role = trim((string) ($data['collector_role'] ?? ''));
+
+        return $role !== '' ? $role : null;
     }
 }

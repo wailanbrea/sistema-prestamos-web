@@ -46,6 +46,13 @@ class UpdateCollectorRequest extends FormRequest
                 Rule::unique('users', 'email')->ignore($this->input('user_id')),
             ],
             'user_password' => ['nullable', 'string', 'min:8', 'max:150'],
+            'collector_role' => [
+                'nullable',
+                'string',
+                Rule::when($this->filled('user_id'), ['required']),
+                Rule::exists('roles', 'name')->where('guard_name', 'web'),
+                Rule::notIn(['Administrador']),
+            ],
             'name' => ['required', 'string', 'max:150'],
             'phone' => ['nullable', 'string', 'max:50'],
             'commission_type' => ['required', Rule::in(['percentage', 'fixed', 'none'])],

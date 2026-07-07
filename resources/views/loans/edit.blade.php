@@ -127,12 +127,12 @@
                     <div class="col-12 mt-3"><span class="form-section-title">Fechas y mora</span></div>
                     <div class="col-6 col-md-3">
                         <label for="start_date" class="form-label">Fecha inicial</label>
-                        <input id="start_date" name="start_date" type="date" value="{{ old('start_date', $loan->start_date->toDateString()) }}" class="form-control @error('start_date') is-invalid @enderror" {{ $disabled }}>
+                        <input id="start_date" name="start_date" type="date" value="{{ old('start_date', $loan->start_date?->toDateString()) }}" class="form-control @error('start_date') is-invalid @enderror" {{ $disabled }}>
                         @error('start_date') <div class="invalid-feedback">{{ $message }}</div> @enderror
                     </div>
                     <div class="col-6 col-md-3">
                         <label for="first_payment_date" class="form-label">Primer pago</label>
-                        <input id="first_payment_date" name="first_payment_date" type="date" value="{{ old('first_payment_date', $loan->first_payment_date->toDateString()) }}" class="form-control @error('first_payment_date') is-invalid @enderror" {{ $disabled }}>
+                        <input id="first_payment_date" name="first_payment_date" type="date" value="{{ old('first_payment_date', $loan->first_payment_date?->toDateString()) }}" class="form-control @error('first_payment_date') is-invalid @enderror" {{ $disabled }}>
                         @error('first_payment_date') <div class="invalid-feedback">{{ $message }}</div> @enderror
                     </div>
                     <div class="col-6 col-md-3">

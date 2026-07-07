@@ -16,9 +16,11 @@ use App\Services\Loans\LoanCalculatorService;
 use App\Services\Loans\LoanService;
 use App\Services\Notifications\EventNotifier;
 use Carbon\CarbonImmutable;
+use Illuminate\Database\QueryException;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Log;
 use Illuminate\Validation\Rule;
 use Illuminate\View\View;
 use InvalidArgumentException;
@@ -216,6 +218,19 @@ class LoanController extends Controller
             return back()
                 ->withInput()
                 ->withErrors(['principal_amount' => $exception->getMessage()]);
+        } catch (QueryException $exception) {
+            Log::error('Error de base de datos al actualizar préstamo.', [
+                'loan_id' => $model->id,
+                'company_id' => $companyId,
+                'user_id' => $request->user()?->id,
+                'exception' => $exception,
+            ]);
+
+            return back()
+                ->withInput()
+                ->withErrors([
+                    'principal_amount' => 'No se pudo actualizar el préstamo por una inconsistencia de base de datos. Verifica que las migraciones del sistema estén aplicadas en el servidor.',
+                ]);
         }
 
         return redirect()
