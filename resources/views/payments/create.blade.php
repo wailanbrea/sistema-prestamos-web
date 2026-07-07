@@ -191,8 +191,57 @@
                 </div>
             </section>
 
+
+        </div>
+
+        {{-- ── Right column ── --}}
+        <div class="col-12 col-xl-5">
+
+            {{-- Preview card --}}
+            <section class="card content-card mb-3" id="previewCard" style="display:none;">
+                <div class="card-header bg-white border-0 pt-3 px-4">
+                    <h2 class="h6 fw-bold mb-0" style="color:var(--app-primary);">Distribución del pago</h2>
+                    <p class="text-muted small mb-0">Cálculo estimado (el servidor confirma al guardar).</p>
+                </div>
+                <div class="card-body">
+                    <div class="preview-row">
+                        <span class="label"><i class="fa-solid fa-sack-dollar me-2 opacity-50"></i>Capital</span>
+                        <span class="val" id="pvPrincipal">{{ $selectedLoan->currency ?? currency() }} 0.00</span>
+                    </div>
+                    <div class="preview-row">
+                        <span class="label"><i class="fa-solid fa-percent me-2 opacity-50"></i>Interés</span>
+                        <span class="val" id="pvInterest">{{ $selectedLoan->currency ?? currency() }} 0.00</span>
+                    </div>
+                    <div class="preview-row">
+                        <span class="label"><i class="fa-solid fa-clock me-2 opacity-50"></i>Mora</span>
+                        <span class="val" id="pvLate">{{ $selectedLoan->currency ?? currency() }} 0.00</span>
+                    </div>
+                    <div class="preview-row" id="pvPrepayRow" style="display:none;">
+                        <span class="label"><i class="fa-solid fa-arrow-trend-down me-2 opacity-50"></i>Abono a capital</span>
+                        <span class="val" id="pvPrepay">{{ $selectedLoan->currency ?? currency() }} 0.00</span>
+                    </div>
+                    <div class="preview-row preview-total">
+                        <span class="label fw-semibold" style="color:var(--app-text);">Total cobrado</span>
+                        <span class="val" id="pvTotal" style="color:var(--app-primary); font-size:1.1rem;">{{ $selectedLoan->currency ?? currency() }} 0.00</span>
+                    </div>
+                    <div class="preview-row" id="pvChangeRow" style="display:none;">
+                        <span class="label fw-semibold" style="color:#166534;">Vuelto al cliente</span>
+                        <span class="val fw-bold" id="pvChange" style="color:#166534;">{{ $selectedLoan->currency ?? currency() }} 0.00</span>
+                    </div>
+                    <div class="preview-row">
+                        <span class="label" style="font-size:.82rem;">Saldo pendiente después</span>
+                        <span class="val" id="pvBalance" style="font-size:.82rem;">{{ $selectedLoan->currency ?? currency() }} 0.00</span>
+                    </div>
+                    <div class="d-flex justify-content-between" style="font-size:.78rem; padding-top:6px;">
+                        <span class="text-muted">Balance de capital después</span>
+                        <span class="text-muted" id="pvCapitalBalance">{{ $selectedLoan->currency ?? currency() }} 0.00</span>
+                    </div>
+                    <div id="pvLeftover" class="alert alert-warning small mt-3 mb-0" style="display:none; border-radius:10px;"></div>
+                </div>
+            </section>
+
             {{-- Modo de reparto --}}
-            <section class="card content-card mb-3" id="modeCard" style="display:none;">
+            <section class="card content-card mb-3 shadow-sm anim-fade-up" id="modeCard" style="display:none;">
                 <div class="card-header bg-white border-0 pt-3 px-4">
                     <h2 class="h6 fw-bold mb-0" style="color:var(--app-primary);">Modo de reparto</h2>
                     <p class="text-muted small mb-0">Cómo se aplica el dinero recibido.</p>
@@ -215,7 +264,7 @@
                             ], $enabledPaymentModes);
                         @endphp
                         @foreach ($modes as $value => $info)
-                            <div class="col-6 col-lg-3">
+                            <div class="col-6 col-md-4 col-xl-6">
                                 <button type="button" class="mode-btn" data-mode="{{ $value }}">
                                     <i class="fa-solid {{ $info[2] }}"></i>
                                     <span class="mode-title">{{ $info[0] }}</span>
@@ -224,7 +273,7 @@
                             </div>
                         @endforeach
                         @if (in_array('current_plus_capital', $enabledPaymentModeKeys, true))
-                            <div class="col-6 col-lg-3">
+                            <div class="col-6 col-md-4 col-xl-6">
                                 <button type="button" class="mode-btn" data-mode="current_plus_capital">
                                     <i class="fa-solid fa-arrow-trend-down"></i>
                                     <span class="mode-title">Cuota + capital</span>
@@ -242,7 +291,7 @@
 
                     {{-- Amount + target --}}
                     <div id="pooledControls" class="row g-3">
-                        <div class="col-12 col-md-6">
+                        <div class="col-12">
                             <label for="amount" class="form-label" style="font-size:.8rem; font-weight:600; color:var(--app-muted); text-transform:uppercase; letter-spacing:.05em;">
                                 Monto a cobrar
                             </label>
@@ -255,14 +304,14 @@
                             </div>
                             @error('amount') <div class="invalid-feedback d-block mt-1">{{ $message }}</div> @enderror
                             {{-- Quick amount chips --}}
-                            <div class="d-flex gap-2 mt-2">
+                            <div class="d-flex gap-2 mt-2 flex-wrap">
                                 <button type="button" class="quick-amt" onclick="quickAmt(1000)">1,000</button>
                                 <button type="button" class="quick-amt" onclick="quickAmt(2500)">2,500</button>
                                 <button type="button" class="quick-amt" onclick="quickAmt(5000)">5,000</button>
                                 <button type="button" class="quick-amt settle" onclick="quickSettle()">Saldar todo</button>
                             </div>
                         </div>
-                        <div class="col-12 col-md-6">
+                        <div class="col-12">
                             <label for="target_installment_id" class="form-label" style="font-size:.8rem; font-weight:600; color:var(--app-muted); text-transform:uppercase; letter-spacing:.05em;">
                                 Aplicar a
                             </label>
@@ -317,53 +366,6 @@
                     </div>
 
                     <div id="modeWarning" class="alert alert-warning mb-0 mt-3" style="display:none; border-radius:12px; font-size:.83rem;"></div>
-                </div>
-            </section>
-        </div>
-
-        {{-- ── Right column ── --}}
-        <div class="col-12 col-xl-5">
-
-            {{-- Preview card --}}
-            <section class="card content-card mb-3" id="previewCard" style="display:none;">
-                <div class="card-header bg-white border-0 pt-3 px-4">
-                    <h2 class="h6 fw-bold mb-0" style="color:var(--app-primary);">Distribución del pago</h2>
-                    <p class="text-muted small mb-0">Cálculo estimado (el servidor confirma al guardar).</p>
-                </div>
-                <div class="card-body">
-                    <div class="preview-row">
-                        <span class="label"><i class="fa-solid fa-sack-dollar me-2 opacity-50"></i>Capital</span>
-                        <span class="val" id="pvPrincipal">{{ $selectedLoan->currency ?? currency() }} 0.00</span>
-                    </div>
-                    <div class="preview-row">
-                        <span class="label"><i class="fa-solid fa-percent me-2 opacity-50"></i>Interés</span>
-                        <span class="val" id="pvInterest">{{ $selectedLoan->currency ?? currency() }} 0.00</span>
-                    </div>
-                    <div class="preview-row">
-                        <span class="label"><i class="fa-solid fa-clock me-2 opacity-50"></i>Mora</span>
-                        <span class="val" id="pvLate">{{ $selectedLoan->currency ?? currency() }} 0.00</span>
-                    </div>
-                    <div class="preview-row" id="pvPrepayRow" style="display:none;">
-                        <span class="label"><i class="fa-solid fa-arrow-trend-down me-2 opacity-50"></i>Abono a capital</span>
-                        <span class="val" id="pvPrepay">{{ $selectedLoan->currency ?? currency() }} 0.00</span>
-                    </div>
-                    <div class="preview-row preview-total">
-                        <span class="label fw-semibold" style="color:var(--app-text);">Total cobrado</span>
-                        <span class="val" id="pvTotal" style="color:var(--app-primary); font-size:1.1rem;">{{ $selectedLoan->currency ?? currency() }} 0.00</span>
-                    </div>
-                    <div class="preview-row" id="pvChangeRow" style="display:none;">
-                        <span class="label fw-semibold" style="color:#166534;">Vuelto al cliente</span>
-                        <span class="val fw-bold" id="pvChange" style="color:#166534;">{{ $selectedLoan->currency ?? currency() }} 0.00</span>
-                    </div>
-                    <div class="preview-row">
-                        <span class="label" style="font-size:.82rem;">Saldo pendiente después</span>
-                        <span class="val" id="pvBalance" style="font-size:.82rem;">{{ $selectedLoan->currency ?? currency() }} 0.00</span>
-                    </div>
-                    <div class="d-flex justify-content-between" style="font-size:.78rem; padding-top:6px;">
-                        <span class="text-muted">Balance de capital después</span>
-                        <span class="text-muted" id="pvCapitalBalance">{{ $selectedLoan->currency ?? currency() }} 0.00</span>
-                    </div>
-                    <div id="pvLeftover" class="alert alert-warning small mt-3 mb-0" style="display:none; border-radius:10px;"></div>
                 </div>
             </section>
 
