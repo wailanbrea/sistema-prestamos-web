@@ -210,7 +210,13 @@ class LoanController extends Controller
         $companyId = (int) $request->user()->company_id;
         $model = $this->loanService->findForCompany($companyId, $loan);
 
-        $updated = $this->loanService->update($companyId, $request->user()?->id, $model, $request->validated());
+        try {
+            $updated = $this->loanService->update($companyId, $request->user()?->id, $model, $request->validated());
+        } catch (InvalidArgumentException $exception) {
+            return back()
+                ->withInput()
+                ->withErrors(['principal_amount' => $exception->getMessage()]);
+        }
 
         return redirect()
             ->route('loans.show', $updated)
