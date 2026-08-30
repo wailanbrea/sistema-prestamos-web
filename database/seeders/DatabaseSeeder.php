@@ -23,7 +23,7 @@ class DatabaseSeeder extends Seeder
         $this->call(RolePermissionSeeder::class);
 
         $company = Company::query()->firstOrCreate(
-            ['email' => 'admin@sistemaprestamista.local'],
+            ['email' => 'demo@prestamista.bsolutions.dev'],
             [
                 'name' => 'Empresa Demo',
                 'phone' => '809-000-0000',
@@ -34,7 +34,7 @@ class DatabaseSeeder extends Seeder
         $company->settings()->firstOrCreate([]);
 
         $user = User::query()->firstOrCreate([
-            'email' => 'admin@sistemaprestamista.local',
+            'email' => 'demo@prestamista.bsolutions.dev',
         ], [
             'company_id' => $company->id,
             'name' => 'Administrador Demo',

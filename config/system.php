@@ -17,4 +17,6 @@ declare(strict_types=1);
 
 return [
     'owner_email' => env('SYSTEM_OWNER_EMAIL', 'wailandkey@gmail.com'),
+
+    'service_terminated' => env('SERVICE_TERMINATED', false),
 ];

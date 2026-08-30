@@ -21,8 +21,8 @@ use Spatie\Permission\PermissionRegistrar;
 
 class DemoRouteTrackingSeeder extends Seeder
 {
-    private const COMPANY_EMAIL = 'admin@sistemaprestamista.local';
-    private const ADMIN_EMAIL = 'admin@sistemaprestamista.local';
+    private const COMPANY_EMAIL = 'demo@prestamista.bsolutions.dev';
+    private const ADMIN_EMAIL = 'demo@prestamista.bsolutions.dev';
     private const COLLECTOR_EMAIL = 'cobrador@sistemaprestamista.local';
     private const LOAN_MARKER = 'DEMO_ROUTE_TRACKING_V1';
 

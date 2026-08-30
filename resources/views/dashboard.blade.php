@@ -22,6 +22,7 @@
     .kpi-tile:active { transform: scale(.98); }
     .kpi-tile-primary  { background:var(--app-primary-tint); color:#fff; }
     .kpi-tile-amber    { background:var(--app-secondary); color:var(--app-on-secondary); }
+    .kpi-tile-green    { background:#166534; color:#fff; }
     .kpi-tile-white    { background:var(--app-surface); border:1px solid var(--app-border-light); }
     .kpi-tile-surface  { background:var(--app-surface-low); border:1px solid var(--app-border-light); }
 
@@ -85,6 +86,13 @@
     .invest-row { display:flex; justify-content:space-between; align-items:center; padding:12px 0; border-bottom:1px solid var(--app-border-light); }
     .invest-row:last-child { border-bottom:none; }
     .invest-row .invest-icon { width:32px; height:32px; border-radius:8px; display:inline-grid; place-items:center; font-size:.8rem; flex-shrink:0; }
+    .today-card { border:1px solid var(--app-border-light); border-radius:16px; background:var(--app-surface); }
+    .today-stat { padding:14px 16px; border-right:1px solid var(--app-border-light); }
+    .today-stat:last-child { border-right:0; }
+    .today-stat .value { font-size:1.2rem; font-weight:750; color:var(--app-primary); }
+    .today-stat .label { color:var(--app-muted); font-size:.72rem; text-transform:uppercase; letter-spacing:.04em; }
+    .mini-chart { height:220px; position:relative; }
+    @media (max-width:767.98px) { .today-stat { border-right:0; border-bottom:1px solid var(--app-border-light); } .today-stat:last-child { border-bottom:0; } }
 </style>
 @endpush
 
@@ -98,13 +106,40 @@
             <p class="text-muted mb-0" style="font-size:.88rem;">Resumen operativo y estado de inversión de la empresa.</p>
         </div>
         <div class="d-flex gap-2">
-            @can('loans.create')
-                <a href="{{ route('loans.create') }}" class="btn btn-sm fw-semibold"
-                   style="background:var(--app-secondary); color:var(--app-on-secondary); border-radius:10px; border:none; padding:8px 16px;">
-                    <i class="fa-solid fa-plus me-2"></i> Nuevo préstamo
+            @can('loans.view')
+                <a href="{{ route('loans.index') }}" class="btn btn-sm btn-outline-primary fw-semibold"
+                   style="border-radius:10px; padding:8px 16px;">
+                    <i class="fa-solid fa-briefcase me-2"></i> Ver cartera
                 </a>
             @endcan
         </div>
+    </div>
+</section>
+
+{{-- ── Today's operating summary ── --}}
+<section class="today-card mb-4 anim-fade-up" style="animation-delay:40ms;">
+    <div class="d-flex flex-column flex-lg-row align-items-lg-center justify-content-between gap-3 p-3 px-lg-4 border-bottom">
+        <div>
+            <h2 class="h6 fw-bold mb-1" style="color:var(--app-primary);">Resumen de Hoy</h2>
+            <p class="text-muted small mb-0">Seguimiento de la recaudación programada y realizada. <span class="text-success fw-semibold">{{ $todaySummary['week_change'] >= 0 ? '+' : '' }}{{ number_format($todaySummary['week_change'], 0) }}% frente a la semana anterior</span></p>
+        </div>
+        <div class="d-flex flex-wrap gap-2">
+            @can('loans.create') <a href="{{ route('loans.create') }}" class="btn btn-sm btn-primary"><i class="fa-solid fa-plus me-1"></i>Nuevo préstamo</a> @endcan
+            @can('payments.create') <a href="{{ route('payments.create') }}" class="btn btn-sm btn-success"><i class="fa-solid fa-cash-register me-1"></i>Registrar cobro</a> @endcan
+            @can('clients.create') <a href="{{ route('clients.create') }}" class="btn btn-sm btn-outline-secondary"><i class="fa-solid fa-user-plus me-1"></i>Nuevo cliente</a> @endcan
+        </div>
+    </div>
+    <div class="row g-0">
+        <div class="col-6 col-lg today-stat"><div class="label">Cobros programados</div><div class="value">{{ number_format($todaySummary['scheduled_count']) }}</div></div>
+        <div class="col-6 col-lg today-stat"><div class="label">Monto esperado</div><div class="value">{{ currency() }} {{ number_format($todaySummary['scheduled_amount'], 0) }}</div></div>
+        <div class="col-6 col-lg today-stat"><div class="label">Monto cobrado</div><div class="value text-success">{{ currency() }} {{ number_format($todaySummary['collected_amount'], 0) }}</div></div>
+        <div class="col-6 col-lg today-stat"><div class="label">Pagos registrados</div><div class="value text-success">{{ number_format($todaySummary['payments_count']) }}</div></div>
+        <div class="col-12 col-lg today-stat"><div class="label">Pendiente</div><div class="value {{ $todaySummary['pending_amount'] > 0 ? 'text-warning' : 'text-success' }}">{{ currency() }} {{ number_format($todaySummary['pending_amount'], 0) }}</div></div>
+    </div>
+    @php $todayExpectedWidth = min(100, $todaySummary['goal_progress']); @endphp
+    <div class="px-3 px-lg-4 pb-3">
+        <div class="d-flex flex-wrap justify-content-between gap-2 small text-muted mb-1"><span>Meta alcanzada</span><span><strong>{{ number_format($todayExpectedWidth, 0) }}%</strong>@if($todaySummary['additional_amount'] > 0) · Recaudación adicional: <strong class="text-success">{{ currency() }} {{ number_format($todaySummary['additional_amount'], 0) }}</strong>@endif</span></div>
+        <div class="progress" style="height:8px;"><div class="progress-bar bg-success" role="progressbar" style="width:{{ $todayExpectedWidth }}%" aria-label="Meta de cobros alcanzada"></div></div>
     </div>
 </section>
 
@@ -154,7 +189,7 @@
                 <div style="font-size:.7rem; color:{{ $capitalNegativo ? 'var(--bs-danger, #dc3545)' : 'var(--app-muted)' }}; margin-top:2px;">{{ currency() }}@if ($capitalNegativo) · registra una inyección de capital en Caja @endif</div>
             </div>
         </div>
-        <div class="kpi-tile kpi-tile-amber">
+        <div class="kpi-tile kpi-tile-green">
             <i class="fa-solid fa-cash-register" style="opacity:.7; font-size:1.1rem;"></i>
             <div>
                 <div class="kpi-label">Cobros del día</div>
@@ -198,7 +233,7 @@
             <div class="card-header bg-white border-0 d-flex align-items-center justify-content-between flex-wrap gap-2 pb-0 pt-3 px-4">
                 <div>
                     <h3 class="h6 fw-bold mb-1" style="color:var(--app-primary);">Cobros de la semana</h3>
-                    <p class="text-muted small mb-0">Monto cobrado en los últimos 14 días.</p>
+                    <p class="text-muted small mb-0">Monto cobrado en los últimos 7 días.</p>
                 </div>
                 <span class="badge text-bg-light border" style="font-size:.7rem;">
                     <i class="fa-solid fa-coins me-1 text-success"></i> {{ currency() }}
@@ -293,7 +328,8 @@
                                             {{ $payment->client?->full_name ?? 'Cliente eliminado' }}
                                         </div>
                                         <div class="text-muted" style="font-size:.75rem;">
-                                            {{ $payment->payment_date->isoFormat('DD MMM YYYY') }}
+                                            {{ ucfirst($payment->payment_date->locale('es')->isoFormat('ddd')) }} {{ $payment->payment_date->locale('es')->isoFormat('DD MMM') }}
+                                            @if($payment->loan) · {{ $payment->loan->loan_number }} @endif
                                             @if($payment->collector) · {{ $payment->collector->name }} @endif
                                             @if($payment->receipt_number)
                                                 · <span style="font-family:monospace;">{{ $payment->receipt_number }}</span>
@@ -342,7 +378,7 @@
                                         <div class="text-muted" style="font-size:.75rem;">
                                             {{ $loan->loan_number }}
                                             @if($loan->collector) · {{ $loan->collector->name }} @endif
-                                            · {{ $loan->created_at->isoFormat('DD MMM YYYY') }}
+                                            · {{ $loan->created_at->locale('es')->isoFormat('DD MMM YYYY') }}
                                         </div>
                                     </div>
                                 </div>
@@ -422,6 +458,35 @@
                 @endif
             </div>
         </article>
+    </div>
+</section>
+
+{{-- ── Portfolio signals ── --}}
+<section class="row g-3 mb-4">
+    <div class="col-12 col-md-6">
+        <article class="card content-card h-100">
+            <div class="card-header bg-white border-0 pt-3 px-4"><h3 class="h6 fw-bold mb-1" style="color:var(--app-primary);">Mora por antigüedad</h3><p class="text-muted small mb-0">Cuotas vencidas agrupadas por días.</p></div>
+            <div class="card-body"><div class="mini-chart"><canvas id="overdueAgingChart"></canvas></div></div>
+        </article>
+    </div>
+    <div class="col-12 col-md-6">
+        <article class="card content-card h-100">
+            <div class="card-header bg-white border-0 pt-3 px-4"><h3 class="h6 fw-bold mb-1" style="color:var(--app-primary);">Rendimiento por cobrador</h3><p class="text-muted small mb-0">Cobros válidos de los últimos 30 días.</p></div>
+            <div class="card-body"><div class="mini-chart"><canvas id="collectorPerformanceChart"></canvas></div></div>
+        </article>
+    </div>
+</section>
+
+<section class="card content-card mb-4">
+    <div class="card-header bg-white border-0 pt-3 px-4"><h3 class="h6 fw-bold mb-1" style="color:var(--app-primary);">Próximos vencimientos</h3><p class="text-muted small mb-0">Cuotas previstas para los próximos 7 días.</p></div>
+    <div class="card-body pt-2">
+        <div class="row g-2">
+            @forelse ($upcomingDue as $installment)
+                <div class="col-12 col-md-6 col-xl-4"><div class="d-flex justify-content-between align-items-center p-3 rounded-3" style="background:var(--app-surface-low);"><div><div class="fw-semibold small">{{ $installment->loan->client?->full_name ?? 'Cliente no disponible' }}</div><div class="text-muted" style="font-size:.72rem;">{{ $installment->loan->loan_number }} · {{ ucfirst($installment->due_date->locale('es')->isoFormat('ddd')) }} {{ $installment->due_date->locale('es')->isoFormat('DD MMM') }}</div></div><strong class="small text-warning">{{ currency() }} {{ number_format(max(0, (float) $installment->installment_amount - (float) $installment->total_paid), 0) }}</strong></div></div>
+            @empty
+                <div class="col-12 text-center text-muted py-3">No hay vencimientos próximos.</div>
+            @endforelse
+        </div>
     </div>
 </section>
 
@@ -526,6 +591,12 @@
             },
         });
     }
+
+    const agingEl = document.getElementById('overdueAgingChart');
+    if (agingEl) new Chart(agingEl, { type: 'bar', data: { labels: @json($overdueAging['labels']), datasets: [{ data: @json($overdueAging['values']), backgroundColor: ['#facc15', '#f97316', '#ba1a1a'], borderRadius: 8 }] }, options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false } }, scales: { y: { beginAtZero: true, ticks: { precision: 0 } }, x: { grid: { display: false } } } } });
+
+    const collectorEl = document.getElementById('collectorPerformanceChart');
+    if (collectorEl) new Chart(collectorEl, { type: 'bar', data: { labels: @json($collectorPerformance['labels']), datasets: [{ data: @json($collectorPerformance['values']), backgroundColor: '#166534', borderRadius: 8 }] }, options: { indexAxis: 'y', responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false }, tooltip: { callbacks: { label: (c) => @json(currency().' ') + c.parsed.x.toLocaleString('es-DO') } } }, scales: { x: { beginAtZero: true }, y: { grid: { display: false } } } } });
 })();
 </script>
 @endpush

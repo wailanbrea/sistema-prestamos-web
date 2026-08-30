@@ -25,7 +25,7 @@ class DemoLoanPortfolioSeederTest extends TestCase
         $this->seed(DemoLoanPortfolioSeeder::class);
 
         $company = Company::query()
-            ->where('email', 'admin@sistemaprestamista.local')
+            ->where('email', 'demo@prestamista.bsolutions.dev')
             ->firstOrFail();
 
         $collector = Collector::query()

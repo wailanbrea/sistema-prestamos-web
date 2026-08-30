@@ -146,7 +146,7 @@ apuntando a ese comando.
 
 | Email | Nombre | Rol | Contraseña | Estado |
 |-------|--------|-----|------------|--------|
-| `admin@sistemaprestamista.local` | Administrador Demo | **Administrador** | `Password123!` | Activo |
+| `demo@prestamista.bsolutions.dev` | Administrador Demo | **Administrador** | `Password123!` | Activo |
 | `cobrador@sistemaprestamista.local` | Carlos Cobrador | **Cobrador** | `Password123!` | Activo |
 
 > ⚠️ **Cambia estas contraseñas tras el primer acceso en producción.**

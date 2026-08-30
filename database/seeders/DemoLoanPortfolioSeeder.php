@@ -22,7 +22,7 @@ use Spatie\Permission\PermissionRegistrar;
 
 class DemoLoanPortfolioSeeder extends Seeder
 {
-    private const ADMIN_EMAIL = 'admin@sistemaprestamista.local';
+    private const ADMIN_EMAIL = 'demo@prestamista.bsolutions.dev';
     private const COLLECTOR_EMAIL = 'cobrador@sistemaprestamista.local';
     private const MARKER = 'DEMO_PORTFOLIO_V1';
 

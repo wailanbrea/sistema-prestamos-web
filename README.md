@@ -97,7 +97,7 @@ y abre http://127.0.0.1:8000
 
 | Rol           | Email                                  | Contraseña     |
 |---------------|----------------------------------------|----------------|
-| Administrador | `admin@sistemaprestamista.local`       | `Password123!` |
+| Administrador | `demo@prestamista.bsolutions.dev`      | `Password123!` |
 | Cobrador      | `cobrador@sistemaprestamista.local`    | `Password123!` |
 
 > Para **re-sembrar desde cero**: `php artisan migrate:fresh --seed`.

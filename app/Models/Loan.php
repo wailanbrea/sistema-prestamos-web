@@ -31,7 +31,9 @@ class Loan extends Model
 
     public function client(): BelongsTo
     {
-        return $this->belongsTo(Client::class)->withTrashed();
+        return $this->belongsTo(Client::class)
+            ->withTrashed()
+            ->withDefault(['full_name' => 'Cliente no disponible']);
     }
 
     public function collector(): BelongsTo

@@ -26,6 +26,8 @@ return Application::configure(basePath: dirname(__DIR__))
             | Request::HEADER_X_FORWARDED_PROTO
             | Request::HEADER_X_FORWARDED_AWS_ELB);
 
+        $middleware->append(\App\Http\Middleware\ServiceTerminated::class);
+
         $middleware->alias([
             'company.active' => \App\Http\Middleware\EnsureCompanyIsActive::class,
             'menu.visible' => \App\Http\Middleware\EnsureMenuIsVisible::class,
