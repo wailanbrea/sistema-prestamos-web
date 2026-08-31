@@ -47,6 +47,16 @@ class LoanController extends Controller
         ]);
     }
 
+    public function trashed(Request $request): View
+    {
+        abort_unless($request->user()?->hasRole('Administrador'), 403);
+
+        return view('loans.trashed', [
+            'loans' => $this->loanService->paginateDeletedForCompany((int) $request->user()->company_id),
+            ...$this->labels(),
+        ]);
+    }
+
     public function create(Request $request): View
     {
         $companyId = (int) $request->user()->company_id;
@@ -296,6 +306,8 @@ class LoanController extends Controller
 
     public function destroy(Request $request, int $loan): RedirectResponse
     {
+        abort_unless($request->user()?->hasRole('Administrador'), 403);
+
         $companyId = (int) $request->user()->company_id;
         $model = $this->loanService->findForCompany($companyId, $loan);
 
@@ -308,6 +320,19 @@ class LoanController extends Controller
         return redirect()
             ->route('loans.index')
             ->with('status', 'Préstamo eliminado correctamente.');
+    }
+
+    public function restore(Request $request, int $loan): RedirectResponse
+    {
+        abort_unless($request->user()?->hasRole('Administrador'), 403);
+
+        $companyId = (int) $request->user()->company_id;
+        $model = $this->loanService->findDeletedForCompany($companyId, $loan);
+        $restored = $this->loanService->restore($companyId, $request->user()?->id, $model);
+
+        return redirect()
+            ->route('loans.show', $restored)
+            ->with('status', 'Préstamo recuperado correctamente.');
     }
 
     public function approve(Request $request, int $loan): RedirectResponse

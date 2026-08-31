@@ -72,7 +72,6 @@ class RolePermissionSeeder extends Seeder
                 'loans.create',
                 'loans.approve',
                 'loans.update',
-                'loans.delete',
                 'collectors.manage',
                 'routes.manage',
                 'accounts-payable.manage',

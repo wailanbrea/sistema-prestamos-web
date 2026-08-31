@@ -41,6 +41,8 @@ class AdminLoanController extends Controller
     public function deleteLoan(Request $request, int $loan): JsonResponse
     {
         abort_unless($request->user()?->can('loans.delete'), 403);
+        abort_unless($request->user()?->hasRole('Administrador'), 403);
+
         $companyId = (int) $request->user()->company_id;
         $loanModel = Loan::query()->forCompany($companyId)->whereKey($loan)->firstOrFail();
 

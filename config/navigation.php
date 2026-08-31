@@ -36,6 +36,13 @@ return [
                     'match' => ['loans.'],
                 ],
                 [
+                    'label' => 'Préstamos eliminados',
+                    'route' => 'loans.trashed',
+                    'icon' => 'fa-box-archive',
+                    'permission' => 'loans.delete',
+                    'match' => ['loans.trashed'],
+                ],
+                [
                     'label' => 'Cobros',
                     'route' => 'payments.index',
                     'icon' => 'fa-cash-register',

@@ -474,7 +474,7 @@
                     $topbarCount      = $unreadCount + $alertCount;
                 @endphp
 
-                <div class="dropdown">
+                <div class="dropdown d-flex align-items-center gap-2">
                     <button class="btn btn-outline-secondary position-relative" type="button"
                             data-bs-toggle="dropdown" aria-expanded="false" title="Notificaciones"
                             style="border-color:var(--app-border); border-radius:10px; width:40px; height:40px; padding:0; display:inline-grid; place-items:center;">

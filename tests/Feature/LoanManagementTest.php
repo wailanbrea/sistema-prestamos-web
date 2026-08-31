@@ -8,11 +8,14 @@ use App\Models\Client;
 use App\Models\Company;
 use App\Models\CompanySetting;
 use App\Models\Loan;
+use App\Models\LoanInstallment;
 use App\Models\LoanQuote;
+use App\Models\Payment;
 use App\Models\User;
 use Database\Seeders\RolePermissionSeeder;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Hash;
+use Spatie\Permission\Models\Role;
 use Spatie\Permission\PermissionRegistrar;
 use Tests\TestCase;
 
@@ -257,6 +260,83 @@ class LoanManagementTest extends TestCase
         ]);
     }
 
+    public function test_admin_can_delete_loan_with_payments_and_restore_it(): void
+    {
+        $user = $this->adminUser();
+        $client = $this->clientForCompany((int) $user->company_id);
+        $loan = $this->loanForClient((int) $user->company_id, (int) $client->id, 'PRE-DELETE-001');
+        $installment = LoanInstallment::query()->create([
+            'loan_id' => $loan->id,
+            'installment_number' => 1,
+            'due_date' => '2026-06-01',
+            'principal_amount' => 1000,
+            'interest_amount' => 100,
+            'installment_amount' => 1100,
+            'paid_principal' => 100,
+            'paid_interest' => 10,
+            'total_paid' => 110,
+            'status' => 'partial',
+        ]);
+        $payment = Payment::query()->create([
+            'company_id' => $user->company_id,
+            'loan_id' => $loan->id,
+            'client_id' => $client->id,
+            'receipt_number' => 'REC-DELETE-001',
+            'payment_date' => '2026-06-02',
+            'amount' => 110,
+            'principal_paid' => 100,
+            'interest_paid' => 10,
+            'previous_balance' => 1000,
+            'new_balance' => 900,
+            'status' => 'valid',
+        ]);
+
+        $this->actingAs($user)
+            ->delete(route('loans.destroy', $loan))
+            ->assertRedirect(route('loans.index'));
+
+        $this->assertSoftDeleted('loans', ['id' => $loan->id]);
+        $this->assertDatabaseHas('clients', ['id' => $client->id, 'deleted_at' => null]);
+        $this->assertDatabaseHas('loan_installments', ['id' => $installment->id, 'loan_id' => $loan->id]);
+        $this->assertDatabaseHas('payments', ['id' => $payment->id, 'loan_id' => $loan->id, 'status' => 'valid']);
+        $this->assertDatabaseMissing('cash_movements', [
+            'type' => 'adjustment',
+            'reference_type' => Loan::class,
+            'reference_id' => $loan->id,
+        ]);
+
+        $this->actingAs($user)
+            ->get(route('loans.trashed'))
+            ->assertOk()
+            ->assertSee($loan->loan_number)
+            ->assertSee('Recuperar');
+
+        $this->actingAs($user)
+            ->post(route('loans.restore', $loan->id))
+            ->assertRedirect(route('loans.show', $loan->id));
+
+        $this->assertDatabaseHas('loans', ['id' => $loan->id, 'deleted_at' => null]);
+        $this->assertDatabaseHas('loan_installments', ['id' => $installment->id, 'loan_id' => $loan->id]);
+        $this->assertDatabaseHas('payments', ['id' => $payment->id, 'loan_id' => $loan->id, 'status' => 'valid']);
+    }
+
+    public function test_supervisor_cannot_delete_loan(): void
+    {
+        $admin = $this->adminUser();
+        $supervisor = $this->userWithRole((int) $admin->company_id, 'Supervisor');
+        $client = $this->clientForCompany((int) $admin->company_id);
+        $loan = $this->loanForClient((int) $admin->company_id, (int) $client->id, 'PRE-DELETE-002');
+
+        $this->actingAs($supervisor)
+            ->delete(route('loans.destroy', $loan))
+            ->assertForbidden();
+
+        $this->assertDatabaseHas('loans', [
+            'id' => $loan->id,
+            'deleted_at' => null,
+        ]);
+    }
+
     private function adminUser(): User
     {
         $this->seed(RolePermissionSeeder::class);
@@ -276,6 +356,22 @@ class LoanManagementTest extends TestCase
 
         app(PermissionRegistrar::class)->setPermissionsTeamId($company->id);
         $user->assignRole('Administrador');
+
+        return $user;
+    }
+
+    private function userWithRole(int $companyId, string $role): User
+    {
+        $user = User::query()->create([
+            'company_id' => $companyId,
+            'name' => $role.' Test',
+            'email' => fake()->unique()->safeEmail(),
+            'password' => Hash::make('Password123!'),
+            'status' => 'active',
+        ]);
+
+        app(PermissionRegistrar::class)->setPermissionsTeamId($companyId);
+        $user->assignRole(Role::query()->where('name', $role)->firstOrFail());
 
         return $user;
     }

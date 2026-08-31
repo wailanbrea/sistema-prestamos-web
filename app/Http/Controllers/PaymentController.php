@@ -8,6 +8,7 @@ use App\Http\Requests\Payments\CancelPaymentRequest;
 use App\Http\Requests\Payments\StorePaymentRequest;
 use App\Models\Collector;
 use App\Models\Loan;
+use App\Models\Payment;
 use App\Services\Notifications\EventNotifier;
 use App\Services\Payments\PaymentReceiptShareService;
 use App\Services\Payments\PaymentService;
@@ -83,7 +84,7 @@ class PaymentController extends Controller
     public function show(Request $request, int $payment): View
     {
         return view('payments.show', [
-            'payment' => $this->paymentService->findForCompany((int) $request->user()->company_id, $payment),
+            'payment' => $this->visiblePayment($request, $payment),
         ]);
     }
 
@@ -123,7 +124,7 @@ class PaymentController extends Controller
 
     public function openWhatsapp(Request $request, int $payment): RedirectResponse
     {
-        $model = $this->paymentService->findForCompany((int) $request->user()->company_id, $payment);
+        $model = $this->visiblePayment($request, $payment);
         $shareData = $this->receiptShareService->shareData($model, (int) $request->user()->id);
 
         if (! $shareData['whatsapp_url']) {
@@ -131,6 +132,38 @@ class PaymentController extends Controller
         }
 
         return redirect()->away($shareData['whatsapp_url']);
+    }
+
+    private function visiblePayment(Request $request, int $payment): Payment
+    {
+        $companyId = (int) $request->user()->company_id;
+
+        if ($request->user()->can('payments.create')) {
+            return $this->paymentService->findForCompany($companyId, $payment);
+        }
+
+        abort_unless($request->user()->can('collector.access'), 403);
+
+        $collector = Collector::query()
+            ->forCompany($companyId)
+            ->where('user_id', $request->user()->id)
+            ->where('status', 'active')
+            ->firstOrFail();
+
+        return Payment::query()
+            ->with([
+                'client:id,full_name,identification,phone',
+                'loan:id,loan_number,principal_amount,total_amount,remaining_balance,status,currency,collector_id',
+                'collector:id,name',
+                'cancelledBy:id,name',
+                'targetInstallment:id,installment_number',
+                'details.installment:id,installment_number,due_date,interest_amount,paid_interest',
+            ])
+            ->forCompany($companyId)
+            ->where('collector_id', $collector->id)
+            ->whereHas('loan', fn ($query) => $query->where('collector_id', $collector->id))
+            ->whereKey($payment)
+            ->firstOrFail();
     }
 
     /**

@@ -41,6 +41,16 @@ class LoanService
             ->withQueryString();
     }
 
+    public function paginateDeletedForCompany(int $companyId): LengthAwarePaginator
+    {
+        return Loan::query()
+            ->onlyTrashed()
+            ->with(['client' => fn ($query) => $query->withTrashed(), 'collector'])
+            ->forCompany($companyId)
+            ->latest('deleted_at')
+            ->paginate(15);
+    }
+
     /**
      * Resumen de cartera para las tarjetas de la pantalla de préstamos.
      * Respeta los mismos filtros (estado/cliente) que el listado.
@@ -232,6 +242,16 @@ class LoanService
                     ->orderByDesc('payment_date')
                     ->orderByDesc('id'),
             ])
+            ->forCompany($companyId)
+            ->whereKey($loanId)
+            ->firstOrFail();
+    }
+
+    public function findDeletedForCompany(int $companyId, int $loanId): Loan
+    {
+        return Loan::query()
+            ->onlyTrashed()
+            ->with(['client' => fn ($query) => $query->withTrashed(), 'collector'])
             ->forCompany($companyId)
             ->whereKey($loanId)
             ->firstOrFail();
@@ -659,26 +679,13 @@ class LoanService
     }
 
     /**
-     * Anula (soft delete) un préstamo sin pagos válidos, revirtiendo el desembolso en caja.
+     * Envía el préstamo a papelera y conserva sus cuotas, pagos y documentos
+     * para que pueda recuperarse completo.
      */
     public function delete(int $companyId, ?int $userId, Loan $loan): void
     {
         DB::transaction(function () use ($companyId, $userId, $loan): void {
             $loan = Loan::query()->forCompany($companyId)->whereKey($loan->id)->lockForUpdate()->firstOrFail();
-
-            if ($loan->payments()->where('status', 'valid')->exists()) {
-                throw new InvalidArgumentException('No se puede eliminar un préstamo con pagos registrados. Anula los pagos primero.');
-            }
-
-            $this->cashMovementService->create(
-                companyId: $companyId,
-                type: 'adjustment',
-                amount: (float) $loan->principal_amount,
-                direction: 'in',
-                reference: $loan,
-                description: "Reverso por anulación de préstamo {$loan->loan_number}",
-                createdBy: $userId,
-            );
 
             $this->auditService->record(
                 action: 'loan_deleted',
@@ -686,12 +693,37 @@ class LoanService
                 companyId: $companyId,
                 userId: $userId,
                 auditable: $loan,
-                description: "Préstamo {$loan->loan_number} anulado.",
+                description: "Préstamo {$loan->loan_number} enviado a papelera.",
                 oldValues: $loan->toArray(),
             );
 
-            $loan->installments()->delete();
             $loan->delete();
+        });
+    }
+
+    public function restore(int $companyId, ?int $userId, Loan $loan): Loan
+    {
+        return DB::transaction(function () use ($companyId, $userId, $loan): Loan {
+            $loan = Loan::query()
+                ->onlyTrashed()
+                ->forCompany($companyId)
+                ->whereKey($loan->id)
+                ->lockForUpdate()
+                ->firstOrFail();
+
+            $loan->restore();
+
+            $this->auditService->record(
+                action: 'loan_restored',
+                module: 'loans',
+                companyId: $companyId,
+                userId: $userId,
+                auditable: $loan,
+                description: "Préstamo {$loan->loan_number} restaurado.",
+                newValues: $loan->fresh()?->toArray(),
+            );
+
+            return $loan->fresh(['client', 'collector', 'installments']) ?? $loan;
         });
     }
 

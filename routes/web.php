@@ -57,7 +57,7 @@ Route::post('/logout', [AuthenticatedSessionController::class, 'destroy'])
 
 Route::middleware(['auth', 'user.active', 'company.active', 'permission.company', 'menu.visible'])->group(function (): void {
     Route::redirect('/', '/dashboard');
-    Route::get('/dashboard', DashboardController::class)->middleware('permission:dashboard.view')->name('dashboard');
+    Route::get('/dashboard', DashboardController::class)->middleware('permission:dashboard.view|collector.access')->name('dashboard');
 
     Route::prefix('clientes')->name('clients.')->controller(ClientController::class)->group(function (): void {
         Route::get('/', 'index')->middleware('permission:clients.view')->name('index');
@@ -86,6 +86,8 @@ Route::middleware(['auth', 'user.active', 'company.active', 'permission.company'
         Route::get('/crear', 'create')->middleware('permission:loans.create')->name('create');
         Route::post('/', 'store')->middleware('permission:loans.create')->name('store');
         Route::post('/preview', 'preview')->middleware('permission:loans.create')->name('preview');
+        Route::get('/eliminados', 'trashed')->middleware('permission:loans.delete')->name('trashed');
+        Route::post('/{loan}/recuperar', 'restore')->whereNumber('loan')->middleware('permission:loans.delete')->name('restore');
         Route::get('/{loan}', 'show')->whereNumber('loan')->middleware('permission:loans.view')->name('show');
         Route::get('/{loan}/editar', 'edit')->whereNumber('loan')->middleware('permission:loans.update')->name('edit');
         Route::put('/{loan}', 'update')->whereNumber('loan')->middleware('permission:loans.update')->name('update');
@@ -98,14 +100,16 @@ Route::middleware(['auth', 'user.active', 'company.active', 'permission.company'
         ->whereNumber('loan')
         ->middleware('permission:documents.generate')
         ->name('loans.documents.generate');
-    Route::prefix('cobros')->name('payments.')->controller(PaymentController::class)->middleware('permission:payments.create')->group(function (): void {
-        Route::get('/', 'index')->name('index');
-        Route::get('/crear', 'create')->name('create');
-        Route::post('/', 'store')->name('store');
-        Route::get('/prestamo/{loan}/cuotas', 'installments')->whereNumber('loan')->name('loan-installments');
-        Route::get('/{payment}', 'show')->whereNumber('payment')->name('show');
-        Route::get('/{payment}/whatsapp', 'openWhatsapp')->whereNumber('payment')->name('whatsapp');
-        Route::post('/{payment}/anular', 'cancel')->whereNumber('payment')->middleware('permission:payments.cancel')->name('cancel');
+    Route::prefix('cobros')->name('payments.')->controller(PaymentController::class)->group(function (): void {
+        Route::middleware('permission:payments.create')->group(function (): void {
+            Route::get('/', 'index')->name('index');
+            Route::get('/crear', 'create')->name('create');
+            Route::post('/', 'store')->name('store');
+            Route::get('/prestamo/{loan}/cuotas', 'installments')->whereNumber('loan')->name('loan-installments');
+            Route::post('/{payment}/anular', 'cancel')->whereNumber('payment')->middleware('permission:payments.cancel')->name('cancel');
+        });
+        Route::get('/{payment}', 'show')->whereNumber('payment')->middleware('permission:payments.create|collector.access')->name('show');
+        Route::get('/{payment}/whatsapp', 'openWhatsapp')->whereNumber('payment')->middleware('permission:payments.create|collector.access')->name('whatsapp');
     });
     Route::prefix('cuentas-por-pagar')->name('accounts-payable.')->controller(AccountPayableController::class)->middleware('permission:accounts-payable.manage')->group(function (): void {
         Route::get('/', 'index')->name('index');
