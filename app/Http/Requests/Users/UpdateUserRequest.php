@@ -30,6 +30,7 @@ class UpdateUserRequest extends FormRequest
             'password' => ['nullable', 'confirmed', Password::min(10)->mixedCase()->numbers()],
             'status' => ['required', Rule::in(['active', 'blocked'])],
             'role' => ['required', Rule::exists('roles', 'name')->where('guard_name', 'web')],
+            'is_demo' => ['nullable', 'boolean'],
             'visible_menus' => ['nullable', 'array'],
             'visible_menus.*' => [Rule::in(MenuAccess::selectableRoutes())],
         ];

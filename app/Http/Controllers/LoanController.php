@@ -37,9 +37,15 @@ class LoanController extends Controller
         $companyId = (int) $request->user()->company_id;
 
         $filters = $request->only(['status', 'client_id', 'show_all', 'q']);
+        $loans = $this->loanService->paginateForCompany($companyId, $filters);
+
+        // La columna histórica guarda solo capital; la vista debe presentar la deuda completa.
+        $loans->getCollection()->each(function ($loan): void {
+            $loan->setAttribute('remaining_balance', $loan->totalPendingBalance());
+        });
 
         return view('loans.index', [
-            'loans' => $this->loanService->paginateForCompany($companyId, $filters),
+            'loans' => $loans,
             'summary' => $this->loanService->summaryForCompany($companyId, $filters),
             'clients' => Client::query()->forCompany($companyId)->orderBy('full_name')->get(['id', 'full_name']),
             'filters' => $filters,
@@ -110,7 +116,9 @@ class LoanController extends Controller
         $principalCollected = (float) $validPayments->sum('principal_paid') + (float) $validPayments->sum('capital_prepaid');
         $interestCollected = (float) $validPayments->sum('interest_paid');
         $lateFeeCollected = (float) $validPayments->sum('late_fee_paid');
-        $principalPending = max(0, (float) $model->principal_amount - $principalCollected);
+        $principalPending = $model->pendingPrincipal();
+        $interestPending = $model->pendingInterest();
+        $lateFeePending = $model->pendingLateFee();
         $principalRecoveryRate = (float) $model->principal_amount > 0
             ? min(100, round(($principalCollected / (float) $model->principal_amount) * 100, 2))
             : 0.0;
@@ -129,6 +137,8 @@ class LoanController extends Controller
         $overdueLateFee = (float) $overdueInstallments->sum(
             fn ($installment) => max(0, (float) $installment->late_fee - (float) $installment->paid_late_fee),
         );
+        $totalPendingBalance = round($principalPending + $interestPending + $lateFeePending, 2);
+        $model->setAttribute('remaining_balance', $totalPendingBalance);
 
         return view('loans.show', [
             'loan' => $model,
@@ -137,8 +147,10 @@ class LoanController extends Controller
                 'principal_pending' => $principalPending,
                 'principal_recovery_rate' => $principalRecoveryRate,
                 'interest_collected' => $interestCollected,
-                'interest_pending' => max(0, (float) $model->total_interest - $interestCollected),
+                'interest_pending' => $interestPending,
                 'late_fee_collected' => $lateFeeCollected,
+                'late_fee_pending' => $lateFeePending,
+                'total_pending_balance' => $totalPendingBalance,
                 'overdue_total' => $overdueTotal,
                 'overdue_count' => $overdueInstallments->count(),
                 'overdue_late_fee' => $overdueLateFee,

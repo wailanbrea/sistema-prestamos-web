@@ -98,6 +98,10 @@ trait BuildsApiPayloads
                 'amount_due_today' => (float) $loan->getAttribute('amount_due_today'),
             ]
             : [];
+        $pendingPrincipal = $loan->pendingPrincipal();
+        $pendingInterest = $loan->pendingInterest();
+        $pendingLateFee = $loan->pendingLateFee();
+        $totalPendingBalance = round($pendingPrincipal + $pendingInterest + $pendingLateFee, 2);
 
         return [
             ...$dueSummary,
@@ -115,7 +119,12 @@ trait BuildsApiPayloads
             'paid_principal' => (float) $loan->paid_principal,
             'paid_interest' => (float) $loan->paid_interest,
             'paid_late_fee' => (float) $loan->paid_late_fee,
-            'remaining_balance' => (float) $loan->remaining_balance,
+            'remaining_principal' => $pendingPrincipal,
+            'pending_principal' => $pendingPrincipal,
+            'pending_interest' => $pendingInterest,
+            'pending_late_fee' => $pendingLateFee,
+            'total_pending_balance' => $totalPendingBalance,
+            'remaining_balance' => $totalPendingBalance,
             'payment_frequency' => $loan->payment_frequency,
             'status' => $loan->status,
             'start_date' => $loan->start_date?->toDateString(),

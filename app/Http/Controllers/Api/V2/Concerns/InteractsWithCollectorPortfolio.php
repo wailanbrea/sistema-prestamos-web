@@ -95,14 +95,22 @@ trait InteractsWithCollectorPortfolio
             ->whereHas('loan', fn (Builder $query): Builder => $query->where('client_id', $clientId));
 
         $openLoanQuery = (clone $loanQuery)->whereIn('status', ['active', 'late']);
+        $remainingPrincipal = max(0.0, (float) (clone $openLoanQuery)->sum('remaining_balance'));
+        $pendingInterest = max(0.0, (float) (clone $openLoanQuery)->sum(DB::raw('total_interest - paid_interest')));
+        $pendingLateFee = max(0.0, (float) (clone $pendingInstallmentQuery)->sum(DB::raw(
+            'case when late_fee - paid_late_fee > 0 then late_fee - paid_late_fee else 0 end',
+        )));
 
         return [
             'active_loans' => (clone $openLoanQuery)->count(),
             'late_loans' => (clone $loanQuery)->where('status', 'late')->count(),
             'total_principal' => (float) (clone $loanQuery)->sum('principal_amount'),
-            'remaining_balance' => (float) (clone $loanQuery)->sum('remaining_balance'),
-            'pending_principal' => max(0.0, (float) (clone $openLoanQuery)->sum(DB::raw('principal_amount - paid_principal'))),
-            'pending_interest' => max(0.0, (float) (clone $openLoanQuery)->sum(DB::raw('total_interest - paid_interest'))),
+            'remaining_principal' => $remainingPrincipal,
+            'pending_principal' => $remainingPrincipal,
+            'pending_interest' => $pendingInterest,
+            'pending_late_fee' => $pendingLateFee,
+            'remaining_balance' => $remainingPrincipal,
+            'total_pending_balance' => round($remainingPrincipal + $pendingInterest + $pendingLateFee, 2),
             'pending_installments' => (clone $pendingInstallmentQuery)->count(),
             'late_installments' => (clone $pendingInstallmentQuery)->where('status', 'late')->count(),
             'max_days_late' => (int) (clone $pendingInstallmentQuery)->max('days_late'),

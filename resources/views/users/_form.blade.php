@@ -59,6 +59,22 @@
         <input id="password_confirmation" name="password_confirmation" type="password" class="form-control" @if(! isset($managedUser)) required @endif>
     </div>
 
+    <div class="col-12 col-md-6">
+        <div class="border rounded-3 p-3 bg-light h-100 d-flex flex-column justify-content-center">
+            <div class="form-check form-switch mb-1">
+                <input type="hidden" name="is_demo" value="0">
+                <input class="form-check-input" type="checkbox" role="switch" id="is_demo" name="is_demo" value="1"
+                    @checked(old('is_demo', isset($managedUser) ? $managedUser->is_demo : false))>
+                <label class="form-check-label fw-semibold" for="is_demo">
+                    <i class="fa-solid fa-shield-halved text-warning me-1"></i> Cuenta Demo (Solo Lectura)
+                </label>
+            </div>
+            <div class="text-muted small">
+                El usuario solo podrá consultar datos; se bloqueará la creación, edición y eliminación de cualquier registro.
+            </div>
+        </div>
+    </div>
+
     <div class="col-12 mt-2">
         @php $visibleMenus = old('visible_menus', isset($managedUser) ? $managedUser->visible_menus : null); @endphp
         <label class="form-label mb-1">Menús visibles</label>

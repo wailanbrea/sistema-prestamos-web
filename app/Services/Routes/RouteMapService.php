@@ -6,6 +6,7 @@ namespace App\Services\Routes;
 
 use App\Models\Client;
 use App\Models\Collector;
+use App\Models\LoanInstallment;
 use App\Models\Payment;
 use App\Models\Route as LendingRoute;
 use Illuminate\Database\Eloquent\Collection;
@@ -53,9 +54,22 @@ class RouteMapService
                     ->when($routeId, fn ($routeQuery) => $routeQuery->where('routes.id', $routeId));
             })
             ->withSum(['loans as active_balance' => fn ($query) => $query->whereIn('status', ['active', 'late'])], 'remaining_balance')
+            ->withSum(['loans as active_interest_total' => fn ($query) => $query->whereIn('status', ['active', 'late'])], 'total_interest')
+            ->withSum(['loans as active_interest_paid' => fn ($query) => $query->whereIn('status', ['active', 'late'])], 'paid_interest')
             ->withCount(['loans as late_loans_count' => fn ($query) => $query->where('status', 'late')])
             ->orderBy('full_name')
             ->get();
+
+        $pendingLateFees = LoanInstallment::query()
+            ->join('loans', 'loans.id', '=', 'loan_installments.loan_id')
+            ->where('loans.company_id', $companyId)
+            ->whereNull('loans.deleted_at')
+            ->whereIn('loans.status', ['active', 'late'])
+            ->whereIn('loans.client_id', $clients->pluck('id'))
+            ->where('loan_installments.status', '!=', 'cancelled')
+            ->selectRaw('loans.client_id, coalesce(sum(case when loan_installments.late_fee - loan_installments.paid_late_fee > 0 then loan_installments.late_fee - loan_installments.paid_late_fee else 0 end), 0) as pending_late_fee')
+            ->groupBy('loans.client_id')
+            ->pluck('pending_late_fee', 'loans.client_id');
 
         $paidByClient = Payment::query()
             ->forCompany($companyId)
@@ -66,8 +80,14 @@ class RouteMapService
             ->pluck('total_paid', 'client_id');
 
         $clientRows = $clients
-            ->map(function (Client $client) use ($paidByClient): array {
-                $balance = (float) ($client->active_balance ?? 0);
+            ->map(function (Client $client) use ($paidByClient, $pendingLateFees): array {
+                $remainingPrincipal = (float) ($client->active_balance ?? 0);
+                $pendingInterest = max(
+                    0,
+                    (float) ($client->active_interest_total ?? 0) - (float) ($client->active_interest_paid ?? 0),
+                );
+                $pendingLateFee = (float) ($pendingLateFees[$client->id] ?? 0);
+                $balance = round($remainingPrincipal + $pendingInterest + $pendingLateFee, 2);
                 $totalPaid = (float) ($paidByClient[$client->id] ?? 0);
 
                 return [
@@ -80,6 +100,9 @@ class RouteMapService
                     'location_reference' => $client->location_reference,
                     'status' => $client->status,
                     'risk_level' => $client->risk_level,
+                    'remaining_principal' => $remainingPrincipal,
+                    'pending_interest' => $pendingInterest,
+                    'pending_late_fee' => $pendingLateFee,
                     'remaining_balance' => $balance,
                     'total_paid' => $totalPaid,
                     'late_loans_count' => (int) $client->late_loans_count,

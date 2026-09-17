@@ -66,11 +66,48 @@ class Loan extends Model
         return $this->hasMany(Contract::class);
     }
 
+    public function pendingPrincipal(): float
+    {
+        return max(0, (float) $this->remaining_balance);
+    }
+
+    public function pendingInterest(): float
+    {
+        return max(0, (float) $this->total_interest - (float) $this->paid_interest);
+    }
+
+    public function pendingLateFee(): float
+    {
+        if (array_key_exists('pending_late_fee', $this->getAttributes())) {
+            return max(0, (float) $this->getAttribute('pending_late_fee'));
+        }
+
+        if ($this->relationLoaded('installments')) {
+            return (float) $this->installments
+                ->where('status', '!=', 'cancelled')
+                ->sum(fn (LoanInstallment $installment): float => max(
+                    0,
+                    (float) $installment->late_fee - (float) $installment->paid_late_fee,
+                ));
+        }
+
+        return (float) $this->installments()
+            ->where('status', '!=', 'cancelled')
+            ->selectRaw('coalesce(sum(case when late_fee - paid_late_fee > 0 then late_fee - paid_late_fee else 0 end), 0) as pending_late_fee')
+            ->value('pending_late_fee');
+    }
+
+    public function totalPendingBalance(): float
+    {
+        return round($this->pendingPrincipal() + $this->pendingInterest() + $this->pendingLateFee(), 2);
+    }
+
     /**
      * Adjunta como columnas calculadas el resumen de cuotas vencidas:
      * `overdue_installments_count`, `overdue_amount_due` (vencidas a ayer)
-     * y `amount_due_today` (vencidas incluyendo la cuota de hoy). Se usa en
-     * los listados (web y API) para mostrar deuda sin cargar las cuotas.
+     * y `amount_due_today` (vencidas incluyendo la cuota de hoy), además de
+     * `pending_late_fee`. Se usa en los listados (web y API) para mostrar
+     * deuda sin cargar las cuotas.
      */
     public function scopeWithDueSummary(Builder $query): Builder
     {
@@ -107,6 +144,12 @@ class Loan extends Model
                     ->whereNotIn('status', ['paid', 'cancelled'])
                     ->whereDate('due_date', '<=', $today)
                     ->whereRaw($hasPendingAmountSql);
-            }, 'amount_due_today');
+            }, 'amount_due_today')
+            ->selectSub(function ($query) use ($pendingLateFeeSql): void {
+                $query->from('loan_installments')
+                    ->selectRaw("coalesce(sum({$pendingLateFeeSql}), 0)")
+                    ->whereColumn('loan_installments.loan_id', 'loans.id')
+                    ->where('status', '!=', 'cancelled');
+            }, 'pending_late_fee');
     }
 }

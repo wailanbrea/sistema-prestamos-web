@@ -47,6 +47,7 @@ class UserService
             $role = $data['role'];
             unset($data['role'], $data['password_confirmation']);
             $data['company_id'] = $companyId;
+            $data['is_demo'] = (bool) ($data['is_demo'] ?? false);
             $data['visible_menus'] = $this->normalizeVisibleMenus($data['visible_menus'] ?? []);
 
             $user = User::query()->create($data);
@@ -86,6 +87,7 @@ class UserService
                 unset($data['password']);
             }
 
+            $data['is_demo'] = (bool) ($data['is_demo'] ?? false);
             $data['visible_menus'] = $this->normalizeVisibleMenus($data['visible_menus'] ?? []);
 
             $oldValues = $user->toArray();

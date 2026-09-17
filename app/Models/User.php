@@ -31,6 +31,7 @@ class User extends Authenticatable
         'phone',
         'password',
         'status',
+        'is_demo',
         'visible_menus',
         'last_login_at',
     ];
@@ -58,6 +59,7 @@ class User extends Authenticatable
             'password' => 'hashed',
             'visible_menus' => 'array',
             'is_system_owner' => 'boolean',
+            'is_demo' => 'boolean',
         ];
     }
 
@@ -75,6 +77,19 @@ class User extends Authenticatable
     public function isSystemOwner(): bool
     {
         return (bool) $this->is_system_owner;
+    }
+
+    /**
+     * Indica si el usuario pertenece a una cuenta demo (solo lectura).
+     * Los dueños del sistema nunca son considerados demo.
+     */
+    public function isDemo(): bool
+    {
+        if ($this->isSystemOwner()) {
+            return false;
+        }
+
+        return (bool) $this->is_demo;
     }
 
     public function auditLogs(): HasMany

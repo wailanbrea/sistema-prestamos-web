@@ -69,7 +69,8 @@ class LoanService
             ->selectRaw("coalesce(sum(case when status = 'pending' then 1 else 0 end), 0) as pending")
             ->selectRaw("coalesce(sum(case when status = 'paid' then 1 else 0 end), 0) as paid")
             ->selectRaw('coalesce(sum(principal_amount), 0) as principal_total')
-            ->selectRaw('coalesce(sum(remaining_balance), 0) as balance_total')
+            ->selectRaw('coalesce(sum(remaining_balance), 0) as principal_balance_total')
+            ->selectRaw('coalesce(sum(case when total_interest - paid_interest > 0 then total_interest - paid_interest else 0 end), 0) as interest_balance_total')
             ->first();
 
         // Cuotas vencidas y mora pendiente sobre los mismos préstamos filtrados.
@@ -96,7 +97,11 @@ class LoanService
             'pending' => (int) ($row->pending ?? 0),
             'paid' => (int) ($row->paid ?? 0),
             'principal_total' => (float) ($row->principal_total ?? 0),
-            'balance_total' => (float) ($row->balance_total ?? 0),
+            'principal_balance_total' => (float) ($row->principal_balance_total ?? 0),
+            'interest_balance_total' => (float) ($row->interest_balance_total ?? 0),
+            'balance_total' => (float) ($row->principal_balance_total ?? 0)
+                + (float) ($row->interest_balance_total ?? 0)
+                + (float) ($installments->late_fee_pending ?? 0),
             'overdue_installments' => (int) ($installments->overdue_count ?? 0),
             'late_fee_pending' => (float) ($installments->late_fee_pending ?? 0),
         ];

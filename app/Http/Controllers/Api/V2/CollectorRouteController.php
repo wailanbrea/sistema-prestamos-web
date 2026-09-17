@@ -236,6 +236,7 @@ class CollectorRouteController extends Controller
             ->firstOrFail();
 
         $loans = $this->assignedLoanQuery($collector)
+            ->withDueSummary()
             ->with('client:id,code,full_name,identification,phone,address,status,risk_level')
             ->where('client_id', $clientModel->id)
             ->orderByRaw("case when status in ('active', 'late') then 0 else 1 end")

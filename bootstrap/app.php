@@ -1,9 +1,18 @@
 <?php
 
+use App\Http\Middleware\EnsureCompanyIsActive;
+use App\Http\Middleware\EnsureMenuIsVisible;
+use App\Http\Middleware\EnsureUserIsActive;
+use App\Http\Middleware\PreventDemoModifications;
+use App\Http\Middleware\ServiceTerminated;
+use App\Http\Middleware\SetPermissionCompanyContext;
 use Illuminate\Foundation\Application;
 use Illuminate\Foundation\Configuration\Exceptions;
 use Illuminate\Foundation\Configuration\Middleware;
 use Illuminate\Http\Request;
+use Spatie\Permission\Middleware\PermissionMiddleware;
+use Spatie\Permission\Middleware\RoleMiddleware;
+use Spatie\Permission\Middleware\RoleOrPermissionMiddleware;
 use Symfony\Component\HttpKernel\Exception\HttpException;
 
 return Application::configure(basePath: dirname(__DIR__))
@@ -26,16 +35,17 @@ return Application::configure(basePath: dirname(__DIR__))
             | Request::HEADER_X_FORWARDED_PROTO
             | Request::HEADER_X_FORWARDED_AWS_ELB);
 
-        $middleware->append(\App\Http\Middleware\ServiceTerminated::class);
+        $middleware->append(ServiceTerminated::class);
 
         $middleware->alias([
-            'company.active' => \App\Http\Middleware\EnsureCompanyIsActive::class,
-            'menu.visible' => \App\Http\Middleware\EnsureMenuIsVisible::class,
-            'permission' => \Spatie\Permission\Middleware\PermissionMiddleware::class,
-            'permission.company' => \App\Http\Middleware\SetPermissionCompanyContext::class,
-            'role' => \Spatie\Permission\Middleware\RoleMiddleware::class,
-            'role_or_permission' => \Spatie\Permission\Middleware\RoleOrPermissionMiddleware::class,
-            'user.active' => \App\Http\Middleware\EnsureUserIsActive::class,
+            'company.active' => EnsureCompanyIsActive::class,
+            'menu.visible' => EnsureMenuIsVisible::class,
+            'permission' => PermissionMiddleware::class,
+            'permission.company' => SetPermissionCompanyContext::class,
+            'role' => RoleMiddleware::class,
+            'role_or_permission' => RoleOrPermissionMiddleware::class,
+            'user.active' => EnsureUserIsActive::class,
+            'demo.protect' => PreventDemoModifications::class,
         ]);
     })
     ->withExceptions(function (Exceptions $exceptions): void {

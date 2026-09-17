@@ -552,7 +552,12 @@
                 </div>
 
                 <div class="text-end d-none d-sm-block">
-                    <div class="fw-semibold" style="font-size:.88rem;">{{ auth()->user()->name }}</div>
+                    <div class="fw-semibold d-flex align-items-center justify-content-end gap-1" style="font-size:.88rem;">
+                        {{ auth()->user()->name }}
+                        @if (auth()->user()?->isDemo())
+                            <span class="badge bg-warning text-dark" style="font-size:.68rem; font-weight:700;">DEMO</span>
+                        @endif
+                    </div>
                     <div class="text-muted" style="font-size:.75rem;">{{ auth()->user()->email }}</div>
                 </div>
 
@@ -586,6 +591,15 @@
                 </div>
             @endif
         @endforeach
+
+        @if (auth()->user()?->isDemo())
+            <div class="alert alert-warning border-0 shadow-sm d-flex align-items-center gap-2 mb-4 py-2 px-3" style="background-color: #fff3cd; color: #664d03; border-radius: 10px;" role="alert">
+                <i class="fa-solid fa-triangle-exclamation fs-5 flex-shrink-0"></i>
+                <div style="font-size: .88rem;">
+                    <strong>Modo Demostración (Solo Lectura):</strong> Has iniciado sesión con una cuenta demo. Las acciones para <strong>crear, editar o eliminar</strong> registros están deshabilitadas.
+                </div>
+            </div>
+        @endif
 
         @yield('content')
     </main>

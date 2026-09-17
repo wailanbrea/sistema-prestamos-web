@@ -23,7 +23,10 @@
         <tr><th>Interes total</th><td class="right">{{ $currencyCode }} {{ number_format((float) $loan->total_interest, 2) }}</td></tr>
         <tr><th>Total del prestamo</th><td class="right">{{ $currencyCode }} {{ number_format((float) $loan->total_amount, 2) }}</td></tr>
         <tr><th>Total cobrado</th><td class="right">{{ $currencyCode }} {{ number_format((float) $loan->payments->sum('amount'), 2) }}</td></tr>
-        <tr><th>Balance pendiente</th><td class="right">{{ $currencyCode }} {{ number_format((float) $loan->remaining_balance, 2) }}</td></tr>
+        <tr><th>Capital pendiente</th><td class="right">{{ $currencyCode }} {{ number_format($loan->pendingPrincipal(), 2) }}</td></tr>
+        <tr><th>Interés pendiente</th><td class="right">{{ $currencyCode }} {{ number_format($loan->pendingInterest(), 2) }}</td></tr>
+        <tr><th>Mora pendiente</th><td class="right">{{ $currencyCode }} {{ number_format($loan->pendingLateFee(), 2) }}</td></tr>
+        <tr><th>Deuda total</th><td class="right"><strong>{{ $currencyCode }} {{ number_format($loan->totalPendingBalance(), 2) }}</strong></td></tr>
     </table>
 
     <h2>Cuotas</h2>
@@ -59,7 +62,7 @@
                 <th class="right">Monto</th>
                 <th class="right">Capital</th>
                 <th class="right">Interes</th>
-                <th class="right">Balance</th>
+                <th class="right">Capital pendiente</th>
             </tr>
         </thead>
         <tbody>

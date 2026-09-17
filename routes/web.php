@@ -1,7 +1,7 @@
 <?php
 
-use App\Http\Controllers\Auth\AuthenticatedSessionController;
 use App\Http\Controllers\AccountPayableController;
+use App\Http\Controllers\Auth\AuthenticatedSessionController;
 use App\Http\Controllers\CashMovementController;
 use App\Http\Controllers\ClientController;
 use App\Http\Controllers\ClientRegistrationLinkController;
@@ -14,9 +14,10 @@ use App\Http\Controllers\ExpenseCategoryController;
 use App\Http\Controllers\ExpenseController;
 use App\Http\Controllers\LoanController;
 use App\Http\Controllers\LoanQuoteController;
-use App\Http\Controllers\ModulePlaceholderController;
 use App\Http\Controllers\NotificationController;
 use App\Http\Controllers\PaymentController;
+use App\Http\Controllers\Public\ContractSigningController;
+use App\Http\Controllers\Public\PublicReportController;
 use App\Http\Controllers\ReportController;
 use App\Http\Controllers\RoleController;
 use App\Http\Controllers\RouteController;
@@ -37,13 +38,13 @@ Route::get('/recibos-publicos/{document}/descargar', [DocumentController::class,
     ->name('documents.public-download');
 
 // PDF de reportes para la app móvil (enlace firmado, sin sesión web).
-Route::get('/reportes-publicos/{type}.pdf', [\App\Http\Controllers\Public\PublicReportController::class, 'pdf'])
+Route::get('/reportes-publicos/{type}.pdf', [PublicReportController::class, 'pdf'])
     ->middleware('signed')
     ->name('reports.public-pdf');
 
 // Firma pública de contratos (sin auth). El enlace de firma es una URL firmada
 // con expiración; la verificación por QR es abierta (solo lectura del estado/hash).
-Route::controller(\App\Http\Controllers\Public\ContractSigningController::class)->group(function (): void {
+Route::controller(ContractSigningController::class)->group(function (): void {
     Route::get('/contratos/firmar/{uuid}', 'show')->middleware('signed')->name('contracts.sign');
     Route::post('/contratos/firmar/{uuid}', 'sign')->name('contracts.public.sign');
     Route::get('/contratos/firmar/{uuid}/completado', 'success')->name('contracts.public.success');
@@ -55,7 +56,7 @@ Route::post('/logout', [AuthenticatedSessionController::class, 'destroy'])
     ->middleware('auth')
     ->name('logout');
 
-Route::middleware(['auth', 'user.active', 'company.active', 'permission.company', 'menu.visible'])->group(function (): void {
+Route::middleware(['auth', 'user.active', 'company.active', 'permission.company', 'menu.visible', 'demo.protect'])->group(function (): void {
     Route::redirect('/', '/dashboard');
     Route::get('/dashboard', DashboardController::class)->middleware('permission:dashboard.view|collector.access')->name('dashboard');
 

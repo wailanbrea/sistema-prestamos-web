@@ -22,7 +22,7 @@ Route::prefix('v2')->name('api.v2.')->group(function (): void {
     Route::post('/auth/forgot-password', [AuthController::class, 'forgotPassword'])->name('auth.forgot-password');
     Route::post('/auth/reset-password', [AuthController::class, 'resetPassword'])->name('auth.reset-password');
 
-    Route::middleware(['auth:sanctum', 'user.active', 'company.active', 'permission.company'])->group(function (): void {
+    Route::middleware(['auth:sanctum', 'user.active', 'company.active', 'permission.company', 'demo.protect'])->group(function (): void {
         Route::post('/auth/logout', [AuthController::class, 'logout'])->name('auth.logout');
         Route::get('/me', [AuthController::class, 'me'])->name('me');
         Route::get('/dashboard', DashboardController::class)->middleware('permission:dashboard.view')->name('dashboard');
